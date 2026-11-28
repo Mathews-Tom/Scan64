@@ -1,0 +1,1442 @@
+{
+ "f001": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-31",
+  "n": 0
+ },
+ "f002": {
+  "arm": "default",
+  "set": "board",
+  "test": "H3-stalemate",
+  "n": 2
+ },
+ "f003": {
+  "arm": "default",
+  "set": "benchmark",
+  "test": "H5-allowed-fork",
+  "n": 2
+ },
+ "f004": {
+  "arm": "tuned",
+  "set": "benchmark",
+  "test": "H1-missed-mate",
+  "n": 4
+ },
+ "f005": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-16",
+  "n": 0
+ },
+ "f006": {
+  "arm": "base",
+  "set": "benchmark",
+  "test": "H1-missed-mate",
+  "n": 1
+ },
+ "f007": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-39",
+  "n": 0
+ },
+ "f008": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-28",
+  "n": 0
+ },
+ "f009": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-43",
+  "n": 0
+ },
+ "f010": {
+  "arm": "base",
+  "set": "benchmark",
+  "test": "H3-stalemate",
+  "n": 2
+ },
+ "f011": {
+  "arm": "tuned",
+  "set": "board",
+  "test": "H4-pin",
+  "n": 2
+ },
+ "f012": {
+  "arm": "tuned",
+  "set": "board",
+  "test": "H1-missed-mate",
+  "n": 0
+ },
+ "f013": {
+  "arm": "base",
+  "set": "board",
+  "test": "H4-pin",
+  "n": 0
+ },
+ "f014": {
+  "arm": "tuned",
+  "set": "benchmark",
+  "test": "H4-pin",
+  "n": 2
+ },
+ "f015": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-48",
+  "n": 0
+ },
+ "f016": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-60",
+  "n": 0
+ },
+ "f017": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-2",
+  "n": 0
+ },
+ "f018": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-14",
+  "n": 0
+ },
+ "f019": {
+  "arm": "tuned",
+  "set": "benchmark",
+  "test": "H5-allowed-fork",
+  "n": 3
+ },
+ "f020": {
+  "arm": "phrase-bank",
+  "set": "benchmark",
+  "test": "H5-allowed-fork",
+  "n": 0
+ },
+ "f021": {
+  "arm": "tuned",
+  "set": "benchmark",
+  "test": "H5-allowed-fork",
+  "n": 0
+ },
+ "f022": {
+  "arm": "tuned",
+  "set": "board",
+  "test": "H5-allowed-fork",
+  "n": 2
+ },
+ "f023": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-44",
+  "n": 0
+ },
+ "f024": {
+  "arm": "base",
+  "set": "benchmark",
+  "test": "H4-pin",
+  "n": 1
+ },
+ "f025": {
+  "arm": "base",
+  "set": "benchmark",
+  "test": "H3-stalemate",
+  "n": 0
+ },
+ "f026": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-34",
+  "n": 0
+ },
+ "f027": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-79",
+  "n": 0
+ },
+ "f028": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-25",
+  "n": 0
+ },
+ "f029": {
+  "arm": "tuned",
+  "set": "benchmark",
+  "test": "H3-stalemate",
+  "n": 0
+ },
+ "f030": {
+  "arm": "tuned",
+  "set": "board",
+  "test": "H4-pin",
+  "n": 0
+ },
+ "f031": {
+  "arm": "base",
+  "set": "benchmark",
+  "test": "H5-allowed-fork",
+  "n": 3
+ },
+ "f032": {
+  "arm": "base",
+  "set": "board",
+  "test": "H3-stalemate",
+  "n": 0
+ },
+ "f033": {
+  "arm": "default",
+  "set": "board",
+  "test": "H1-missed-mate",
+  "n": 3
+ },
+ "f034": {
+  "arm": "tuned",
+  "set": "board",
+  "test": "H3-stalemate",
+  "n": 2
+ },
+ "f035": {
+  "arm": "base",
+  "set": "board",
+  "test": "H4-pin",
+  "n": 1
+ },
+ "f036": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-4",
+  "n": 0
+ },
+ "f037": {
+  "arm": "tuned",
+  "set": "benchmark",
+  "test": "H4-pin",
+  "n": 4
+ },
+ "f038": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-14",
+  "n": 0
+ },
+ "f039": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-2",
+  "n": 0
+ },
+ "f040": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-20",
+  "n": 0
+ },
+ "f041": {
+  "arm": "tuned",
+  "set": "benchmark",
+  "test": "H1-missed-mate",
+  "n": 2
+ },
+ "f042": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-60",
+  "n": 0
+ },
+ "f043": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-33",
+  "n": 0
+ },
+ "f044": {
+  "arm": "default",
+  "set": "benchmark",
+  "test": "H4-pin",
+  "n": 1
+ },
+ "f045": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-25",
+  "n": 0
+ },
+ "f046": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-43",
+  "n": 0
+ },
+ "f047": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-16",
+  "n": 0
+ },
+ "f048": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-20",
+  "n": 0
+ },
+ "f049": {
+  "arm": "tuned",
+  "set": "benchmark",
+  "test": "H5-allowed-fork",
+  "n": 2
+ },
+ "f050": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-33",
+  "n": 0
+ },
+ "f051": {
+  "arm": "base",
+  "set": "board",
+  "test": "H4-pin",
+  "n": 3
+ },
+ "f052": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-20",
+  "n": 0
+ },
+ "f053": {
+  "arm": "default",
+  "set": "benchmark",
+  "test": "H1-missed-mate",
+  "n": 0
+ },
+ "f054": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-16",
+  "n": 0
+ },
+ "f055": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-60",
+  "n": 0
+ },
+ "f056": {
+  "arm": "phrase-bank",
+  "set": "benchmark",
+  "test": "H4-pin",
+  "n": 0
+ },
+ "f057": {
+  "arm": "tuned",
+  "set": "board",
+  "test": "H5-allowed-fork",
+  "n": 1
+ },
+ "f058": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-79",
+  "n": 0
+ },
+ "f059": {
+  "arm": "tuned",
+  "set": "board",
+  "test": "H3-stalemate",
+  "n": 3
+ },
+ "f060": {
+  "arm": "tuned",
+  "set": "benchmark",
+  "test": "H5-allowed-fork",
+  "n": 1
+ },
+ "f061": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-42",
+  "n": 0
+ },
+ "f062": {
+  "arm": "default",
+  "set": "board",
+  "test": "H4-pin",
+  "n": 0
+ },
+ "f063": {
+  "arm": "default",
+  "set": "benchmark",
+  "test": "H4-pin",
+  "n": 4
+ },
+ "f064": {
+  "arm": "default",
+  "set": "board",
+  "test": "H5-allowed-fork",
+  "n": 3
+ },
+ "f065": {
+  "arm": "default",
+  "set": "board",
+  "test": "H5-allowed-fork",
+  "n": 4
+ },
+ "f066": {
+  "arm": "tuned",
+  "set": "board",
+  "test": "H1-missed-mate",
+  "n": 2
+ },
+ "f067": {
+  "arm": "tuned",
+  "set": "board",
+  "test": "H4-pin",
+  "n": 4
+ },
+ "f068": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-30",
+  "n": 0
+ },
+ "f069": {
+  "arm": "default",
+  "set": "board",
+  "test": "H5-allowed-fork",
+  "n": 2
+ },
+ "f070": {
+  "arm": "base",
+  "set": "benchmark",
+  "test": "H1-missed-mate",
+  "n": 3
+ },
+ "f071": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-4",
+  "n": 0
+ },
+ "f072": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-76",
+  "n": 0
+ },
+ "f073": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-4",
+  "n": 0
+ },
+ "f074": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-31",
+  "n": 0
+ },
+ "f075": {
+  "arm": "base",
+  "set": "benchmark",
+  "test": "H3-stalemate",
+  "n": 3
+ },
+ "f076": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-20",
+  "n": 0
+ },
+ "f077": {
+  "arm": "default",
+  "set": "benchmark",
+  "test": "H5-allowed-fork",
+  "n": 0
+ },
+ "f078": {
+  "arm": "tuned",
+  "set": "board",
+  "test": "H5-allowed-fork",
+  "n": 4
+ },
+ "f079": {
+  "arm": "default",
+  "set": "board",
+  "test": "H1-missed-mate",
+  "n": 0
+ },
+ "f080": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-76",
+  "n": 0
+ },
+ "f081": {
+  "arm": "default",
+  "set": "benchmark",
+  "test": "H3-stalemate",
+  "n": 0
+ },
+ "f082": {
+  "arm": "base",
+  "set": "board",
+  "test": "H4-pin",
+  "n": 4
+ },
+ "f083": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-20",
+  "n": 0
+ },
+ "f084": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-16",
+  "n": 0
+ },
+ "f085": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-16",
+  "n": 0
+ },
+ "f086": {
+  "arm": "default",
+  "set": "board",
+  "test": "H4-pin",
+  "n": 4
+ },
+ "f087": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-30",
+  "n": 0
+ },
+ "f088": {
+  "arm": "default",
+  "set": "benchmark",
+  "test": "H4-pin",
+  "n": 0
+ },
+ "f089": {
+  "arm": "base",
+  "set": "board",
+  "test": "H3-stalemate",
+  "n": 4
+ },
+ "f090": {
+  "arm": "base",
+  "set": "benchmark",
+  "test": "H3-stalemate",
+  "n": 4
+ },
+ "f091": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-16",
+  "n": 0
+ },
+ "f092": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-14",
+  "n": 0
+ },
+ "f093": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-12",
+  "n": 0
+ },
+ "f094": {
+  "arm": "tuned",
+  "set": "board",
+  "test": "H5-allowed-fork",
+  "n": 3
+ },
+ "f095": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-25",
+  "n": 0
+ },
+ "f096": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-44",
+  "n": 0
+ },
+ "f097": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-28",
+  "n": 0
+ },
+ "f098": {
+  "arm": "default",
+  "set": "benchmark",
+  "test": "H1-missed-mate",
+  "n": 4
+ },
+ "f099": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-5",
+  "n": 0
+ },
+ "f100": {
+  "arm": "tuned",
+  "set": "board",
+  "test": "H5-allowed-fork",
+  "n": 0
+ },
+ "f101": {
+  "arm": "base",
+  "set": "board",
+  "test": "H1-missed-mate",
+  "n": 4
+ },
+ "f102": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-20",
+  "n": 0
+ },
+ "f103": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-33",
+  "n": 0
+ },
+ "f104": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-2",
+  "n": 0
+ },
+ "f105": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-48",
+  "n": 0
+ },
+ "f106": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-31",
+  "n": 0
+ },
+ "f107": {
+  "arm": "phrase-bank",
+  "set": "benchmark",
+  "test": "H3-stalemate",
+  "n": 0
+ },
+ "f108": {
+  "arm": "tuned",
+  "set": "benchmark",
+  "test": "H1-missed-mate",
+  "n": 3
+ },
+ "f109": {
+  "arm": "base",
+  "set": "board",
+  "test": "H5-allowed-fork",
+  "n": 3
+ },
+ "f110": {
+  "arm": "default",
+  "set": "board",
+  "test": "H4-pin",
+  "n": 3
+ },
+ "f111": {
+  "arm": "tuned",
+  "set": "benchmark",
+  "test": "H3-stalemate",
+  "n": 3
+ },
+ "f112": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-5",
+  "n": 0
+ },
+ "f113": {
+  "arm": "base",
+  "set": "benchmark",
+  "test": "H5-allowed-fork",
+  "n": 1
+ },
+ "f114": {
+  "arm": "tuned",
+  "set": "benchmark",
+  "test": "H3-stalemate",
+  "n": 1
+ },
+ "f115": {
+  "arm": "default",
+  "set": "board",
+  "test": "H1-missed-mate",
+  "n": 4
+ },
+ "f116": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-20",
+  "n": 0
+ },
+ "f117": {
+  "arm": "default",
+  "set": "board",
+  "test": "H5-allowed-fork",
+  "n": 0
+ },
+ "f118": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-16",
+  "n": 0
+ },
+ "f119": {
+  "arm": "default",
+  "set": "benchmark",
+  "test": "H3-stalemate",
+  "n": 4
+ },
+ "f120": {
+  "arm": "tuned",
+  "set": "benchmark",
+  "test": "H1-missed-mate",
+  "n": 1
+ },
+ "f121": {
+  "arm": "tuned",
+  "set": "board",
+  "test": "H4-pin",
+  "n": 1
+ },
+ "f122": {
+  "arm": "base",
+  "set": "benchmark",
+  "test": "H1-missed-mate",
+  "n": 4
+ },
+ "f123": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-42",
+  "n": 0
+ },
+ "f124": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-34",
+  "n": 0
+ },
+ "f125": {
+  "arm": "default",
+  "set": "benchmark",
+  "test": "H1-missed-mate",
+  "n": 1
+ },
+ "f126": {
+  "arm": "default",
+  "set": "board",
+  "test": "H3-stalemate",
+  "n": 0
+ },
+ "f127": {
+  "arm": "default",
+  "set": "board",
+  "test": "H4-pin",
+  "n": 2
+ },
+ "f128": {
+  "arm": "default",
+  "set": "benchmark",
+  "test": "H5-allowed-fork",
+  "n": 1
+ },
+ "f129": {
+  "arm": "default",
+  "set": "board",
+  "test": "H3-stalemate",
+  "n": 4
+ },
+ "f130": {
+  "arm": "base",
+  "set": "board",
+  "test": "H5-allowed-fork",
+  "n": 2
+ },
+ "f131": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-25",
+  "n": 0
+ },
+ "f132": {
+  "arm": "base",
+  "set": "benchmark",
+  "test": "H5-allowed-fork",
+  "n": 2
+ },
+ "f133": {
+  "arm": "default",
+  "set": "board",
+  "test": "H3-stalemate",
+  "n": 3
+ },
+ "f134": {
+  "arm": "tuned",
+  "set": "board",
+  "test": "H1-missed-mate",
+  "n": 1
+ },
+ "f135": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-43",
+  "n": 0
+ },
+ "f136": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-33",
+  "n": 0
+ },
+ "f137": {
+  "arm": "tuned",
+  "set": "benchmark",
+  "test": "H5-allowed-fork",
+  "n": 4
+ },
+ "f138": {
+  "arm": "default",
+  "set": "benchmark",
+  "test": "H3-stalemate",
+  "n": 2
+ },
+ "f139": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-4",
+  "n": 0
+ },
+ "f140": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-4",
+  "n": 0
+ },
+ "f141": {
+  "arm": "base",
+  "set": "benchmark",
+  "test": "H1-missed-mate",
+  "n": 2
+ },
+ "f142": {
+  "arm": "phrase-bank",
+  "set": "benchmark",
+  "test": "H1-missed-mate",
+  "n": 0
+ },
+ "f143": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-4",
+  "n": 0
+ },
+ "f144": {
+  "arm": "base",
+  "set": "board",
+  "test": "H3-stalemate",
+  "n": 1
+ },
+ "f145": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-5",
+  "n": 0
+ },
+ "f146": {
+  "arm": "base",
+  "set": "benchmark",
+  "test": "H4-pin",
+  "n": 4
+ },
+ "f147": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-16",
+  "n": 0
+ },
+ "f148": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-14",
+  "n": 0
+ },
+ "f149": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-30",
+  "n": 0
+ },
+ "f150": {
+  "arm": "tuned",
+  "set": "board",
+  "test": "H3-stalemate",
+  "n": 0
+ },
+ "f151": {
+  "arm": "default",
+  "set": "board",
+  "test": "H4-pin",
+  "n": 1
+ },
+ "f152": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-42",
+  "n": 0
+ },
+ "f153": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-16",
+  "n": 0
+ },
+ "f154": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-48",
+  "n": 0
+ },
+ "f155": {
+  "arm": "default",
+  "set": "benchmark",
+  "test": "H3-stalemate",
+  "n": 3
+ },
+ "f156": {
+  "arm": "base",
+  "set": "board",
+  "test": "H1-missed-mate",
+  "n": 3
+ },
+ "f157": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-79",
+  "n": 0
+ },
+ "f158": {
+  "arm": "base",
+  "set": "board",
+  "test": "H1-missed-mate",
+  "n": 0
+ },
+ "f159": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-28",
+  "n": 0
+ },
+ "f160": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-2",
+  "n": 0
+ },
+ "f161": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-39",
+  "n": 0
+ },
+ "f162": {
+  "arm": "default",
+  "set": "benchmark",
+  "test": "H4-pin",
+  "n": 3
+ },
+ "f163": {
+  "arm": "base",
+  "set": "board",
+  "test": "H3-stalemate",
+  "n": 3
+ },
+ "f164": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-39",
+  "n": 0
+ },
+ "f165": {
+  "arm": "default",
+  "set": "benchmark",
+  "test": "H5-allowed-fork",
+  "n": 4
+ },
+ "f166": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-30",
+  "n": 0
+ },
+ "f167": {
+  "arm": "default",
+  "set": "benchmark",
+  "test": "H1-missed-mate",
+  "n": 3
+ },
+ "f168": {
+  "arm": "tuned",
+  "set": "board",
+  "test": "H3-stalemate",
+  "n": 4
+ },
+ "f169": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-33",
+  "n": 0
+ },
+ "f170": {
+  "arm": "base",
+  "set": "board",
+  "test": "H1-missed-mate",
+  "n": 1
+ },
+ "f171": {
+  "arm": "base",
+  "set": "board",
+  "test": "H5-allowed-fork",
+  "n": 1
+ },
+ "f172": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-34",
+  "n": 0
+ },
+ "f173": {
+  "arm": "base",
+  "set": "board",
+  "test": "H4-pin",
+  "n": 2
+ },
+ "f174": {
+  "arm": "default",
+  "set": "board",
+  "test": "H3-stalemate",
+  "n": 1
+ },
+ "f175": {
+  "arm": "tuned",
+  "set": "board",
+  "test": "H1-missed-mate",
+  "n": 4
+ },
+ "f176": {
+  "arm": "default",
+  "set": "benchmark",
+  "test": "H3-stalemate",
+  "n": 1
+ },
+ "f177": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-39",
+  "n": 0
+ },
+ "f178": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-39",
+  "n": 0
+ },
+ "f179": {
+  "arm": "base",
+  "set": "benchmark",
+  "test": "H4-pin",
+  "n": 0
+ },
+ "f180": {
+  "arm": "tuned",
+  "set": "benchmark",
+  "test": "H4-pin",
+  "n": 0
+ },
+ "f181": {
+  "arm": "default",
+  "set": "board",
+  "test": "H1-missed-mate",
+  "n": 2
+ },
+ "f182": {
+  "arm": "base",
+  "set": "board",
+  "test": "H5-allowed-fork",
+  "n": 0
+ },
+ "f183": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-33",
+  "n": 0
+ },
+ "f184": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-39",
+  "n": 0
+ },
+ "f185": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-42",
+  "n": 0
+ },
+ "f186": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-20",
+  "n": 0
+ },
+ "f187": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-76",
+  "n": 0
+ },
+ "f188": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-39",
+  "n": 0
+ },
+ "f189": {
+  "arm": "base",
+  "set": "benchmark",
+  "test": "H5-allowed-fork",
+  "n": 4
+ },
+ "f190": {
+  "arm": "base",
+  "set": "benchmark",
+  "test": "H1-missed-mate",
+  "n": 0
+ },
+ "f191": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-20",
+  "n": 0
+ },
+ "f192": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-20",
+  "n": 0
+ },
+ "f193": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-34",
+  "n": 0
+ },
+ "f194": {
+  "arm": "base",
+  "set": "board",
+  "test": "H3-stalemate",
+  "n": 2
+ },
+ "f195": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-5",
+  "n": 0
+ },
+ "f196": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-20",
+  "n": 0
+ },
+ "f197": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-16",
+  "n": 0
+ },
+ "f198": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-12",
+  "n": 0
+ },
+ "f199": {
+  "arm": "default",
+  "set": "benchmark",
+  "test": "H5-allowed-fork",
+  "n": 3
+ },
+ "f200": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-44",
+  "n": 0
+ },
+ "f201": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-12",
+  "n": 0
+ },
+ "f202": {
+  "arm": "base",
+  "set": "benchmark",
+  "test": "H4-pin",
+  "n": 3
+ },
+ "f203": {
+  "arm": "tuned",
+  "set": "board",
+  "test": "H1-missed-mate",
+  "n": 3
+ },
+ "f204": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-28",
+  "n": 0
+ },
+ "f205": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-44",
+  "n": 0
+ },
+ "f206": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-16",
+  "n": 0
+ },
+ "f207": {
+  "arm": "default",
+  "set": "board",
+  "test": "H1-missed-mate",
+  "n": 1
+ },
+ "f208": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-33",
+  "n": 0
+ },
+ "f209": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-4",
+  "n": 0
+ },
+ "f210": {
+  "arm": "base",
+  "set": "benchmark",
+  "test": "H4-pin",
+  "n": 2
+ },
+ "f211": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-33",
+  "n": 0
+ },
+ "f212": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-43",
+  "n": 0
+ },
+ "f213": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-31",
+  "n": 0
+ },
+ "f214": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-76",
+  "n": 0
+ },
+ "f215": {
+  "arm": "default",
+  "set": "benchmark",
+  "test": "H4-pin",
+  "n": 2
+ },
+ "f216": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-12",
+  "n": 0
+ },
+ "f217": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-16",
+  "n": 0
+ },
+ "f218": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-16",
+  "n": 0
+ },
+ "f219": {
+  "arm": "tuned",
+  "set": "benchmark",
+  "test": "H4-pin",
+  "n": 3
+ },
+ "f220": {
+  "arm": "tuned",
+  "set": "benchmark",
+  "test": "H4-pin",
+  "n": 1
+ },
+ "f221": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-20",
+  "n": 0
+ },
+ "f222": {
+  "arm": "default",
+  "set": "board",
+  "test": "H5-allowed-fork",
+  "n": 1
+ },
+ "f223": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-79",
+  "n": 0
+ },
+ "f224": {
+  "arm": "tuned",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-16",
+  "n": 0
+ },
+ "f225": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-28-4",
+  "n": 0
+ },
+ "f226": {
+  "arm": "default",
+  "set": "benchmark",
+  "test": "H1-missed-mate",
+  "n": 2
+ },
+ "f227": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-48",
+  "n": 0
+ },
+ "f228": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-16",
+  "n": 0
+ },
+ "f229": {
+  "arm": "base",
+  "set": "board",
+  "test": "H1-missed-mate",
+  "n": 2
+ },
+ "f230": {
+  "arm": "base",
+  "set": "board",
+  "test": "H5-allowed-fork",
+  "n": 4
+ },
+ "f231": {
+  "arm": "default",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-39",
+  "n": 0
+ },
+ "f232": {
+  "arm": "tuned",
+  "set": "board",
+  "test": "H3-stalemate",
+  "n": 1
+ },
+ "f233": {
+  "arm": "tuned",
+  "set": "benchmark",
+  "test": "H3-stalemate",
+  "n": 4
+ },
+ "f234": {
+  "arm": "base",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-60",
+  "n": 0
+ },
+ "f235": {
+  "arm": "base",
+  "set": "benchmark",
+  "test": "H3-stalemate",
+  "n": 1
+ },
+ "f236": {
+  "arm": "phrase-bank",
+  "set": "heldout",
+  "test": "lasker_chess_strategy-40-16",
+  "n": 0
+ },
+ "f237": {
+  "arm": "tuned",
+  "set": "board",
+  "test": "H4-pin",
+  "n": 3
+ },
+ "f238": {
+  "arm": "base",
+  "set": "benchmark",
+  "test": "H5-allowed-fork",
+  "n": 0
+ },
+ "f239": {
+  "arm": "tuned",
+  "set": "benchmark",
+  "test": "H3-stalemate",
+  "n": 2
+ },
+ "f240": {
+  "arm": "tuned",
+  "set": "benchmark",
+  "test": "H1-missed-mate",
+  "n": 0
+ }
+}
