@@ -9,9 +9,11 @@ from pydantic import ValidationError
 
 from scan64.providers.llm.contracts import ExplanationRequest, GeneratedExplanation
 
-# Ollama ``num_ctx`` for narrator calls. The longest NarratorFacts prompt is
-# about 7,400 tokens; 12288 leaves room for a 2,048-token answer (#388).
-DEFAULT_OLLAMA_CONTEXT_TOKENS = 12288
+# Ollama ``num_ctx`` for narrator calls (#429). Since #408 the prompt is the
+# system prompt and slot list only: the longest measured is 1,565 tokens for a
+# lesson and 1,608 for the Analysis Board at MultiPV 4. 4096 holds either plus a
+# 2,048-token answer, and its KV cache is the one the narrator benchmark measured.
+DEFAULT_OLLAMA_CONTEXT_TOKENS = 4096
 MIN_OLLAMA_CONTEXT_TOKENS = 2048
 MAX_OLLAMA_CONTEXT_TOKENS = 131072
 
@@ -104,6 +106,9 @@ class OllamaExplanationAdapter:
             "messages": _messages(request),
             "stream": False,
             "format": _schema(),
+            # The narrator only words engine evidence; it must not reason (#429).
+            # The narrator benchmark sent it to all 11 models it measured.
+            "think": False,
         }
         if self._context_tokens is not None:
             payload["options"] = {"num_ctx": self._context_tokens}

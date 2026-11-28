@@ -19,6 +19,7 @@ from scan64.explanations.settings import (
 from scan64.explanations.voice import NarratorVoice
 from scan64.persistence.database import get_session
 from scan64.providers.llm.local_ollama import detect_local_ollama
+from scan64.providers.llm.narrator_model import DEFAULT_NARRATOR_MODEL
 
 router = APIRouter(prefix="/v1/players/{player_id}/explanation-settings", tags=["settings"])
 _MAX_UPDATE_BYTES = 1024
@@ -34,6 +35,9 @@ class ExplanationSettingsRead(BaseModel):
 class ExplanationProbeRead(BaseModel):
     available: bool
     models: list[str]
+    # The default narrator model (#429). Settings preselects it when it is listed;
+    # a saved grant for another model is kept.
+    recommended_model: str = DEFAULT_NARRATOR_MODEL
 
 
 class ExplanationSettingsUpdate(BaseModel):

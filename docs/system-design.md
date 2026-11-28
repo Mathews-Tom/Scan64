@@ -167,7 +167,7 @@ Runtime controls:
 | `SCAN64_LOCAL_LLM_TIMEOUT_SECONDS` | `180` | Deadline for one local Ollama explanation (model listing plus chat), (0, 600]. |
 | `SCAN64_LOCAL_LLM_MAX_REQUEST_BYTES` | `262144` | Largest serialised local explanation request, [1024, 16 MiB]. |
 | `SCAN64_LOCAL_LLM_MAX_RESPONSE_BYTES` | `262144` | Largest local Ollama response body, [1024, 16 MiB]. |
-| `SCAN64_LOCAL_LLM_CONTEXT_TOKENS` | `8192` | `num_ctx` sent to local Ollama; a prompt that fills it is rejected, [2048, 131072]. |
+| `SCAN64_LOCAL_LLM_CONTEXT_TOKENS` | `4096` | `num_ctx` sent to local Ollama; a prompt that fills it is rejected, [2048, 131072]. |
 
 ## Optional providers
 
