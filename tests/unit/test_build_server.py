@@ -43,7 +43,7 @@ def test_engine_pins_cover_every_source_network_and_licence(builder: ModuleType)
     network = builder.dockerfile_digest(dockerfile, builder.ARASAN_NETWORK)
     assert network == "1f98bc6c1ac615646d66d409e138225c56765ad0c1065f1ce20a22a56c631927"
     # A second pin for the same name is ambiguous, never "the first one wins".
-    line = f"echo '{'0' * 64}  /out/{builder.ARASAN_NETWORK}' | sha256sum --check"
+    line = f"RUN echo '{'0' * 64}  /out/{builder.ARASAN_NETWORK}' | sha256sum --check\n"
     with pytest.raises(ValueError, match="Dockerfile pin missing"):
         builder.dockerfile_digest(dockerfile + line, builder.ARASAN_NETWORK)
 
@@ -67,6 +67,42 @@ def test_engine_pins_bind_to_the_actual_download_and_check(builder: ModuleType) 
     )
     with pytest.raises(ValueError, match="Dockerfile pin missing: caissa-2.0.tar.gz"):
         builder.pinned_engine_files(elsewhere)
+    digest = "c3ac41d0b8c2a9c9cd5259c2a50b63bd01fb470ffc85afef7691fe67a5b5e4c7"
+    pinned = f"{check}/out/caissa-2.0.tar.gz' | sha256sum --check"
+    # A neutralised check never pins.
+    with pytest.raises(ValueError, match="Dockerfile pin missing: caissa-2.0.tar.gz"):
+        builder.pinned_engine_files(dockerfile.replace(pinned, pinned + " || true"))
+    # A check before its download never pins.
+    swapped = dockerfile.replace(pinned, "true").replace(
+        "      --output /out/caissa-2.0.tar.gz && \\\n",
+        "      --output /out/caissa-2.0.tar.gz && \\\n    " + pinned.strip() + " && \\\n",
+    )
+    builder.pinned_engine_files(swapped)  # the control: the same check after the download
+    before = dockerfile.replace(pinned, "true").replace(
+        "RUN mkdir /out && \\\n    curl --fail --location --retry 3 \\\n"
+        "      https://codeload.github.com/Witek902/Caissa",
+        "RUN mkdir /out && \\\n    " + pinned.strip() + " && \\\n"
+        "    curl --fail --location --retry 3 \\\n"
+        "      https://codeload.github.com/Witek902/Caissa",
+    )
+    assert before != dockerfile.replace(pinned, "true")
+    with pytest.raises(ValueError, match="Dockerfile pin missing: caissa-2.0.tar.gz"):
+        builder.pinned_engine_files(before)
+    # A download in a stage no COPY --from uses never reaches the image.
+    stage = (
+        "FROM scratch AS dead\n"
+        f"RUN curl --fail --location --retry 3 {url} --output /x/caissa-2.0.tar.gz && "
+        f"echo '{digest}  /x/caissa-2.0.tar.gz' | sha256sum --check\n"
+    )
+    moved_out = (
+        dockerfile.replace(url, "https://example.com/caissa.tar.gz")
+        .replace("--output /out/caissa-2.0.tar.gz", "--output /out/other.tar.gz", 1)
+        .replace(pinned, pinned.replace("caissa-2.0", "other"))
+    )
+    runtime = moved_out.index("FROM python:")
+    dead = moved_out[:runtime] + stage + moved_out[runtime:]
+    with pytest.raises(ValueError, match="Dockerfile pin missing: caissa-2.0.tar.gz"):
+        builder.pinned_engine_files(dead)
 
 
 def test_makefile_list_reads_continuation_lines(builder: ModuleType) -> None:

@@ -154,57 +154,89 @@ def run(*args: str) -> None:
     subprocess.run(args, cwd=ROOT, check=True)
 
 
-def dockerfile_instructions(dockerfile: str) -> str:
-    """The Dockerfile without comment lines; a comment never pins an input."""
-    return "\n".join(line for line in dockerfile.splitlines() if not line.lstrip().startswith("#"))
+DOWNLOAD = re.compile(r"curl --fail --location --retry 3 (https://\S+) --output (\S+)")
+CHECK = re.compile(r"echo '([0-9a-f]{64})  (\S+)' \| sha256sum --check")
 
 
-def dockerfile_checks(dockerfile: str, path: str) -> list[str]:
-    """Every SHA-256 the Dockerfile checks for exactly this path."""
-    return re.findall(
-        r"echo '([0-9a-f]{64})  " + re.escape(path) + r"' \| sha256sum --check",
-        dockerfile_instructions(dockerfile),
-    )
+def dockerfile_runs(dockerfile: str) -> list[list[str]]:
+    """The && commands of every RUN in a stage the image build uses.
+
+    Comment lines never count. A used stage is the final stage or one that a
+    COPY --from names; a download in any other stage never reaches the image.
+    """
+    lines = [line for line in dockerfile.splitlines() if not line.lstrip().startswith("#")]
+    instructions = re.split(r"(?<!\\)\n", "\n".join(lines))
+    stage = None
+    runs: list[tuple[str | None, str]] = []
+    used: set[str | None] = set()
+    for instruction in instructions:
+        joined = re.sub(r"\s*\\\n\s*", " ", instruction).strip()
+        words = joined.split()
+        if not words:
+            continue
+        keyword = words[0].upper()
+        if keyword == "FROM":
+            stage = words[3] if len(words) >= 4 and words[2].upper() == "AS" else None
+        elif keyword == "COPY":
+            used.update(
+                word.removeprefix("--from=") for word in words if word.startswith("--from=")
+            )
+        elif keyword == "RUN":
+            runs.append((stage, joined[len(words[0]) :]))
+    used.add(stage)
+    return [
+        [command.strip() for command in text.split("&&")] for name, text in runs if name in used
+    ]
+
+
+def dockerfile_checks(dockerfile: str, name: str) -> list[tuple[str, str]]:
+    """The (digest, path) of every exact SHA-256 check of a file of this name."""
+    return [
+        (match[1], match[2])
+        for run in dockerfile_runs(dockerfile)
+        for command in run
+        if (match := CHECK.fullmatch(command)) and Path(match[2]).name == name
+    ]
 
 
 def dockerfile_digest(dockerfile: str, name: str) -> str:
     """The one SHA-256 the Dockerfile checks for a file of this name."""
-    matches = re.findall(
-        r"echo '([0-9a-f]{64})  (?:\S*/)?" + re.escape(name) + r"' \| sha256sum --check",
-        dockerfile_instructions(dockerfile),
-    )
+    matches = dockerfile_checks(dockerfile, name)
     if len(matches) != 1:
         raise ValueError(f"Dockerfile pin missing: {name}")
-    return matches[0]
+    return matches[0][0]
 
 
-def dockerfile_downloads(dockerfile: str) -> list[tuple[str, str]]:
-    """The (URL, output path) of every curl download the Dockerfile runs."""
-    return re.findall(
-        r"curl --fail --location --retry 3[\s\\]+(https://\S+)[\s\\]+--output (\S+)",
-        dockerfile_instructions(dockerfile),
-    )
+def dockerfile_download_digest(dockerfile: str, name: str, url: str) -> str:
+    """The SHA-256 of the one download of this file, checked later in its own RUN.
+
+    The download and its check are exact commands in one && chain, so a
+    neutralised check ("|| true") or a download in an unused stage never pins.
+    """
+    found = []
+    for run in dockerfile_runs(dockerfile):
+        for index, command in enumerate(run):
+            download = DOWNLOAD.fullmatch(command)
+            if download and Path(download[2]).name == name:
+                checks = [
+                    match[1]
+                    for later in run[index + 1 :]
+                    if (match := CHECK.fullmatch(later)) and match[2] == download[2]
+                ]
+                found.append((download[1], checks))
+    if len(found) != 1 or found[0][0] != url or len(found[0][1]) != 1:
+        raise ValueError(f"Dockerfile pin missing: {name}")
+    return found[0][1][0]
 
 
 def pinned_engine_files(dockerfile: str) -> dict[str, list[tuple[str, str, str]]]:
-    """Use the container's authoritative pins; never accept an unchecked input.
-
-    Each input needs one actual download of its URL to a file of its name, and
-    one SHA-256 check of that same output path.
-    """
-    downloads = dockerfile_downloads(dockerfile)
-    pins = {}
-    for engine, files in ENGINE_FILES.items():
-        pins[engine] = []
-        for name, url in files:
-            named = [item for item in downloads if Path(item[1]).name == name]
-            if len(named) != 1 or named[0][0] != url:
-                raise ValueError(f"Dockerfile pin missing: {name}")
-            digests = dockerfile_checks(dockerfile, named[0][1])
-            if len(digests) != 1:
-                raise ValueError(f"Dockerfile pin missing: {name}")
-            pins[engine].append((name, url, digests[0]))
-    return pins
+    """Use the container's authoritative pins; never accept an unchecked input."""
+    return {
+        engine: [
+            (name, url, dockerfile_download_digest(dockerfile, name, url)) for name, url in files
+        ]
+        for engine, files in ENGINE_FILES.items()
+    }
 
 
 def sha256(path: Path) -> str:
