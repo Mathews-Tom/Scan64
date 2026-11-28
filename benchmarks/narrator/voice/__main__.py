@@ -12,6 +12,7 @@ measurements there are immutable.
 """
 
 import argparse
+import itertools
 import json
 import sys
 from pathlib import Path
@@ -42,6 +43,7 @@ def refuse_results(path: Path) -> None:
 
 
 def cmd_run(args: argparse.Namespace) -> None:
+    """Open ``--out`` only once the first record exists, so a failed start leaves no file."""
     out = Path(args.out)
     refuse_results(out)
     if out.exists() and not args.force:
@@ -50,9 +52,12 @@ def cmd_run(args: argparse.Namespace) -> None:
     styles = args.styles.split(",") if args.styles else None
     tests = args.tests.split(",") if args.tests else None
     records = pipeline.run(client, args.number, args.samples, styles, args.own, tests, out)
+    first = next(records, None)
+    if first is None:
+        raise SystemExit("the run made no records; nothing was written")
     count = 0
     with out.open("w", encoding="utf-8") as log:
-        for record in records:
+        for record in itertools.chain([first], records):
             log.write(json.dumps(record) + "\n")
             log.flush()
             count += 1

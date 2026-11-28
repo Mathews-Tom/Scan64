@@ -2,6 +2,7 @@
 # The published #462 table below is copied verbatim; its rows are longer than 100.
 """The narrator voice benchmark (#458): verified facts, checked examples, blind sets, tables."""
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -168,6 +169,9 @@ def test_join_returns_each_item_with_its_key() -> None:
 @pytest.mark.parametrize(
     ("judgements", "message"),
     [
+        ({"x001": verdict("x001")}, "must be a list of objects"),
+        (["x001", "x002"], "must be a list of objects"),
+        ([verdict(["x001"]), verdict("x002")], "ids must be strings"),
         ([verdict("x001")], "1 items have no judgement"),
         ([verdict("x001"), verdict("x002"), verdict("x003")], "1 judgements have no item"),
         ([verdict("x001"), verdict("x001"), verdict("x002")], "duplicate judgement ids"),
@@ -194,6 +198,44 @@ def test_cli_blind_writes_the_key_outside_the_judges_folder(tmp_path: Path) -> N
     assert set(next(iter(key.values()))) == {"run", "test", "model", "own", "n"}
     with pytest.raises(SystemExit, match="the judge would see the key"):
         main([*args, "--out", str(tmp_path / "judge"), "--key-out", str(tmp_path / "judge" / "k")])
+
+
+def test_join_refuses_a_key_that_is_not_a_mapping_of_fields() -> None:
+    with pytest.raises(ValueError, match="the key must map each item id"):
+        join({"x001": "a"}, [verdict("x001")])
+
+
+def test_a_failed_start_leaves_no_file_and_a_retry_needs_no_force(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    out = tmp_path / "run9.jsonl"
+    args = ["run", "9", "--samples", "1", "--tests", "H3-stalemate", "--url", "http://s"]
+    with pytest.raises(SystemExit, match="has no position"):
+        main([*args[:5], "H9-nothing", *args[6:], "--model", "m", "--out", str(out)])
+    assert not out.exists()
+    fake_server(monkeypatch)
+    with pytest.raises(SystemExit, match="not on the Ollama server"):
+        main([*args, "--model", "missing", "--out", str(out)])
+    assert not out.exists()
+
+    def chat(self: pipeline.Client, system: str, user: str) -> tuple[str, float, int, int]:
+        return "White plays 1.Qf7.", 0.1, 10, 5
+
+    monkeypatch.setattr(pipeline.Client, "chat", chat)
+    main([*args, "--model", "m", "--out", str(out)])
+    records = [json.loads(line) for line in out.read_text().splitlines()]
+    assert len(records) == 1 and records[0]["meta"]["model_digest"] == "abc123"
+
+
+def test_run_checks_styles_rule_and_samples_before_any_call() -> None:
+    client = pipeline.Client("http://never")
+    for kwargs, message in (
+        ({"styles": ["Nunn"]}, "has no style Nunn"),
+        ({"own_words": True}, "belongs to run 9 only"),
+        ({"samples": 0}, "must be 1 or more"),
+    ):
+        with pytest.raises(SystemExit, match=message):
+            pipeline.run(client, 8, **kwargs)
 
 
 def test_cli_writes_nothing_into_results(tmp_path: Path) -> None:
@@ -270,12 +312,19 @@ def test_a_run_9_cell_with_mixed_settings_is_refused() -> None:
         summarise.cell_settings("A-gemma", records)
 
 
-def test_summary_lists_every_judgement_file_with_its_sha256() -> None:
-    table = summarise.judgement_files()
-    for stored in SETS.values():
-        for path in stored.judgement_paths():
-            assert path.relative_to(RESULTS).as_posix() in table
-    assert table.count("`") == 2 * sum(len(s.judgement_paths()) for s in SETS.values())
+def test_summary_lists_every_stored_file_with_its_sha256() -> None:
+    table = summarise.stored_files()
+    files = [p for p in RESULTS.rglob("*") if p.is_file() and p.name != "README.md"]
+    for path in files:
+        row = next(
+            line
+            for line in table.splitlines()
+            if f"| {path.relative_to(RESULTS).as_posix()} |" in line
+        )
+        assert hashlib.sha256(path.read_bytes()).hexdigest() in row
+    kinds = {line.split(" | ")[1] for line in table.splitlines()[2:]}
+    assert {"records", "items", "key", "judgements"} <= kinds
+    assert len(table.splitlines()) == 2 + len(files)
 
 
 # --- Records carry their provenance ----------------------------------------------------------

@@ -10,6 +10,7 @@ import json
 import math
 import re
 from collections.abc import Callable, Iterable
+from pathlib import Path
 from typing import Any
 
 from benchmarks.narrator.voice import data
@@ -369,20 +370,42 @@ def heldout_positions() -> str:
     return table(["Cell"] + list(HELDOUT_NAMES.values()), rows)
 
 
-def judgement_files() -> str:
-    """The judgement files every table above reads, with their size and SHA-256."""
+KINDS = (
+    ("-items.json", "items"),
+    ("-key.json", "key"),
+    ("-judgements.json", "judgements"),
+    (".jsonl", "records"),
+    (".md", "judge brief"),
+    (".svg", "board"),
+    (".txt", "GPU sizes"),
+)
+
+
+def kind_of(path: Path) -> str:
+    return next(kind for suffix, kind in KINDS if path.name.endswith(suffix))
+
+
+def entries(path: Path) -> str:
+    if path.suffix == ".jsonl":
+        return str(len(read_jsonl(path)))
+    if path.suffix == ".json":
+        return str(len(json.loads(path.read_text(encoding="utf-8"))))
+    return "-"
+
+
+def stored_files() -> str:
+    """Every stored file under results/ (not its README), with its kind, size and SHA-256."""
     rows = []
-    for name, stored in SETS.items():
-        for path in stored.judgement_paths():
-            rows.append(
-                [
-                    name,
-                    path.relative_to(RESULTS).as_posix(),
-                    str(len(json.loads(path.read_text(encoding="utf-8")))),
-                    f"`{hashlib.sha256(path.read_bytes()).hexdigest()}`",
-                ]
-            )
-    return table(["Blind set", "File", "Judgements", "SHA-256"], rows)
+    for path in sorted(p for p in RESULTS.rglob("*") if p.is_file() and p.name != "README.md"):
+        rows.append(
+            [
+                path.relative_to(RESULTS).as_posix(),
+                kind_of(path),
+                entries(path),
+                f"`{hashlib.sha256(path.read_bytes()).hexdigest()}`",
+            ]
+        )
+    return table(["File", "Kind", "Entries", "SHA-256"], rows)
 
 
 SECTIONS: list[tuple[str, Callable[[], str]]] = [
@@ -395,7 +418,7 @@ SECTIONS: list[tuple[str, Callable[[], str]]] = [
     ("Run 8 pipeline, 12 models: coverage", models_coverage),
     ("Run 9, held-out positions (#462)", heldout_table),
     ("Run 9, faithful per held-out position", heldout_positions),
-    ("Judgement files", judgement_files),
+    ("Stored files", stored_files),
 ]
 
 

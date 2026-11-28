@@ -91,7 +91,7 @@ Each stored blind set has its own brief next to it (`results/<run>/judge-brief-<
 
 ## Rerun a run
 
-Start a local Ollama with the model, then run from the repository root. `run` refuses any `--out` under `results/`, even with `--force`, so it cannot overwrite a stored measurement. There is no resume: a run that stops starts again with a new file. The `scan64-bench-*` models are the ones the [narrator model benchmark](narrator-models.md) creates from `benchmarks/narrator/modelfiles/`.
+Start a local Ollama with the model, then run from the repository root. `run` refuses any `--out` under `results/`, even with `--force`, so it cannot overwrite a stored measurement. `run` checks every input and asks the server for the model before it opens `--out`, and opens it only once the first record exists, so a run that fails at start leaves no file behind. There is no resume: a run that stops later starts again with a new file. The `scan64-bench-*` models are the ones the [narrator model benchmark](narrator-models.md) creates from `benchmarks/narrator/modelfiles/`.
 
 | Stored file | Command |
 |---|---|
@@ -246,20 +246,80 @@ The tables below are the output of `summarise`. A test checks that this section 
 | D | 7/10 | 7/10 | 8/10 | 3/10 | 6/10 |
 | E | 8/10 | 5/10 | 7/10 | 1/10 | 4/10 |
 
-### Judgement files
+### Stored files
 
-| Blind set | File | Judgements | SHA-256 |
+| File | Kind | Entries | SHA-256 |
 |---|---|---|---|
-| run2-3 | run2-3-blind/blind-judgements.json | 190 | `f5a627a133ef0e35d9237423f5dd1b2545dbe2e464660ef222fc4400d930475b` |
-| run4 | run4/blind4-judgements.json | 150 | `f89c0b69a959eda6210369b161c7b61a6cecc53d93679e46ceff8b8e1948a2fe` |
-| run5 | run5/blind5-judgements.json | 150 | `ca6fa73ac6dfa22a85b175ed0fcbeece288194c05a69ae643579e54846f5ba02` |
-| run5-12b | run5/blind5b-judgements.json | 150 | `c1bd5245a26ba06290fe7c201d7a8a4561776638526136397e99bfac5f88f3d3` |
-| run6 | run6/blind6-judgements.json | 100 | `122fad829c1242690d6ae6c390bfa49da0c9d78efc6dde9f111a6ac4a91365ad` |
-| run7 | run7/blind7-judgements.json | 100 | `e8f861c5ba3aa2042dd98f14656d334b7f4fec96323d670e189914952333cfa8` |
-| run8 | run8/blind8-judgements.json | 100 | `8a16c4d9f9b5a5ed3b4a8c386206e60700f8dcdd9a993b1f589a11e4e89b7311` |
-| run8-models | run8-models/blindm0-judgements.json | 300 | `1e258f27a467b4c6708010979fc8bd51f922a0cb0f9c8594fc7892d4227019cf` |
-| run8-models | run8-models/blindm1-judgements.json | 300 | `45ca0a9c489652162e7a32479e89384056c5f6b07c5d45996aed556f1f26e3a6` |
-| run9 | run9/blind9-judgements.json | 250 | `1f09f461f6e1069dece4feadca884eb6d2465b6aa0cd50ac468e052c4045af8e` |
+| run1/run1.jsonl | records | 375 | `854b42bbe670a992d7c929fc2730e2fec14bc6e8612b4b0dc461b33c3b68fa43` |
+| run2/run2-board.jsonl | records | 285 | `909cf208858bc5a2f9a3ff45b2abe69bf4e0fef68860f103e78d4b5ed176809f` |
+| run2-3-blind/blind-items.json | items | 190 | `cfbf360d144c93ba7076f2bb6f0f07fbc8294b50f478b02daebcfa77f43b8a47` |
+| run2-3-blind/blind-judgements.json | judgements | 190 | `f5a627a133ef0e35d9237423f5dd1b2545dbe2e464660ef222fc4400d930475b` |
+| run2-3-blind/blind-key.json | key | 190 | `a87157ac0a6ec4dfce4e25d98757d2fbd30f7a024b69819992dea50d84e06141` |
+| run2-3-blind/judge-brief-blind.md | judge brief | - | `66e5044c3e8bb5c455eed522a4474dbaa8cb948515c852bc250b252cb261ae82` |
+| run3/run3-roles.jsonl | records | 285 | `db2fbf15e35e4bbcefd0032e7bdde89db3a4f64278cfd789c5ef3c573c0c1731` |
+| run4/blind4-items.json | items | 150 | `aee1dd27dc23a2f928cc85d5507e6850de1e27ce267650fc54c0b0c835922a60` |
+| run4/blind4-judgements.json | judgements | 150 | `f89c0b69a959eda6210369b161c7b61a6cecc53d93679e46ceff8b8e1948a2fe` |
+| run4/blind4-key.json | key | 150 | `6b56c0600c7b55bcbf85f3efcd6bf2318dcabf38641fc6bd517f86922460bff3` |
+| run4/judge-brief-blind4.md | judge brief | - | `8c597219d568fb842a0f374470ce4308c8ac6e9169e9417a7da2628fe2c0ac7d` |
+| run4/run4.jsonl | records | 150 | `469c74552a357bbbf60c75a923b2809c2589dc6bd7e1df0379a5fe4d7a9fe0bf` |
+| run5/blind5-items.json | items | 150 | `e7aea87140dcda5edcd84af92b69782d960ae57e49546cf93399db6cf4f059ed` |
+| run5/blind5-judgements.json | judgements | 150 | `ca6fa73ac6dfa22a85b175ed0fcbeece288194c05a69ae643579e54846f5ba02` |
+| run5/blind5-key.json | key | 150 | `11f341bd07df6cee12258637824fd27792f47a82b9b986a55a3ab10fbe1f0995` |
+| run5/blind5b-items.json | items | 150 | `12ff47e1332b616f2a34e7e2ae5714f042a1e359ed89b3daa6fe46b18993abe5` |
+| run5/blind5b-judgements.json | judgements | 150 | `c1bd5245a26ba06290fe7c201d7a8a4561776638526136397e99bfac5f88f3d3` |
+| run5/blind5b-key.json | key | 150 | `62ea1660b9f557d2a6307c40b2d1f89b67e1ddee7b98555ad69aac59ab771468` |
+| run5/judge-brief-blind5.md | judge brief | - | `18e5b4792ed0f584c46c818f45a59751ae338fb157a4695441652886617a6dc0` |
+| run5/judge-brief-blind5b.md | judge brief | - | `57e309f6dbd8cf61f010e4dd70ed22946e592c8e30af2736a89cb3e06b0cdd23` |
+| run5/run5-12b.jsonl | records | 150 | `8ed67d690885a46549e86f6ff98f09f34ffa5212460d69580e31f17c3bc1b448` |
+| run5/run5.jsonl | records | 150 | `c00fe3192558fcd81508abecbe8a0e263dd7b63d1153c49877da585d2d3b8588` |
+| run6/blind6-items.json | items | 100 | `28e03d6a150027a063a48e39232aed4bb2cb16b2bc018974a4f14121bae2ed0f` |
+| run6/blind6-judgements.json | judgements | 100 | `122fad829c1242690d6ae6c390bfa49da0c9d78efc6dde9f111a6ac4a91365ad` |
+| run6/blind6-key.json | key | 100 | `1ab7fba1c781aab7e244af3f9f39fc983d0f3c5adf67a3ea6758a0e4fff1a3bf` |
+| run6/judge-brief-blind6.md | judge brief | - | `9f80d2bad56ef000f200c616a5e6bb2fc307b9ee3327be4f035da3b9140d8675` |
+| run6/run6.jsonl | records | 100 | `ef281290bb088ec94f246405c7e4048aff9835b8c09ec49c090d3dea040c54ef` |
+| run7/blind7-items.json | items | 100 | `0413f7b64afbef8c0b580a8c9b34a582267cb7e852420a9c19bbc4c77a027832` |
+| run7/blind7-judgements.json | judgements | 100 | `e8f861c5ba3aa2042dd98f14656d334b7f4fec96323d670e189914952333cfa8` |
+| run7/blind7-key.json | key | 100 | `77f5bbbe9e7866673ca34b11b18c6831a5f8e0b031efdec37f91ad023c298a25` |
+| run7/judge-brief-blind7.md | judge brief | - | `d92dd2eb2545004fae6578c968988cb1dd67d678046ab5f29c303d52d1f77b44` |
+| run7/run7-tal.jsonl | records | 100 | `be4c1141cd179cb26886552635934050c43831c707b44f63fbd3f143f8d20b6a` |
+| run8/blind8-items.json | items | 100 | `d68f59219459e253c13eaed839cc5b7730984afe1831b63a6dc9ad51a991f913` |
+| run8/blind8-judgements.json | judgements | 100 | `8a16c4d9f9b5a5ed3b4a8c386206e60700f8dcdd9a993b1f589a11e4e89b7311` |
+| run8/blind8-key.json | key | 100 | `51e17033210b54c859eda896fc3abd7567870919ab57cca12285bfebe811065f` |
+| run8/judge-brief-blind8.md | judge brief | - | `ca16617e6ed15d6a526c6ee5da2caace7bd3c0a8c5b92272d7046780af06b240` |
+| run8/run8-tal.jsonl | records | 100 | `5f926a5f159ab6020fcb3ac05ef0a966cb2c2b8ff8a9fe49b4ae100e3135be9e` |
+| run8-models/blindm-key.json | key | 600 | `ab1da9f67382ab95f80216d8b1d1f17fa453439f9395a92dac95390c14dabee2` |
+| run8-models/blindm0-items.json | items | 300 | `e1183a05ab06f708100e872ed855cf440e93d8a2d14a861a5bcd38aee0ab8158` |
+| run8-models/blindm0-judgements.json | judgements | 300 | `1e258f27a467b4c6708010979fc8bd51f922a0cb0f9c8594fc7892d4227019cf` |
+| run8-models/blindm1-items.json | items | 300 | `850440572cdb8d0acf7db66f18afa1cbf89b50602eb62fe9fe988e1a0365fff7` |
+| run8-models/blindm1-judgements.json | judgements | 300 | `45ca0a9c489652162e7a32479e89384056c5f6b07c5d45996aed556f1f26e3a6` |
+| run8-models/judge-brief-blindm0.md | judge brief | - | `70eb83a3efb68af62e2a781b61ca5b5ce8ae479f1358dafdf4616985def43d86` |
+| run8-models/judge-brief-blindm1.md | judge brief | - | `744c71ce498b98e9534f14d7463cd89bd8608c3149b0a8cc23fe444abb6a647d` |
+| run8-models/models-vram.txt | GPU sizes | - | `9a56160def662aac81a495bd26fb535a336140ae4dd53cea2bd8db81299efe3c` |
+| run8-models/run8-caissa-m1-8b.jsonl | records | 50 | `bbf9f94ae353552d135d985332e394eeaabf809f1238f7deb578c934c2fff97e` |
+| run8-models/run8-gemma3-1b.jsonl | records | 50 | `b7cfb0c69c0d7798d4099e3dd10e82dbe49bc8500de340dae3e6f2ca0bf958e1` |
+| run8-models/run8-gemma3-270m.jsonl | records | 50 | `0a8d55093bb055fd1bea791e459b430a0126c8c6f1c95bf6f4e646bf604dd29e` |
+| run8-models/run8-gemma4-e4b-q4ks.jsonl | records | 50 | `b2b1f6e2b9cdfe57fef180050991330b10e85ff9f25bd600098c21ab6fc6fd1b` |
+| run8-models/run8-llama3.2-1b.jsonl | records | 50 | `59acad1d7237895d135f2c9e6d122f77fff70aa30a504ac155df089766e43672` |
+| run8-models/run8-praxis-2b.jsonl | records | 50 | `e17304f62b8b23a9541a5e34bf89b31e64998c38d3890f0fcaf5dd8974666860` |
+| run8-models/run8-praxis-4b.jsonl | records | 50 | `6aa5fa909acb9e90b57e6fb24342c13057bc76e1e87bb0f47b5864e6e94f4c4e` |
+| run8-models/run8-qwen3-1.7b.jsonl | records | 50 | `58c05557e671b63358589ce0f9445a8f434a6b57ef55af296e6bfd23b7bb81c8` |
+| run8-models/run8-qwen3.5-2b.jsonl | records | 50 | `a61a8e1c45f45f28821a750e9905c4bda75e0d53cb2eaad9f56d84fb751dab88` |
+| run8-models/run8-qwen3.5-4b.jsonl | records | 50 | `32d6b46773ae55d4a7532ddddc66401df7a4103ba7ad3c81074b5c920eebe9f4` |
+| run8-models/run8-second-2b.jsonl | records | 50 | `90f79e26405ae357ebee8d6d3ff32c0493827de5fe1b437cb000bbaed38718c1` |
+| run9/blind9-items.json | items | 250 | `6841d9a58bad7038d7e42232aed7beaf4a374de9db930370548c9a4c90881af1` |
+| run9/blind9-judgements.json | judgements | 250 | `1f09f461f6e1069dece4feadca884eb6d2465b6aa0cd50ac468e052c4045af8e` |
+| run9/blind9-key.json | key | 250 | `c80076cd31954e321cc9b001feeabf39f2d596b42c015036bcffbe82ffc12df0` |
+| run9/judge-brief-blind9.md | judge brief | - | `e3152cab63882aefa9b42071919cdc67a3d447e16d9a7e14dfe407fcb1d0e8de` |
+| run9/run9-A-gemma.jsonl | records | 50 | `4b9de58542d387370b4d2c585a00a6e94ca81222cf2cdd299af4924d988c4771` |
+| run9/run9-B-gemma-own.jsonl | records | 50 | `447d94d83755c2f537eee9422a37e642a591e0f610078664ac56a8b662d8056c` |
+| run9/run9-C-praxis-t0.jsonl | records | 50 | `ff438ba89b99bd285e6c31e23ee6b50d35057bea7c0faa6fe8241023c298bc4a` |
+| run9/run9-D-praxis-t1.jsonl | records | 50 | `a1ff55ba31cbec52b3948dabe2ca87c8287194395c3c37005f6c637936df9a53` |
+| run9/run9-E-praxis-t1-own.jsonl | records | 50 | `4f534605775a50f579b8be53ec049c86884681b5d06930d1284c7780e6601cfa` |
+| vlm/P1-greedy-knight.svg | board | - | `fab0132ce3b9d9abce82089399fbbfcd7ddc981ef9e1d90fa33a45aae015577d` |
+| vlm/P2-boxed-king.svg | board | - | `f7e10dba68e21c834638accb1473cefa5a7d9cc46c35a9e2dae1772ca320262a` |
+| vlm/P3-back-rank.svg | board | - | `fcbc167481d328b37b23339d046cc59e1909dd23088ccc2cc1bb61a574370023` |
+| vlm/P4-fork.svg | board | - | `9c55d1ca4296ed2563213a4725eefc483bb7322964e178a61663632e8728bbca` |
+| vlm/P5-shut-bishop.svg | board | - | `84854e466ded688e5fbfa62cfe806a923338ff4256349dfbdf4f56ccb7846b38` |
 
 <!-- summarise:end -->
 

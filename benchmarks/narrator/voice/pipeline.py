@@ -407,6 +407,12 @@ DEFAULT_STYLES = {
 }
 
 
+def styles_of(number: int) -> list[str]:
+    if number <= 3:
+        return list(data.STYLES_V1)
+    return list(data.STYLES_RUN4 if number <= 5 else data.CARDS_RUN6)
+
+
 def run(
     client: Client,
     number: int,
@@ -416,14 +422,25 @@ def run(
     tests: list[str] | None = None,
     out: Path | None = None,
 ) -> Iterator[Record]:
-    """Records of one run; each carries ``meta``. ``tests`` limits the positions (a smoke run).
+    """Check every input and ask the server for the model now; return the run's records lazily.
 
-    ``out`` is the file the records go to; it is left out of the dirty-tree check.
+    Each record carries ``meta``. ``tests`` limits the positions (a smoke run). ``out`` is the
+    file the records go to; it is left out of the dirty-tree check. A bad input or a missing
+    model raises SystemExit here, before the caller opens ``out``.
     """
+    if number not in DEFAULT_SAMPLES:
+        raise SystemExit(f"there is no run {number}; runs are 1-9")
     known = data.TESTS_HELDOUT if number == 9 else data.FENS
     unknown = sorted(set(tests or []) - set(known))
     if unknown:
         raise SystemExit(f"run {number} has no position {', '.join(unknown)}")
+    bad_styles = sorted(set(styles or []) - set(styles_of(number)))
+    if bad_styles:
+        raise SystemExit(f"run {number} has no style {', '.join(bad_styles)}")
+    if own_words and number != 9:
+        raise SystemExit("the 'own words' rule belongs to run 9 only")
+    if samples is not None and samples < 1:
+        raise SystemExit("--samples must be 1 or more")
     samples = samples or DEFAULT_SAMPLES[number]
     styles = styles or DEFAULT_STYLES[number]
     config = {
@@ -442,5 +459,4 @@ def run(
         records = run_roles(client, number, samples, styles, tests)
     else:
         records = run_per_fact(client, number, samples, styles, tests, own_words)
-    for record in records:
-        yield record | {"meta": meta}
+    return (record | {"meta": meta} for record in records)

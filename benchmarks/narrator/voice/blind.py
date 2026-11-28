@@ -94,10 +94,18 @@ def build(
 def join(key: dict[str, Row], judgements: list[Row]) -> list[Row]:
     """Each judged item with its key.
 
-    Raises ValueError on a duplicate, extra or missing id, or on a field outside the rubric:
+    Raises ValueError on a malformed file, a duplicate, extra or missing id, or a field
+    outside the rubric:
     ``faithful`` and ``jargon`` must be booleans, ``lively`` and ``clear`` integers from 1 to 3.
     """
+    if not isinstance(key, dict) or not all(isinstance(k, dict) for k in key.values()):
+        raise ValueError("the key must map each item id to its fields")
+    if not isinstance(judgements, list) or not all(isinstance(j, dict) for j in judgements):
+        raise ValueError("the judgements must be a list of objects, one per item")
     ids = [j.get("id") for j in judgements]
+    bad_ids = [i for i in ids if not isinstance(i, str)]
+    if bad_ids:
+        raise ValueError(f"judgement ids must be strings, not {bad_ids[:3]!r}")
     duplicates = sorted({i for i in ids if ids.count(i) > 1})
     if duplicates:
         raise ValueError(f"duplicate judgement ids: {duplicates[:3]}")
