@@ -193,7 +193,7 @@ unplaced and opt-in.
 ## Play a game
 
 1. Open **Play**.
-2. Keep the player ID filled from your stored identity; no new name or ID is required.
+2. Leave **Display name (optional)** empty or enter a name; your stored identity is used, so no registration or ID is needed.
 3. Keep the preselected **Bot level**, or explicitly change it to save your manual preference, and choose **Play as** (White, Black or Random). As Black, the opponent makes the opening move before you play.
 4. Select **Coach Mode** only for opt-in, post-move interruptions; start the game and use the labelled move field, source/destination taps or drag-and-drop. The SAN move list includes both sides' moves.
 5. If a pawn reaches the last rank, choose **queen**, **rook**, **bishop** or **knight**; that exact promotion is played. Play, Daily Training and critical-moment lessons share this board.
@@ -255,7 +255,7 @@ Run `uv run python -m scan64.learning.evaluation.hint_coverage` to report tactic
 1. Open **Review → Import games** (or **Library → Import games**).
 2. Paste a game, choose **Your side** (White or Black), and import it as the active player. A matching PGN player id or display name pre-selects your side. Lessons and profile observations use only your moves; older games without a stored side cannot be analysed.
 3. Open **Review**, select the imported game, then select **Analyse game** when it has not already been analysed.
-4. Wait for the analysis state to complete.
+4. The import screen starts the analysis itself and shows its progress, then the learning opportunities it found. In **Review**, a game still being analysed says so; select **Refresh review** to see the result.
 5. Replay every move on the analysis board, including unflagged moves and the final position. Select a move, a graph point or a key-moment marker to keep the board and move list linked. Analysis keeps at most five lessons at distinct source positions, ranked by win-probability loss and diagnostic confidence, with a penalty for skills already represented by kept lessons. A deeper source search can discard a flagged move when the move actually played is sound; lower-ranked mistakes then fill the available slots without a skill penalty for discarded candidates. Only kept lessons have review schedules; evidence and profile observations still include all diagnosed owner opportunities.
 
 PGN analysis progress arrives through a live authenticated stream, not repeated status requests. Leaving Import stops its listener without cancelling the server's saved analysis job; use Review to return to the saved game. Too many concurrent progress streams or a disconnected stream reports an error rather than silently polling. Deleting the player closes their open analysis streams.
@@ -275,7 +275,7 @@ The analysis identifies the hanging queen as `board_awareness.hanging_piece`. Le
 
 ### Good move credit
 
-Review lists credited moves with a plain-language proof and a button selecting their ply on the board. Each owner move also shows credit or its exclusion reason. **Profile → Strengths & Weaknesses** reflects the credited skill after analysis; reopen Profile to load its latest state.
+Review lists credited moves with a plain-language proof and a button selecting their ply on the board. Each owner move also shows credit or its exclusion reason. **Profile → Strengths and weaknesses** reflects the credited skill after analysis; reopen Profile to load its latest state.
 
 Credit is deliberately conservative: only a newly tracked, completed game's scored sound owner move that exactly matches the stored first engine line can qualify. Supported tactics are profitable captures (not while in check, not mere recaptures restoring material, with a known preceding move) and checks whose legal line proves material gain or a positive mate score. Capture takes precedence when both apply. Each player/game/canonical source/skill earns at most one +1 success update; repeated positions cannot farm credit. A player earns at most **two credits per skill per game**. When more qualify, proven mate comes first; otherwise higher proven net capture gain or checking-line material gain comes first, then the earliest ply. Other qualifying moves show **“per-game credit cap reached”**. Archives exceeding two credits for one player/game/skill are rejected rather than silently trimmed. Same-source lessons, attempts and failed observations exclude positive credit rather than changing existing failure or practice semantics.
 
@@ -351,7 +351,7 @@ Today and Profile show the same ranked recurring diagnoses as the weekly summary
 
 Each supporting link opens your owned Review at that move. The pattern supplies its diagnosis template; only Review's existing top-three key moments supply a detailed explanation or retry there. Other supporting moves remain inspectable without expanding that limit. Linked coaches can see the pattern, observed cost and coverage, but receive no student Review or practice actions.
 
-Pattern practice tries available same-code **Your mistakes** retries, then a mapped **Theme run** as unrated related practice, not diagnosis or mastery evidence. When related supply is unavailable or exhausted, the plain Daily link says **may be unrelated**. It does not select or reorder today's slots, regenerate the set, or extend retry budgets. Failure observations, practice results and capped positive game-move credit remain distinct.
+Pattern practice tries available same-code **Your mistakes** retries, then a mapped **Theme** puzzle run as unrated related practice, not diagnosis or mastery evidence. When related supply is unavailable or exhausted, the plain Daily link says **may be unrelated**. It does not select or reorder today's slots, regenerate the set, or extend retry budgets. Failure observations, practice results and capped positive game-move credit remain distinct.
 
 ### Progress: before/after pattern recurrence
 
@@ -720,7 +720,7 @@ historical awards under new policy or refreshed catalog ratings.
 - **Library → Opening Explorer** supplies opening-family missions and your [saved repertoires](#practise-a-repertoire).
 - **Library → Famous Games** provides guided historical-game study. Recording a prediction requires the studying player's bearer token; another player cannot submit attempts or change that player's skills.
 - **Library → Community lesson packs** installs a local JSON file and verifies lessons before play. See [the format, provenance and verification guide](lesson-packs.md). Pack play never changes progress, schedules, skills or diagnosis. Exported player archives exclude packs: keep the original file to reinstall and verify after restore.
-- **Coach** opens the Coach Dashboard with linked-student information for coach identities with relationships.
+- **Coach** opens the Coach workspace (its pattern ledger) with linked-student information for coach identities with relationships.
 
 ### Practise a repertoire
 
@@ -853,7 +853,7 @@ The desktop app does not use system proxies or custom certificate authorities; i
 
 **Settings → Send feedback** drafts a GitHub issue; Scan64 itself sends nothing.
 
-- **Drafting:** choose a type, enter a summary and optional details, and read the exact preview. The optional version line names the Scan64 version, your operating system family and whether you use the desktop app or a browser. Untick it to leave it out.
+- **Drafting:** choose a type, enter a summary and optional details, and read the exact preview. The optional version line names your operating system family and whether you use the desktop app or a browser; in the desktop app it also names the Scan64 version. Untick it to leave it out.
 - **Opening:** **Open GitHub issue** opens `https://github.com/Mathews-Tom/Scan64/issues/new` in your system browser with that text prefilled. The form accepts plain text only: a summary of up to 100 characters and details of up to 1,500. Text in non-Latin scripts takes more room in the link, so very long details may need shortening. Opening the form sends the drafted text to GitHub inside the link; nothing is published until you submit the form there.
 - **Submitting:** this needs a GitHub account and makes the issue public. No games, player data, logs or tokens are attached; only what you type and the optional version line.
 
