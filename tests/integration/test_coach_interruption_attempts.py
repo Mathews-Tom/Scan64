@@ -140,6 +140,11 @@ def test_coach_diagnostic_persists_attempt_context_before_move_response(
     assert observation.skill_id == schedule.skill_id
     assert observation.position_id != str(opportunity.source_position_id)
     assert db_session.get(SkillState, ("alice", schedule.skill_id)) is not None
+    engine_evidence = next(
+        item for item in db_session.exec(select(Evidence)).all() if item.kind == "engine_analysis"
+    )
+    assert engine_evidence.claim == "bounded interactive analysis for the flagged position"
+    assert engine_evidence.payload["analysis_depth"] == "interactive"
 
 
 def test_coach_lesson_records_the_pool_engine_after_the_profile_changes(
@@ -171,11 +176,6 @@ def test_coach_lesson_records_the_pool_engine_after_the_profile_changes(
     db_session.rollback()
     opportunity = db_session.exec(select(PersistedLessonOpportunity)).one()
     assert opportunity.lesson_spec["verification"]["engine"] == "pool-engine"
-    engine_evidence = next(
-        item for item in db_session.exec(select(Evidence)).all() if item.kind == "engine_analysis"
-    )
-    assert engine_evidence.claim == "bounded interactive analysis for the flagged position"
-    assert engine_evidence.payload["analysis_depth"] == "interactive"
 
 
 @pytest.mark.parametrize("reset_timing", ["never", "before_game", "after_game"])

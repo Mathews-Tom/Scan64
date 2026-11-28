@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 from typing import Any
 
 import chess
@@ -30,6 +31,7 @@ from scan64.explanations.facts import LINE_EVALUATIONS_FIELD, LINE_NODES, build_
 from scan64.learning.diagnosis.detectors.registration import register_seeded_detectors
 from scan64.learning.evidence.models import Evidence
 from scan64.learning.plugins.registry import PluginRegistry
+from scan64.providers.engine import ENGINE_CONFIG_ENV
 from scan64.providers.engine.uci import EngineCapabilityError
 from scan64.providers.stockfish.adapter import StockfishConfig
 from scan64.providers.stockfish.pool import EnginePoolManager, PooledStockfishAdapter
@@ -40,7 +42,7 @@ MOVES = ["e2e4", "e7e5", "f1c4", "b8c6", "d1h5", "g8f6", "h5f7"]
 
 @pytest.mark.asyncio
 async def test_lesson_lines_are_scored_stored_and_reused(
-    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     calls: list[int] = []
     original = jobs.score_verified_lines
@@ -60,10 +62,16 @@ async def test_lesson_lines_are_scored_stored_and_reused(
     registry = PluginRegistry()
     register_seeded_detectors(registry)
     manager = EnginePoolManager(StockfishConfig(), interactive_concurrency=1, batch_concurrency=2)
+    # A profile selected after the pool started: the pool's Stockfish still
+    # searches, and the lessons name it.
+    profile = tmp_path / "engine.toml"
+    profile.write_text("[engine]\nname = 'second'\nbinary_path = 'second'\n", encoding="utf-8")
+    monkeypatch.setenv(ENGINE_CONFIG_ENV, str(profile))
     try:
         await jobs.run_analysis_for_game(game, db_session, registry, pool_manager=manager)
         lessons = db_session.exec(select(PersistedLessonOpportunity)).all()
         assert lessons, "the fixture game must produce a lesson"
+        assert {lesson.lesson_spec["verification"]["engine"] for lesson in lessons} == {"stockfish"}
         assert calls and all(count > 0 for count in calls)
         evidence = db_session.exec(select(Evidence)).all()
         line_rows = [
