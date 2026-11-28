@@ -37,7 +37,9 @@ install reads Caissa's centipawns as Stockfish's. The committed measurement
 Evaluation) puts them at 0.71–0.75 of Stockfish's (1M-node searches pooled,
 n = 37): win percentages and the 150 cp mistake threshold run on an
 uncalibrated scale, and won positions read near 600–700 cp where Stockfish
-reports 1,000 or more. The fit on the 50 narrator positions is open on #396.
+reports 1,000 or more. The earlier #396 comparison (1 s searches, n = 31) found
+the opposite, a slope of 1.19, so no single factor fits both samples yet. The
+fit on the 50 narrator positions is open on #396.
 Installs that keep Stockfish are unaffected.
 
 ### Which engines an install uses
