@@ -56,6 +56,9 @@ def test_committed_positions_record_their_provenance() -> None:
     data = json.loads(POSITIONS.read_text(encoding="utf-8"))
     provenance = data["provenance"]
     assert re.fullmatch(r"[0-9a-f]{40}", provenance["commit"])
+    # Recorded after the run: the dirty flag is unknown (null), never a guessed bool or text.
+    assert provenance["dirty"] is None
+    assert "not recorded at the time" in provenance["recorded"]
     # The search settings the file states are the ones its config digest covers.
     assert provenance["config_sha256"] == config_sha256(search_config())
     assert {key: data["engine"][key] for key in search_config()["engine"]} == (
