@@ -4,7 +4,7 @@ Usage: uv run python -m tests.helpers.themes.summarize_turning_points
 
 A result is the turning point's ply of one side of one game, or ``None``. The
 reference is the same rule on the scores at 1 000 000 nodes. "Sides" are the
-sides with a turning point in at least one of the passes compared.
+sides with a turning point on the fast pass or at 1 000 000 nodes.
 """
 
 from __future__ import annotations
@@ -115,8 +115,7 @@ def summarize_set(recorded: list[dict[str, Any]], games: list[dict[str, Any]]) -
                     for name in ("every position, 1000000 nodes", "fast pass", RULE)
                 }
     reference = "every position, 1000000 nodes"
-    passes = [name for name in rows[0][0] if not name.startswith(("median", "mean"))]
-    with_point = [r for r, _, _ in rows if any(r[name] is not None for name in passes)]
+    with_point = [r for r, _, _ in rows if r["fast pass"] is not None or r[reference] is not None]
     summary: dict[str, Any] = {
         "games": len(games),
         "sides": len(rows),

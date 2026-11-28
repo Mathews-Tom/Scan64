@@ -789,16 +789,18 @@ Smoothing does not help. On the same games, the moving median of 3 or 5 scores a
 
 The rule is a deeper search of the positions near the level line, `check_level_scores`. In a lost game it walks from the last position back, and searches each position within half a pawn of the level line (`LEVEL_CHECK_CP = 50`) again at 1 000 000 nodes (`LEVEL_CHECK_NODES`). It stops at the first level position, and searches the position after it too, for the size of the step. A search without a score keeps the fast-pass score.
 
-| Scores | Slow-loss games (15 turning points) | 80 other games (72 sides with a turning point in some pass) |
-|---|---|---|
-| Fast pass | 11 | 60 |
-| Every position at 100 000 nodes | 14 | 66 |
-| Check within 25 centipawns, 100 000 nodes | 14 | 63 |
-| Check within 25 centipawns, 1 000 000 nodes | 15 | 65 |
-| Check within 50 centipawns, 100 000 nodes | 14 | 65 |
-| Check within 50 centipawns, 1 000 000 nodes (the rule) | 15 | 70 |
+| Scores | Slow-loss games (15 sides) | 80 games that selected the rule (72 sides) | 160 other games (141 sides) |
+|---|---|---|---|
+| Fast pass | 11 | 60 | 114 (81%) |
+| Every position at 100 000 nodes | 14 | 66 | 123 (87%) |
+| Check within 25 centipawns, 100 000 nodes | 14 | 63 | 121 (86%) |
+| Check within 25 centipawns, 1 000 000 nodes | 15 | 65 | 130 (92%) |
+| Check within 50 centipawns, 100 000 nodes | 14 | 65 | 122 (87%) |
+| Check within 50 centipawns, 1 000 000 nodes (the rule) | 15 | 70 | 135 (96%) |
 
-The numbers are sides with the same result as at 1 000 000 nodes: the same move, or none in both. The 80 games are `tests/fixtures/m48/m79_fresh80_recorded.json`, both sides. The four check variants were fixed before these games were searched, and the rule is the best of the four on them, so 70 of 72 is a selected result. The reference and the check use the same engine at the same budget, so this measures stability, not correctness. The rule costs 5.6 searches per lost side on the slow-loss games and 1.8 on the others. The last row was recomputed with `check_level_scores` on the recorded scores. The raw scores are not in the repository.
+The numbers are sides with the same result as at 1 000 000 nodes: the same move, or none in both. The sides are those with a turning point on the fast pass or at 1 000 000 nodes. The 80 games are `tests/fixtures/m48/m79_fresh80_recorded.json`, both sides. The rule is the best of four variants on them, so 70 of 72 is a selected result. The 160 other games did not select the rule: `m93_fresh80_recorded.json` (68 of 71) and `m94_v2_fresh80_recorded.json` (67 of 70), both sides. All their sides and games were recorded once, and all are counted. The reference and the check use the same engine at the same budget, so this measures stability, not correctness. The rule costs 6.4 searches per lost side on the slow-loss games and 1.9 on the others.
+
+**Raw scores (#513).** `tests/fixtures/themes/turning_point_scores.json` holds the score of every position at 10 000, 100 000 and 1 000 000 nodes, with the commit, the uncommitted changes (none), and the digests of the script, the games and the engine. `tests/helpers/themes/record_turning_points.py` recorded it. `uv run python -m tests.helpers.themes.summarize_turning_points` recomputes every figure above without an engine; the check rows run `check_level_scores` on the recorded scores. The new recording gives the same counts as #486, whose raw scores were not kept. #486 did not define its sides exactly: the definition above was chosen after the recording because it gives the 72 sides of #486. With a side counted for a point in any pass of the table, the rule gives 71 of 73 and, on the 160 other games, 137 of 143. #486 stated 5.6 and 1.8 searches; the recording gives 6.4 and 1.9.
 
 Nothing calls `check_level_scores` yet. Game analysis passes it when it passes the trace (#482).
 
