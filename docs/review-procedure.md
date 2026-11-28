@@ -52,6 +52,7 @@ The owner's reviews follow the same procedure.
 9. **New commits.** A push changes the head commit, so it has no `scan64/review` status and can't merge until it's reviewed again.
    - **Pure rebase:** if `git range-diff <old-base>..<reviewed-head> <new-base>..<new-head>` shows no change to the pull request's own commits and step 3 passes, post a short comment saying so and set `success` with the description `Rebase of reviewed <short-sha>`.
    - **Otherwise:** review the new commits (`git diff <reviewed-head> <new-head>` when the old head is an ancestor) through the steps their changes touch, and check each earlier finding.
+10. **Clean up.** As soon as the review is posted and the status is set, remove the worktree (`git worktree remove --force ../Scan64-pr<N>`), its local `review/*` branch and the scratch files. A review worktree lives for one review only. For a re-review, create a new one from the new head. Install frontend dependencies only when `apps/scan64-web` changed; they add about 300 MB to a worktree. `scan64-coord gc --apply` removes any finished worktree that was missed, and the session-start hook runs it automatically.
 
 Large pull requests can be split into slices with one reviewer per slice. Each reviewer reproduces its own blocking claims, and one combined comment sets the status.
 

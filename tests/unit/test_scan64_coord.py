@@ -1,4 +1,5 @@
 import importlib.util
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -125,3 +126,77 @@ def test_machine_rejects_an_unset_name(monkeypatch: pytest.MonkeyPatch, tmp_path
     monkeypatch.setattr(coord, "MACHINE_FILE", tmp_path / "machine")
     with pytest.raises(SystemExit, match="Unknown machine"):
         coord.machine()
+
+
+_FINISHED = {
+    "locked": False,
+    "in_use": False,
+    "dirty": False,
+    "recent": False,
+    "merged": False,
+    "pr_closed": False,
+    "pushed": True,
+    "superseded": False,
+    "reviewed": False,
+}
+
+
+@pytest.mark.parametrize(
+    ("facts", "removed"),
+    [
+        ({"merged": True}, True),
+        ({"pr_closed": True, "pushed": False}, True),
+        ({"superseded": True}, True),
+        ({"reviewed": True}, True),
+        # Work in progress: pushed, open and not yet reviewed.
+        ({}, False),
+        # Nothing that could be lost is ever removed, however finished the work is.
+        ({"merged": True, "dirty": True}, False),
+        ({"reviewed": True, "pushed": False}, False),
+        ({"superseded": True, "pushed": False}, False),
+        ({"merged": True, "in_use": True}, False),
+        ({"merged": True, "locked": True}, False),
+        ({"merged": True, "recent": True}, False),
+    ],
+)
+def test_gc_removes_only_finished_worktrees_that_lose_nothing(
+    facts: dict[str, bool], removed: bool
+) -> None:
+    assert coord.gc_verdict(**{**_FINISHED, **facts})[0] is removed
+
+
+def _git(cwd: Path, *args: str) -> str:
+    result = subprocess.run(
+        ["git", "-C", str(cwd), *args], capture_output=True, text=True, check=True
+    )
+    return result.stdout.strip()
+
+
+def test_gc_removes_a_merged_worktree_and_keeps_unpushed_and_dirty_ones(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(coord, "gh", lambda *args, check=True: "")
+    origin = tmp_path / "origin.git"
+    repo = tmp_path / "Scan64"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(origin)], check=True)
+    subprocess.run(["git", "clone", "-q", str(origin), str(repo)], check=True, capture_output=True)
+    for key, value in (("user.name", "t"), ("user.email", "t@example.com")):
+        _git(repo, "config", key, value)
+    _git(repo, "commit", "-q", "--allow-empty", "-m", "base")
+    _git(repo, "push", "-q", "origin", "main")
+
+    merged = tmp_path / "Scan64-pr1"
+    _git(repo, "worktree", "add", "-q", "-b", "review/pr-1", str(merged), "main")
+    unpushed = tmp_path / "Scan64-pr2"
+    _git(repo, "worktree", "add", "-q", "--detach", str(unpushed), "main")
+    _git(unpushed, "commit", "-q", "--allow-empty", "-m", "local only")
+    dirty = tmp_path / "Scan64-pr3"
+    _git(repo, "worktree", "add", "-q", "--detach", str(dirty), "main")
+    (dirty / "notes.txt").write_text("draft")
+
+    lines = coord.gc(str(repo), apply=True, recent_seconds=0)
+
+    assert not merged.exists()
+    assert _git(repo, "branch", "--list", "review/pr-1") == ""
+    assert unpushed.exists() and dirty.exists()
+    assert sorted(line.split(":")[0].split()[0] for line in lines) == ["kept", "kept", "removed"]

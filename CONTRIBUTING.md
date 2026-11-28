@@ -226,10 +226,10 @@ On Windows, use `python` instead of `python3`. Setup writes the machine name to 
 
 With Claude Code, also run `scan64-coord install-hooks`, then open `/hooks` once or restart Claude Code. This adds two hooks to `~/.claude/settings.json` and keeps the existing ones:
 
-- At session start, the agent gets `scan64-coord status` in its context, after the installed copy refreshes itself from `origin/main`, or from `origin/epic/371` while the tool is only on the epic branch.
+- At session start, the agent gets `scan64-coord status` in its context, after the installed copy refreshes itself from `origin/main`, or from `origin/epic/371` while the tool is only on the epic branch. The same hook runs `scan64-coord gc --apply`, which removes finished worktrees.
 - Before a `git push` or `gh pr create` in a Scan64 checkout, the hook blocks the command if the branch's ticket belongs to another machine.
 
-Other agents and people run `scan64-coord status` at the start of a session and `scan64-coord check` before pushing.
+Other agents and people run `scan64-coord status` and `scan64-coord gc --apply` at the start of a session, and `scan64-coord check` before pushing.
 
 ### Commands
 
@@ -242,5 +242,6 @@ Other agents and people run `scan64-coord status` at the start of a session and 
 | `scan64-coord ask <N> <machine> "<request>"` | Ask another machine to act on N: comment plus `needs:<machine>` |
 | `scan64-coord answer <N> "<result>"` | Reply on N and remove `needs:<this machine>` |
 | `scan64-coord check [branch]` | Exit 1 if another machine owns the branch's ticket |
+| `scan64-coord gc [--apply]` | Remove finished worktrees (dry run without `--apply`). A worktree goes only when it is clean, no process is using it, it hasn't changed for an hour, its commit is on origin or in a pull request, and its work is merged, closed, moved past or reviewed. Only local `review/*` branches are deleted. |
 | `scan64-coord setup <machine>` | One-time machine setup |
 | `scan64-coord install-hooks` | Add the Claude Code hooks |
