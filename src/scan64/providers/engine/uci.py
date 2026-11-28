@@ -58,6 +58,30 @@ class BotStrengthRangeError(EngineCapabilityError):
     kind = "elo_out_of_range"
 
 
+# The ways one search can fail without the caller being at fault: the engine
+# timed out, reported an error, exited, lacks a capability, or its process failed.
+SEARCH_FAILURES: tuple[type[Exception], ...] = (
+    TimeoutError,
+    chess.engine.EngineError,
+    EngineCapabilityError,
+    OSError,
+)
+
+
+def search_failure_reason(error: BaseException) -> str:
+    """A log-safe reason code for a ``SEARCH_FAILURES`` error: never its message."""
+    if isinstance(error, chess.engine.EngineTerminatedError):
+        return "engine_exited"
+    if isinstance(error, TimeoutError) or isinstance(error.__cause__, TimeoutError):
+        # ``bounded`` reports a search that overran its deadline as a capability error.
+        return "timeout"
+    if isinstance(error, EngineCapabilityError):
+        return error.kind
+    if isinstance(error, chess.engine.EngineError):
+        return "engine_error"
+    return "os_error"
+
+
 def _engine_label(engine: Engine) -> str:
     return str(engine.id.get("name", "the configured engine"))
 

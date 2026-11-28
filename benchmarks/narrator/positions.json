@@ -27,7 +27,7 @@
    "evidence": [
     {
      "claim": "the fast-pass principal variation starts with a legal capture",
-     "engine_analysis_id": "fcb3dc07-3862-4862-8f25-09a9b91c7efa",
+     "engine_analysis_id": "315aa44e-6e33-5e72-864c-93f62154fb0b",
      "evidence_id": "recorded:https://lichess.org/6x5nq6qd:25_ev1",
      "kind": "missed_opportunity",
      "payload": {
@@ -44,12 +44,14 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 9,
-      "fast_analysis_id": "3d02dace-e8f5-4ddf-a5ce-3b7e52a45cc0",
+      "fast_analysis_id": "425f6c25-5fa9-5ead-8107-26420086b60e",
       "fast_line": [
        "b6c5",
        "f2f3"
       ],
-      "focused_analysis_id": "fcb3dc07-3862-4862-8f25-09a9b91c7efa",
+      "fast_score_cp": 129,
+      "fast_score_mate": null,
+      "focused_analysis_id": "315aa44e-6e33-5e72-864c-93f62154fb0b",
       "focused_line": [
        "c5e3",
        "e8c8",
@@ -134,7 +136,9 @@
        "f8c5",
        "f2f3"
       ],
-      "reply_analysis_id": "ab9c3bdc-a22e-49fb-a3ed-5dcc861212cf",
+      "reply_analysis_id": "c11c2084-7b17-568e-8c9c-a18e37fc9b97",
+      "reply_score_cp": 878,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 1007
      },
@@ -161,7 +165,7 @@
    "evidence": [
     {
      "claim": "the fast-pass reply begins with a profitable local capture",
-     "engine_analysis_id": "d2adffec-fb15-4720-98e8-145800521c56",
+     "engine_analysis_id": "3e36882f-ad50-5fdc-9fe2-509ba5b3a6ed",
      "evidence_id": "recorded:https://lichess.org/6x5nq6qd:57_ev1",
      "kind": "blunder_analysis",
      "payload": {
@@ -176,7 +180,7 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 1,
-      "fast_analysis_id": "a1822182-fa79-4634-bffa-b0ea496f439a",
+      "fast_analysis_id": "3092068f-581a-5e08-8802-f66676cf7abb",
       "fast_line": [
        "e7d7",
        "h8h6",
@@ -187,7 +191,9 @@
        "f5f2",
        "f1f2"
       ],
-      "focused_analysis_id": "d2adffec-fb15-4720-98e8-145800521c56",
+      "fast_score_cp": -1068,
+      "fast_score_mate": null,
+      "focused_analysis_id": "3e36882f-ad50-5fdc-9fe2-509ba5b3a6ed",
       "focused_line": [
        "h8e5",
        "e7d7",
@@ -305,7 +311,9 @@
        "h6h3",
        "e6e7"
       ],
-      "reply_analysis_id": "92ceda25-39ca-461d-8fb2-1b70131cd994",
+      "reply_analysis_id": "8df04ea9-760d-5647-bfb4-8e657b093b6a",
+      "reply_score_cp": 1437,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 369,
       "threat_move": "h8e5",
@@ -335,7 +343,7 @@
    "evidence": [
     {
      "claim": "the fast-pass reply wins this piece in its own local exchange",
-     "engine_analysis_id": "f24ba6f6-8cc9-407c-892b-c0d0afd399dd",
+     "engine_analysis_id": "3b9e123d-3602-50f9-8670-d6c01aee2df5",
      "evidence_id": "recorded:https://lichess.org/fl7asfa0:23_ev1",
      "kind": "blunder_analysis",
      "payload": {
@@ -350,12 +358,14 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 5,
-      "fast_analysis_id": "ff73fa00-53a6-464b-b980-32ba854cac61",
+      "fast_analysis_id": "1e3261af-53de-56c1-bb23-e99d0474878f",
       "fast_line": [
        "h7h6",
        "g5e3"
       ],
-      "focused_analysis_id": "f24ba6f6-8cc9-407c-892b-c0d0afd399dd",
+      "fast_score_cp": 105,
+      "fast_score_mate": null,
+      "focused_analysis_id": "3b9e123d-3602-50f9-8670-d6c01aee2df5",
       "focused_line": [
        "f3d2",
        "h7h6",
@@ -499,7 +509,9 @@
        "d8a8",
        "a1b1"
       ],
-      "reply_analysis_id": "1ed7347b-ac59-405d-933b-d4387f1ae8b1",
+      "reply_analysis_id": "e3a89534-ae33-52f5-a014-d6af9b836dbf",
+      "reply_score_cp": 197,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 302
      },
@@ -526,7 +538,7 @@
    "evidence": [
     {
      "claim": "the fast-pass reply wins this piece in its own local exchange",
-     "engine_analysis_id": "a6e69fe3-67b8-487e-9fe6-a804a5e3f334",
+     "engine_analysis_id": "1321dd86-b77f-56b8-a90e-6594fe858a01",
      "evidence_id": "recorded:https://lichess.org/fl7asfa0:37_ev1",
      "kind": "blunder_analysis",
      "payload": {
@@ -541,12 +553,14 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 3,
-      "fast_analysis_id": "5a6fb69f-a876-45cb-9b46-7076e1ab26f7",
+      "fast_analysis_id": "ad43f0d6-7d88-5e69-918b-eab34751633c",
       "fast_line": [
        "h3g4",
        "d3d4"
       ],
-      "focused_analysis_id": "a6e69fe3-67b8-487e-9fe6-a804a5e3f334",
+      "fast_score_cp": -125,
+      "fast_score_mate": null,
+      "focused_analysis_id": "1321dd86-b77f-56b8-a90e-6594fe858a01",
       "focused_line": [
        "g5h3",
        "g8h8",
@@ -633,7 +647,9 @@
        "g5h3",
        "g8h7"
       ],
-      "reply_analysis_id": "13fa70d6-2c51-4f55-b43e-4b7ae3311e93",
+      "reply_analysis_id": "d04617e4-34b7-5f17-809c-a630cb93d555",
+      "reply_score_cp": 597,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 472
      },
@@ -660,7 +676,7 @@
    "evidence": [
     {
      "claim": "the fast-pass reply begins with a profitable local capture",
-     "engine_analysis_id": "ef717d45-039d-4658-a744-2e50c9d0a272",
+     "engine_analysis_id": "d0649bfe-8fb5-5b04-81be-6870f97453d5",
      "evidence_id": "recorded:https://lichess.org/7rzcutsf:4_ev1",
      "kind": "blunder_analysis",
      "payload": {
@@ -675,7 +691,7 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 1,
-      "fast_analysis_id": "6c5c56dc-2760-4851-b46e-f77b204ca502",
+      "fast_analysis_id": "79cf96ea-d879-595e-927f-8c3b8f35fcfd",
       "fast_line": [
        "d4d5",
        "g8f6",
@@ -691,7 +707,9 @@
        "e8g8",
        "e1g1"
       ],
-      "focused_analysis_id": "ef717d45-039d-4658-a744-2e50c9d0a272",
+      "fast_score_cp": 65,
+      "fast_score_mate": null,
+      "focused_analysis_id": "d0649bfe-8fb5-5b04-81be-6870f97453d5",
       "focused_line": [
        "c5d4",
        "g1f3",
@@ -798,7 +816,9 @@
        "b1c3",
        "g8f6"
       ],
-      "reply_analysis_id": "fc6fd2f2-ed77-4b97-abc3-6a717ca3e67f",
+      "reply_analysis_id": "1c8bde81-5826-5b70-90bb-e3e98de285b1",
+      "reply_score_cp": 185,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 250,
       "threat_move": "c5d4",
@@ -828,7 +848,7 @@
    "evidence": [
     {
      "claim": "the fast-pass reply begins with a profitable local capture",
-     "engine_analysis_id": "37c575b8-4b08-4f08-9dd2-5126b5bb95d3",
+     "engine_analysis_id": "4be10ee0-1985-5bd7-ad76-f0a9428f9a03",
      "evidence_id": "recorded:https://lichess.org/7rzcutsf:5_ev2",
      "kind": "blunder_analysis",
      "payload": {
@@ -843,7 +863,7 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 1,
-      "fast_analysis_id": "fc6fd2f2-ed77-4b97-abc3-6a717ca3e67f",
+      "fast_analysis_id": "153976a7-0a32-5a1f-83f4-06254395422d",
       "fast_line": [
        "c5d4",
        "e2e3",
@@ -855,7 +875,9 @@
        "b1c3",
        "g8f6"
       ],
-      "focused_analysis_id": "37c575b8-4b08-4f08-9dd2-5126b5bb95d3",
+      "fast_score_cp": 185,
+      "fast_score_mate": null,
+      "focused_analysis_id": "4be10ee0-1985-5bd7-ad76-f0a9428f9a03",
       "focused_line": [
        "d4c5",
        "d8a5",
@@ -965,7 +987,9 @@
        "d4c5",
        "d8a5"
       ],
-      "reply_analysis_id": "65488cc2-42f7-4bde-a561-47cb04bb6186",
+      "reply_analysis_id": "d20c3904-b422-57e0-894c-56f4f8b36de2",
+      "reply_score_cp": 16,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 201,
       "threat_move": "d4c5",
@@ -995,7 +1019,7 @@
    "evidence": [
     {
      "claim": "the fast-pass reply wins this piece in its own local exchange",
-     "engine_analysis_id": "93a5d015-336c-4a55-bc82-ad4dd2dd51e7",
+     "engine_analysis_id": "46f53f6e-eb4f-559d-a7b3-ed053064cbd7",
      "evidence_id": "recorded:https://lichess.org/9opx3qh7:58_ev1",
      "kind": "blunder_analysis",
      "payload": {
@@ -1010,7 +1034,7 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 3,
-      "fast_analysis_id": "9880a8ca-b217-43e2-a460-af49ba975a0e",
+      "fast_analysis_id": "8f12b615-e664-5603-8d56-c265a9ab71ac",
       "fast_line": [
        "h6d2",
        "g8h7",
@@ -1020,7 +1044,9 @@
        "c5e5",
        "f2f4"
       ],
-      "focused_analysis_id": "93a5d015-336c-4a55-bc82-ad4dd2dd51e7",
+      "fast_score_cp": 1,
+      "fast_score_mate": null,
+      "focused_analysis_id": "46f53f6e-eb4f-559d-a7b3-ed053064cbd7",
       "focused_line": [
        "g6e4",
        "h6f4",
@@ -1115,7 +1141,9 @@
        "h4e1",
        "g1h2"
       ],
-      "reply_analysis_id": "f44c4855-0b63-42be-8494-f3557525bfd9",
+      "reply_analysis_id": "e78f38f3-9afa-50c0-b36a-32ee6729d446",
+      "reply_score_cp": 566,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 567
      },
@@ -1142,7 +1170,7 @@
    "evidence": [
     {
      "claim": "the fast-pass reply wins this piece in its own local exchange",
-     "engine_analysis_id": "ce9dfe69-773f-4db2-928e-9605d0997b8f",
+     "engine_analysis_id": "6531c1ee-76bd-5ff5-8b7f-a1b58e6bcc88",
      "evidence_id": "recorded:https://lichess.org/z2ncoii6:29_ev1",
      "kind": "blunder_analysis",
      "payload": {
@@ -1157,12 +1185,14 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 9,
-      "fast_analysis_id": "bb6cf40a-9dae-4a7b-82b0-7a1f659ef634",
+      "fast_analysis_id": "2e077744-0dfb-520a-9484-98d6724ebae9",
       "fast_line": [
        "d8b6",
        "d2d3"
       ],
-      "focused_analysis_id": "ce9dfe69-773f-4db2-928e-9605d0997b8f",
+      "fast_score_cp": -118,
+      "fast_score_mate": null,
+      "focused_analysis_id": "6531c1ee-76bd-5ff5-8b7f-a1b58e6bcc88",
       "focused_line": [
        "c6d8",
        "f1d3",
@@ -1285,7 +1315,9 @@
        "g6h4",
        "g2h1"
       ],
-      "reply_analysis_id": "6824e1a5-9365-4a27-bace-22c45e38fdd6",
+      "reply_analysis_id": "5cca034e-bbc2-59b3-bd63-fa52b51bc29b",
+      "reply_score_cp": 697,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 579
      },
@@ -1312,7 +1344,7 @@
    "evidence": [
     {
      "claim": "the fast-pass reply wins this piece in its own local exchange",
-     "engine_analysis_id": "fdf1a0f3-6661-4aa5-99cc-31fdbd23fc90",
+     "engine_analysis_id": "b399a45a-ab0b-57d3-a000-e4d9c165d5b0",
      "evidence_id": "recorded:https://lichess.org/z2ncoii6:37_ev1",
      "kind": "blunder_analysis",
      "payload": {
@@ -1327,7 +1359,7 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 3,
-      "fast_analysis_id": "5ffa0145-cd93-4e26-a8ed-76dfc102bda2",
+      "fast_analysis_id": "55fe0cb1-4851-5255-965e-11f0f1836303",
       "fast_line": [
        "a8e8",
        "a4b3",
@@ -1341,7 +1373,9 @@
        "b7f3",
        "f7g8"
       ],
-      "focused_analysis_id": "fdf1a0f3-6661-4aa5-99cc-31fdbd23fc90",
+      "fast_score_cp": -855,
+      "fast_score_mate": null,
+      "focused_analysis_id": "b399a45a-ab0b-57d3-a000-e4d9c165d5b0",
       "focused_line": [
        "e4g6",
        "h8h7",
@@ -1457,7 +1491,9 @@
        "e4f3",
        "f7e7"
       ],
-      "reply_analysis_id": "11ffb9b6-50ef-4582-8063-3cff38d83958",
+      "reply_analysis_id": "b537fc75-6df5-5657-a28b-eea060a23bb3",
+      "reply_score_cp": 1153,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 298
      },
@@ -1484,7 +1520,7 @@
    "evidence": [
     {
      "claim": "the fast-pass reply wins this piece in its own local exchange",
-     "engine_analysis_id": "25017e7b-f164-464b-ae8b-1304de3f565f",
+     "engine_analysis_id": "a7086048-db56-5d53-9b3d-ccec2a657a39",
      "evidence_id": "recorded:https://lichess.org/mntamgdj:7_ev1",
      "kind": "blunder_analysis",
      "payload": {
@@ -1499,12 +1535,14 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 3,
-      "fast_analysis_id": "0232c2af-feac-49de-9b00-965a16415464",
+      "fast_analysis_id": "ec79a9f2-55a3-54a9-b864-80d2a0ca64e7",
       "fast_line": [
        "c7c6",
        "g1f3"
       ],
-      "focused_analysis_id": "25017e7b-f164-464b-ae8b-1304de3f565f",
+      "fast_score_cp": 16,
+      "fast_score_mate": null,
+      "focused_analysis_id": "a7086048-db56-5d53-9b3d-ccec2a657a39",
       "focused_line": [
        "e1f2",
        "f6e4",
@@ -1610,7 +1648,9 @@
        "g1f3",
        "g5g6"
       ],
-      "reply_analysis_id": "f962aebd-6cae-463a-8ea3-a3de831e6c17",
+      "reply_analysis_id": "7b494904-dda2-5ad2-82fa-f54acb1c38e4",
+      "reply_score_cp": 450,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 466
      },
@@ -1637,7 +1677,7 @@
    "evidence": [
     {
      "claim": "the fast-pass reply begins with a profitable local capture",
-     "engine_analysis_id": "7db649f1-fc09-4b7b-a990-78d7ed52d91b",
+     "engine_analysis_id": "c5451b55-f3cb-5c1c-8edf-f0ffb039b851",
      "evidence_id": "recorded:https://lichess.org/mntamgdj:20_ev3",
      "kind": "blunder_analysis",
      "payload": {
@@ -1652,7 +1692,7 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 1,
-      "fast_analysis_id": "21132487-1c49-4236-ac1a-1b5ef3e97a69",
+      "fast_analysis_id": "16087be6-8601-5203-9449-7b414a258ba1",
       "fast_line": [
        "d5d2",
        "f6e7",
@@ -1664,7 +1704,9 @@
        "a5c4",
        "b3c4"
       ],
-      "focused_analysis_id": "7db649f1-fc09-4b7b-a990-78d7ed52d91b",
+      "fast_score_cp": 562,
+      "fast_score_mate": null,
+      "focused_analysis_id": "c5451b55-f3cb-5c1c-8edf-f0ffb039b851",
       "focused_line": [
        "b4c2",
        "b1c3",
@@ -1779,7 +1821,9 @@
        "b4c2",
        "b1c3"
       ],
-      "reply_analysis_id": "b38fa7f3-7bdb-49aa-a0ff-2c1cb6f000fd",
+      "reply_analysis_id": "9854f2c3-0469-5ec4-a9bd-0cb75d5748d6",
+      "reply_score_cp": -271,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 291,
       "threat_move": "b4c2",
@@ -1809,7 +1853,7 @@
    "evidence": [
     {
      "claim": "the fast-pass reply wins this piece in its own local exchange",
-     "engine_analysis_id": "669c1131-ab81-4832-a727-8cbdb5f265ff",
+     "engine_analysis_id": "40fef2c8-1e1e-5df0-85b8-bd2972c4db22",
      "evidence_id": "recorded:https://lichess.org/55a83jiu:42_ev1",
      "kind": "blunder_analysis",
      "payload": {
@@ -1824,7 +1868,7 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 3,
-      "fast_analysis_id": "20ef35df-473f-47bd-92d1-05ab12346d26",
+      "fast_analysis_id": "6222c6b0-48e0-5a1d-b4c1-f46db9ff84e6",
       "fast_line": [
        "d5c7",
        "e8c6",
@@ -1839,7 +1883,9 @@
        "g4c8",
        "f8c8"
       ],
-      "focused_analysis_id": "669c1131-ab81-4832-a727-8cbdb5f265ff",
+      "fast_score_cp": 494,
+      "fast_score_mate": null,
+      "focused_analysis_id": "40fef2c8-1e1e-5df0-85b8-bd2972c4db22",
       "focused_line": [
        "e5f4",
        "c4c5",
@@ -1939,7 +1985,9 @@
        "e5f4",
        "c4c5"
       ],
-      "reply_analysis_id": "22163972-0915-4b60-900b-bb301aad468c",
+      "reply_analysis_id": "8f351be5-578a-5d9a-8a8b-ff063917ffdd",
+      "reply_score_cp": -86,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 408
      },
@@ -1966,7 +2014,7 @@
    "evidence": [
     {
      "claim": "the fast-pass reply begins with a profitable local capture",
-     "engine_analysis_id": "f46b4132-6c47-4c8f-a075-5d266b8187f9",
+     "engine_analysis_id": "2d12ee35-4042-52c0-850b-12bf322f8eb2",
      "evidence_id": "recorded:https://lichess.org/55a83jiu:49_ev2",
      "kind": "blunder_analysis",
      "payload": {
@@ -1981,12 +2029,14 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 1,
-      "fast_analysis_id": "da775010-9d0f-4242-8047-4274671207cd",
+      "fast_analysis_id": "694a8d31-1153-557a-9f8b-b2e06e656985",
       "fast_line": [
        "c6e4",
        "c1f1"
       ],
-      "focused_analysis_id": "f46b4132-6c47-4c8f-a075-5d266b8187f9",
+      "fast_score_cp": -26,
+      "fast_score_mate": null,
+      "focused_analysis_id": "2d12ee35-4042-52c0-850b-12bf322f8eb2",
       "focused_line": [
        "f6g6",
        "d7g7",
@@ -2131,7 +2181,9 @@
        "d5h5",
        "h8g8"
       ],
-      "reply_analysis_id": "c7ed90c1-9c01-476b-95fc-612c56e10365",
+      "reply_analysis_id": "7b2ea2d0-a1f0-51f1-952d-2fe43ddc8b3e",
+      "reply_score_cp": 458,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 432,
       "threat_move": "f6g6",
@@ -2161,7 +2213,7 @@
    "evidence": [
     {
      "claim": "the fast-pass principal variation starts with a legal check",
-     "engine_analysis_id": "e39f03ba-7081-416f-913b-3da010cf0f25",
+     "engine_analysis_id": "3de85054-f825-5f64-a8cd-0619514dcb39",
      "evidence_id": "recorded:https://lichess.org/ufcqmfxx:33_ev1",
      "kind": "missed_opportunity",
      "payload": {
@@ -2175,7 +2227,7 @@
        "tactics.skewer": "m94-skewer-v2"
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
-      "fast_analysis_id": "df5d2b41-8568-4527-b5bc-c0348ac74f7e",
+      "fast_analysis_id": "b4f8b779-9837-508c-ba5f-783b26d8bec3",
       "fast_line": [
        "d8g5",
        "g6g5",
@@ -2191,7 +2243,9 @@
        "h3h6",
        "g7h6"
       ],
-      "focused_analysis_id": "e39f03ba-7081-416f-913b-3da010cf0f25",
+      "fast_score_cp": 607,
+      "fast_score_mate": null,
+      "focused_analysis_id": "3de85054-f825-5f64-a8cd-0619514dcb39",
       "focused_line": [
        "g6h7",
        "g8f7",
@@ -2344,7 +2398,9 @@
        "g6h7",
        "g8f7"
       ],
-      "reply_analysis_id": "ea020f7f-581b-447d-8b41-78f7b086d303",
+      "reply_analysis_id": "d79e2a49-0b54-5dd6-9e94-0777217b7913",
+      "reply_score_cp": 358,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 965
      },
@@ -2371,7 +2427,7 @@
    "evidence": [
     {
      "claim": "the fast-pass principal variation starts with a legal check",
-     "engine_analysis_id": "380d8818-1891-421a-817f-d889bd802d38",
+     "engine_analysis_id": "423c0331-8e17-58b7-9d61-45600b5b593f",
      "evidence_id": "recorded:https://lichess.org/ufcqmfxx:34_ev1",
      "kind": "missed_opportunity",
      "payload": {
@@ -2385,12 +2441,14 @@
        "tactics.skewer": "m94-skewer-v2"
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
-      "fast_analysis_id": "ea020f7f-581b-447d-8b41-78f7b086d303",
+      "fast_analysis_id": "9f65f155-ba09-5054-86cc-5cae4463768a",
       "fast_line": [
        "g6h7",
        "g8f7"
       ],
-      "focused_analysis_id": "380d8818-1891-421a-817f-d889bd802d38",
+      "fast_score_cp": 358,
+      "fast_score_mate": null,
+      "focused_analysis_id": "423c0331-8e17-58b7-9d61-45600b5b593f",
       "focused_line": [
        "d8g5",
        "g6g5",
@@ -2499,7 +2557,9 @@
        "d8g5",
        "g6g5"
       ],
-      "reply_analysis_id": "33e2b4d3-8578-4797-b20a-da22889ca679",
+      "reply_analysis_id": "edd24f24-50ed-514a-b2a0-08f65cab95bb",
+      "reply_score_cp": 44,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 402
      },
@@ -2526,7 +2586,7 @@
    "evidence": [
     {
      "claim": "the fast-pass principal variation starts with a legal capture",
-     "engine_analysis_id": "7d5c469d-5f81-4e0e-a3f4-a4f9cd818aec",
+     "engine_analysis_id": "ed466011-1aa5-5d5a-9f17-d724f91300a4",
      "evidence_id": "recorded:https://lichess.org/fiv37vzi:35_ev1",
      "kind": "missed_opportunity",
      "payload": {
@@ -2543,12 +2603,14 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 1,
-      "fast_analysis_id": "95e45ced-befb-4b21-8cc2-07c9e6c0b0ca",
+      "fast_analysis_id": "acd75030-8b5c-5eab-bd0e-c90cc0f4f5e2",
       "fast_line": [
        "b8c6",
        "d2f3"
       ],
-      "focused_analysis_id": "7d5c469d-5f81-4e0e-a3f4-a4f9cd818aec",
+      "fast_score_cp": -394,
+      "fast_score_mate": null,
+      "focused_analysis_id": "ed466011-1aa5-5d5a-9f17-d724f91300a4",
       "focused_line": [
        "d2c4",
        "f6e8",
@@ -2655,7 +2717,9 @@
        "b6c8",
        "a8c8"
       ],
-      "reply_analysis_id": "8bd1ead4-93ad-4aa7-9b10-ea8305fdd206",
+      "reply_analysis_id": "09c4839c-5c3b-570e-b213-65b5d7567f10",
+      "reply_score_cp": 632,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 238
      },
@@ -2682,7 +2746,7 @@
    "evidence": [
     {
      "claim": "the fast-pass reply begins with a profitable local capture",
-     "engine_analysis_id": "29c6906e-af81-4bf9-8cc0-2b812fd2a619",
+     "engine_analysis_id": "b0f5e62c-6ed7-5290-861f-3cf27f98b3ae",
      "evidence_id": "recorded:https://lichess.org/fiv37vzi:42_ev3",
      "kind": "blunder_analysis",
      "payload": {
@@ -2697,7 +2761,7 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 1,
-      "fast_analysis_id": "6191f088-5d45-4949-9fd0-39494530e739",
+      "fast_analysis_id": "b1188aea-9237-5177-9feb-defa5b75c76d",
       "fast_line": [
        "h1h7",
        "e7d8",
@@ -2707,7 +2771,9 @@
        "c6d5",
        "e4d5"
       ],
-      "focused_analysis_id": "29c6906e-af81-4bf9-8cc0-2b812fd2a619",
+      "fast_score_cp": 799,
+      "fast_score_mate": null,
+      "focused_analysis_id": "b0f5e62c-6ed7-5290-861f-3cf27f98b3ae",
       "focused_line": [
        "h7g6",
        "a2a3",
@@ -2824,7 +2890,9 @@
        "c5c2",
        "b1a1"
       ],
-      "reply_analysis_id": "6f0871f7-31f4-47b7-bc69-b713d76f268a",
+      "reply_analysis_id": "e5ebfe3b-98d6-5a6f-9c51-72b12a06dd36",
+      "reply_score_cp": -466,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 333,
       "threat_move": "h7g6",
@@ -2854,7 +2922,7 @@
    "evidence": [
     {
      "claim": "the fast-pass reply begins with a profitable local capture",
-     "engine_analysis_id": "3c055d02-ac65-43d8-88f8-404b4ac83d33",
+     "engine_analysis_id": "022668f4-d725-58e5-adc5-0bf803bb73ca",
      "evidence_id": "recorded:https://lichess.org/15lzmn9d:7_ev1",
      "kind": "blunder_analysis",
      "payload": {
@@ -2869,12 +2937,14 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 1,
-      "fast_analysis_id": "86583d63-5d28-4a4a-8f1b-135be1842030",
+      "fast_analysis_id": "59e36c17-778f-52c7-a03f-637b530b5026",
       "fast_line": [
        "b5c4",
        "f1c4"
       ],
-      "focused_analysis_id": "3c055d02-ac65-43d8-88f8-404b4ac83d33",
+      "fast_score_cp": -68,
+      "fast_score_mate": null,
+      "focused_analysis_id": "022668f4-d725-58e5-adc5-0bf803bb73ca",
       "focused_line": [
        "d1d5",
        "b8c6",
@@ -3002,7 +3072,9 @@
        "c4b5",
        "c6d4"
       ],
-      "reply_analysis_id": "dd0423e2-b39f-4d16-8356-0e33e9aab77a",
+      "reply_analysis_id": "ba946874-aed9-5c29-b568-b5d677ca0108",
+      "reply_score_cp": 642,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 574,
       "threat_move": "d1d5",
@@ -3032,7 +3104,7 @@
    "evidence": [
     {
      "claim": "the fast-pass principal variation starts with a legal capture",
-     "engine_analysis_id": "538f9d64-54a0-4ef3-83e8-4ee9201883fc",
+     "engine_analysis_id": "d79678fd-a75f-50fe-9637-b94bb71288fd",
      "evidence_id": "recorded:https://lichess.org/15lzmn9d:8_ev1",
      "kind": "missed_opportunity",
      "payload": {
@@ -3049,7 +3121,7 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 1,
-      "fast_analysis_id": "dd0423e2-b39f-4d16-8356-0e33e9aab77a",
+      "fast_analysis_id": "1e91b68e-f537-534b-a6e2-5c4c73bfa0c8",
       "fast_line": [
        "d1d5",
        "d8c7",
@@ -3060,7 +3132,9 @@
        "c4b5",
        "c6d4"
       ],
-      "focused_analysis_id": "538f9d64-54a0-4ef3-83e8-4ee9201883fc",
+      "fast_score_cp": 642,
+      "fast_score_mate": null,
+      "focused_analysis_id": "d79678fd-a75f-50fe-9637-b94bb71288fd",
       "focused_line": [
        "c8d7",
        "g1f3",
@@ -3173,7 +3247,9 @@
        "d8a5",
        "b5c3"
       ],
-      "reply_analysis_id": "27c2bedb-f0ff-4f99-ad37-f1b3a25a87ab",
+      "reply_analysis_id": "3a341b1f-0ce5-5bdf-b0ea-da4826bf0fbf",
+      "reply_score_cp": -98,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 544
      },
@@ -3200,7 +3276,7 @@
    "evidence": [
     {
      "claim": "the fast-pass principal variation starts with a legal check",
-     "engine_analysis_id": "491a0541-8f68-4c44-ba46-01f1349b1178",
+     "engine_analysis_id": "ebe68b7e-273f-5c4f-adcc-76e62fb66d49",
      "evidence_id": "recorded:https://lichess.org/descpsmi:82_ev1",
      "kind": "missed_opportunity",
      "payload": {
@@ -3214,7 +3290,7 @@
        "tactics.skewer": "m94-skewer-v2"
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
-      "fast_analysis_id": "cf1c81b4-cdf1-4d8e-a9a5-f846dce7e27d",
+      "fast_analysis_id": "9a17d15f-466d-591e-9300-214a44ad302c",
       "fast_line": [
        "f3g4",
        "g6f6",
@@ -3224,7 +3300,9 @@
        "f7f8",
        "e6e8"
       ],
-      "focused_analysis_id": "491a0541-8f68-4c44-ba46-01f1349b1178",
+      "fast_score_cp": null,
+      "fast_score_mate": 4,
+      "focused_analysis_id": "ebe68b7e-273f-5c4f-adcc-76e62fb66d49",
       "focused_line": [
        "g6f5",
        "h1h2",
@@ -3296,7 +3374,9 @@
        "e6g6",
        "g4h4"
       ],
-      "reply_analysis_id": "44f722ce-b18e-4c23-b9c2-4769705cf494",
+      "reply_analysis_id": "26646da5-56f2-5f3c-8d9a-222ad8b0f762",
+      "reply_score_cp": -1101,
+      "reply_score_mate": null,
       "source_score_mate": 4,
       "swing_cp": 8859
      },
@@ -3323,7 +3403,7 @@
    "evidence": [
     {
      "claim": "the fast-pass reply begins with a profitable local capture",
-     "engine_analysis_id": "0c06c9b9-f6a4-4ed8-8331-aba54148dcbc",
+     "engine_analysis_id": "a480fc7e-5af5-587a-91ba-517a5f138677",
      "evidence_id": "recorded:https://lichess.org/8ok6jtv5:17_ev2",
      "kind": "blunder_analysis",
      "payload": {
@@ -3338,12 +3418,14 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 1,
-      "fast_analysis_id": "69ac801c-b597-4a40-89b5-c2f966c8c0ec",
+      "fast_analysis_id": "f2c5d27e-037f-5b8c-b931-7b4d9a5a295e",
       "fast_line": [
        "d7d6",
        "b1a3"
       ],
-      "focused_analysis_id": "0c06c9b9-f6a4-4ed8-8331-aba54148dcbc",
+      "fast_score_cp": -146,
+      "fast_score_mate": null,
+      "focused_analysis_id": "a480fc7e-5af5-587a-91ba-517a5f138677",
       "focused_line": [
        "f4c7",
        "b8c6",
@@ -3487,7 +3569,9 @@
        "d3b5",
        "f6e4"
       ],
-      "reply_analysis_id": "7e7315f0-1ae2-467b-94df-0cdb97889617",
+      "reply_analysis_id": "65f89917-fb26-562e-951f-d4ed3e243ab0",
+      "reply_score_cp": 435,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 289,
       "threat_move": "f4c7",
@@ -3517,7 +3601,7 @@
    "evidence": [
     {
      "claim": "the fast-pass reply wins this piece in its own local exchange",
-     "engine_analysis_id": "15be3b24-4cc7-4cf5-870b-c4c5a6764d89",
+     "engine_analysis_id": "3ed2698f-765a-5a0e-a2b1-97a6cddf5938",
      "evidence_id": "recorded:https://lichess.org/8ok6jtv5:32_ev1",
      "kind": "blunder_analysis",
      "payload": {
@@ -3532,7 +3616,7 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 3,
-      "fast_analysis_id": "6ef139c8-4ece-4665-b4d5-be8be4c4d5f4",
+      "fast_analysis_id": "f3fd465a-3532-530f-a3a3-44b77800e9e0",
       "fast_line": [
        "e5g3",
        "b7b6",
@@ -3547,7 +3631,9 @@
        "h3g4",
        "e5g4"
       ],
-      "focused_analysis_id": "15be3b24-4cc7-4cf5-870b-c4c5a6764d89",
+      "fast_score_cp": 394,
+      "fast_score_mate": null,
+      "focused_analysis_id": "3ed2698f-765a-5a0e-a2b1-97a6cddf5938",
       "focused_line": [
        "g6g7",
        "b1d2",
@@ -3650,7 +3736,9 @@
        "g6g7",
        "d4d5"
       ],
-      "reply_analysis_id": "d7df0f82-8abd-4474-a467-ddd2b20c8ed7",
+      "reply_analysis_id": "ab743931-5c36-5631-8ac8-111ec7ba9df6",
+      "reply_score_cp": -86,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 308
      },
@@ -3677,7 +3765,7 @@
    "evidence": [
     {
      "claim": "the fast-pass reply wins this piece in its own local exchange",
-     "engine_analysis_id": "68585766-f9c4-4a06-97d7-ee83aa372bad",
+     "engine_analysis_id": "6f437601-4d86-5ecf-8281-e8556cac354d",
      "evidence_id": "recorded:https://lichess.org/a301qp92:20_ev1",
      "kind": "blunder_analysis",
      "payload": {
@@ -3692,12 +3780,14 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 3,
-      "fast_analysis_id": "88c17bd9-2f2d-41c9-b945-0c6fb58eed89",
+      "fast_analysis_id": "d6fc4361-7691-5047-826d-589ea289ff05",
       "fast_line": [
        "f3d2",
        "c8g4"
       ],
-      "focused_analysis_id": "68585766-f9c4-4a06-97d7-ee83aa372bad",
+      "fast_score_cp": -323,
+      "fast_score_mate": null,
+      "focused_analysis_id": "6f437601-4d86-5ecf-8281-e8556cac354d",
       "focused_line": [
        "c6d4",
        "c1g5",
@@ -3834,7 +3924,9 @@
        "d6e7",
        "b1c3"
       ],
-      "reply_analysis_id": "9a4431da-ca81-4ab6-aa5b-11505d8f31b6",
+      "reply_analysis_id": "a2f0657f-eb4e-5e4f-9586-b5375c77ff61",
+      "reply_score_cp": 709,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 386
      },
@@ -3861,7 +3953,7 @@
    "evidence": [
     {
      "claim": "the fast-pass principal variation starts with a legal capture",
-     "engine_analysis_id": "8f4198a7-1677-4efc-90e7-545d787fff69",
+     "engine_analysis_id": "a248cf7f-2fa1-5875-927c-37e604b3d173",
      "evidence_id": "recorded:https://lichess.org/a301qp92:21_ev1",
      "kind": "missed_opportunity",
      "payload": {
@@ -3878,14 +3970,16 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 3,
-      "fast_analysis_id": "9a4431da-ca81-4ab6-aa5b-11505d8f31b6",
+      "fast_analysis_id": "ac22f3d3-2fbc-5fbe-b763-7754d4bfda9f",
       "fast_line": [
        "c6d4",
        "c1g5",
        "d6e7",
        "b1c3"
       ],
-      "focused_analysis_id": "8f4198a7-1677-4efc-90e7-545d787fff69",
+      "fast_score_cp": 709,
+      "fast_score_mate": null,
+      "focused_analysis_id": "a248cf7f-2fa1-5875-927c-37e604b3d173",
       "focused_line": [
        "h2h3",
        "c6d4"
@@ -3981,7 +4075,9 @@
        "c6d4",
        "e3d4"
       ],
-      "reply_analysis_id": "08410db7-10d6-4085-bb6e-64fe79cdf2ce",
+      "reply_analysis_id": "421f6f48-dd7f-55b2-afa8-2d5854bf0cbc",
+      "reply_score_cp": -152,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 557
      },
@@ -4008,7 +4104,7 @@
    "evidence": [
     {
      "claim": "the fast-pass reply begins with a profitable local capture",
-     "engine_analysis_id": "0db89131-7650-4ea4-9037-ad4116e14646",
+     "engine_analysis_id": "b6ed0c64-3279-5b4c-b168-2fe4887d1efc",
      "evidence_id": "recorded:https://lichess.org/61wsdfp4:30_ev2",
      "kind": "blunder_analysis",
      "payload": {
@@ -4023,12 +4119,14 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 1,
-      "fast_analysis_id": "3ba12ba2-91b3-4053-b6ba-81b62b9282f3",
+      "fast_analysis_id": "cd1379ea-e285-5b5e-93fa-4e141e01bcfa",
       "fast_line": [
        "f1f2",
        "f8c5"
       ],
-      "focused_analysis_id": "0db89131-7650-4ea4-9037-ad4116e14646",
+      "fast_score_cp": -368,
+      "fast_score_mate": null,
+      "focused_analysis_id": "b6ed0c64-3279-5b4c-b168-2fe4887d1efc",
       "focused_line": [
        "d5g2",
        "f2e1",
@@ -4134,7 +4232,9 @@
        "f1g1",
        "g2h3"
       ],
-      "reply_analysis_id": "f0c40fe0-2eb6-4479-8d49-dc9a5cad3756",
+      "reply_analysis_id": "bd8c892d-57f6-52a7-af2d-a1c579aee348",
+      "reply_score_cp": 608,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 240,
       "threat_move": "d5g2",
@@ -4164,7 +4264,7 @@
    "evidence": [
     {
      "claim": "the move newly allows the opponent's engine-proved mate in at most three",
-     "engine_analysis_id": "071a4daf-76aa-4ca1-894f-e89f90a6ab03",
+     "engine_analysis_id": "8a941453-ffdd-5215-be40-817ff1d7e923",
      "evidence_id": "recorded:https://lichess.org/61wsdfp4:43_ev1",
      "kind": "blunder_analysis",
      "payload": {
@@ -4181,7 +4281,7 @@
        "tactics.skewer": "m94-skewer-v2"
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
-      "fast_analysis_id": "3fac8968-5614-4704-8654-96a0b8f93c9a",
+      "fast_analysis_id": "dfe60790-16f1-510a-a272-dbdd2869c650",
       "fast_line": [
        "b8b7",
        "b1a1",
@@ -4197,7 +4297,9 @@
        "b5d3",
        "d7c7"
       ],
-      "focused_analysis_id": "071a4daf-76aa-4ca1-894f-e89f90a6ab03",
+      "fast_score_cp": -642,
+      "fast_score_mate": null,
+      "focused_analysis_id": "8a941453-ffdd-5215-be40-817ff1d7e923",
       "focused_line": [
        "d6e6"
       ],
@@ -4253,7 +4355,7 @@
       ],
       "mate_in": 1,
       "mate_rule_version": "m78-focused-source-v1",
-      "mate_source_analysis_id": "09da7410-378b-4439-882d-0146253215c8",
+      "mate_source_analysis_id": "859d0130-3bb4-5f90-bb8d-fc27a5d6caad",
       "mate_source_config": {
        "multipv": 4,
        "nodes": 1000000
@@ -4362,7 +4464,9 @@
       "proving_line": [
        "d6e6"
       ],
-      "reply_analysis_id": "820e0909-0de3-4e04-af33-2a9e8ff1dfc2",
+      "reply_analysis_id": "19a9ccd1-5feb-5c98-a59a-22409856ab97",
+      "reply_score_cp": null,
+      "reply_score_mate": 1,
       "source_score_mate": null,
       "swing_cp": 9348
      },
@@ -4389,7 +4493,7 @@
    "evidence": [
     {
      "claim": "the fast-pass principal variation starts with a legal capture",
-     "engine_analysis_id": "89cc0251-7937-4746-b4a3-a378b54a407d",
+     "engine_analysis_id": "1c8ba8e0-5f1e-50b3-bf05-17e2fca0e907",
      "evidence_id": "recorded:https://lichess.org/7hvhc1t7:16_ev1",
      "kind": "missed_opportunity",
      "payload": {
@@ -4406,7 +4510,7 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 3,
-      "fast_analysis_id": "f3cd9b75-d38a-45c4-b39e-6227d18a3d91",
+      "fast_analysis_id": "ba531117-3ecd-5cc9-9ab9-b36d98925ed2",
       "fast_line": [
        "h3g4",
        "b4d6",
@@ -4420,7 +4524,9 @@
        "c6e5",
        "e2f4"
       ],
-      "focused_analysis_id": "89cc0251-7937-4746-b4a3-a378b54a407d",
+      "fast_score_cp": 258,
+      "fast_score_mate": null,
+      "focused_analysis_id": "1c8ba8e0-5f1e-50b3-bf05-17e2fca0e907",
       "focused_line": [
        "g4e2",
        "e1e2",
@@ -4558,7 +4664,9 @@
        "h3g2",
        "e7c6"
       ],
-      "reply_analysis_id": "b408860e-152a-4f3c-9f73-6e5367ad2b3a",
+      "reply_analysis_id": "8b3c8e9a-f52f-512b-948b-8bae7b9f0bfc",
+      "reply_score_cp": 221,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 479
      },
@@ -4585,7 +4693,7 @@
    "evidence": [
     {
      "claim": "the fast-pass principal variation starts with a legal capture",
-     "engine_analysis_id": "e43ff46e-93ee-4d49-978f-fbc68656969e",
+     "engine_analysis_id": "194903d6-a36f-5141-b637-e4616b113256",
      "evidence_id": "recorded:https://lichess.org/7hvhc1t7:20_ev1",
      "kind": "missed_opportunity",
      "payload": {
@@ -4602,7 +4710,7 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 3,
-      "fast_analysis_id": "a245fd8e-e244-4fbc-971f-b2dcee538a65",
+      "fast_analysis_id": "053c2220-5efb-5084-bb16-70475616eed5",
       "fast_line": [
        "b1c3",
        "g5g6",
@@ -4617,7 +4725,9 @@
        "e5f6",
        "g7f6"
       ],
-      "focused_analysis_id": "e43ff46e-93ee-4d49-978f-fbc68656969e",
+      "fast_score_cp": 276,
+      "fast_score_mate": null,
+      "focused_analysis_id": "194903d6-a36f-5141-b637-e4616b113256",
       "focused_line": [
        "d5d4",
        "c3b2",
@@ -4714,7 +4824,9 @@
        "d5d4",
        "c3b2"
       ],
-      "reply_analysis_id": "3b6272ae-eb0f-4d3f-a099-e9eb1b43048b",
+      "reply_analysis_id": "0a01dc41-39b9-59c2-bce8-ea1bdb58b1f4",
+      "reply_score_cp": -69,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 207
      },
@@ -4741,7 +4853,7 @@
    "evidence": [
     {
      "claim": "the fast-pass principal variation starts with a legal capture",
-     "engine_analysis_id": "72baadaf-1daf-48d2-874e-28cc3d7f16a0",
+     "engine_analysis_id": "271505d8-e930-5a3d-845d-9e485cea6c1f",
      "evidence_id": "recorded:https://lichess.org/y3m3quag:6_ev1",
      "kind": "missed_opportunity",
      "payload": {
@@ -4758,7 +4870,7 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 3,
-      "fast_analysis_id": "ea9d493f-1a2b-48ea-b929-be9c1584547f",
+      "fast_analysis_id": "bc787f1a-4a51-5a2c-8728-379ddad6a5e6",
       "fast_line": [
        "d3f5",
        "e7e5",
@@ -4772,7 +4884,9 @@
        "h4b4",
        "b1d2"
       ],
-      "focused_analysis_id": "72baadaf-1daf-48d2-874e-28cc3d7f16a0",
+      "fast_score_cp": 786,
+      "fast_score_mate": null,
+      "focused_analysis_id": "271505d8-e930-5a3d-845d-9e485cea6c1f",
       "focused_line": [
        "e7e6",
        "d3f5",
@@ -4888,7 +5002,9 @@
        "f5d3",
        "c2d3"
       ],
-      "reply_analysis_id": "b3eb5c3a-a163-480d-9a31-7c8b6e9ff6b3",
+      "reply_analysis_id": "50cefa66-1709-5b38-a513-f6888266fec1",
+      "reply_score_cp": 0,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 786
      },
@@ -4915,7 +5031,7 @@
    "evidence": [
     {
      "claim": "the fast-pass principal variation starts with a legal check",
-     "engine_analysis_id": "0f143835-fc83-4294-963d-f65fa0f09f8c",
+     "engine_analysis_id": "ee38e598-04f2-55cf-a45d-7b11fd0c968e",
      "evidence_id": "recorded:https://lichess.org/y3m3quag:35_ev1",
      "kind": "missed_opportunity",
      "payload": {
@@ -4929,7 +5045,7 @@
        "tactics.skewer": "m94-skewer-v2"
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
-      "fast_analysis_id": "85c14b29-30d9-45bb-a80c-09b9b9cc0c96",
+      "fast_analysis_id": "f9acb686-62c4-5793-9378-7ed003239649",
       "fast_line": [
        "d4d3",
        "f3f4",
@@ -4944,7 +5060,9 @@
        "g2f2",
        "f4g5"
       ],
-      "focused_analysis_id": "0f143835-fc83-4294-963d-f65fa0f09f8c",
+      "fast_score_cp": 1384,
+      "fast_score_mate": null,
+      "focused_analysis_id": "ee38e598-04f2-55cf-a45d-7b11fd0c968e",
       "focused_line": [
        "f3e2",
        "f6g5",
@@ -5057,7 +5175,9 @@
        "d3a6",
        "b3a3"
       ],
-      "reply_analysis_id": "13565999-ec02-4bc7-81e4-41b042c74398",
+      "reply_analysis_id": "56b0d29b-651f-53ec-be38-2020d62e1035",
+      "reply_score_cp": -852,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 532
      },
@@ -5084,7 +5204,7 @@
    "evidence": [
     {
      "claim": "the fast-pass principal variation starts with a legal check",
-     "engine_analysis_id": "7c2e358d-c3f2-4c00-b15e-b7d2def9e39b",
+     "engine_analysis_id": "d1eea981-3f9c-530b-9e71-72ef8f3c2892",
      "evidence_id": "recorded:https://lichess.org/8dqmtc5l:26_ev1",
      "kind": "missed_opportunity",
      "payload": {
@@ -5098,12 +5218,14 @@
        "tactics.skewer": "m94-skewer-v2"
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
-      "fast_analysis_id": "6c7321e1-7d7c-47ce-948f-f1a74f313769",
+      "fast_analysis_id": "e1c34e73-1fcd-5088-8eee-fc4b4473f0f5",
       "fast_line": [
        "d5f6",
        "g7f6"
       ],
-      "focused_analysis_id": "7c2e358d-c3f2-4c00-b15e-b7d2def9e39b",
+      "fast_score_cp": 322,
+      "fast_score_mate": null,
+      "focused_analysis_id": "d1eea981-3f9c-530b-9e71-72ef8f3c2892",
       "focused_line": [
        "f6d7",
        "h3f4",
@@ -5226,7 +5348,9 @@
        "f6d7",
        "h3f4"
       ],
-      "reply_analysis_id": "df46034c-6dca-4e90-b838-e4ed06c70fa4",
+      "reply_analysis_id": "6df4dbbe-159a-5720-a378-c9deb7ac1861",
+      "reply_score_cp": 117,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 439
      },
@@ -5253,7 +5377,7 @@
    "evidence": [
     {
      "claim": "the fast-pass principal variation starts with a legal capture",
-     "engine_analysis_id": "7e1f9ef2-9b81-496c-bdbc-20436580a6c3",
+     "engine_analysis_id": "9ec56948-7fb6-597d-ad0a-505fc098ea55",
      "evidence_id": "recorded:https://lichess.org/8dqmtc5l:28_ev1",
      "kind": "missed_opportunity",
      "payload": {
@@ -5270,12 +5394,14 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 3,
-      "fast_analysis_id": "8a4d6b8e-b546-4840-a046-e3bd59c978bf",
+      "fast_analysis_id": "1885e922-26a7-5386-ac2f-f596c5c9911d",
       "fast_line": [
        "d5f6",
        "c6b4"
       ],
-      "focused_analysis_id": "7e1f9ef2-9b81-496c-bdbc-20436580a6c3",
+      "fast_score_cp": 413,
+      "fast_score_mate": null,
+      "focused_analysis_id": "9ec56948-7fb6-597d-ad0a-505fc098ea55",
       "focused_line": [
        "c5e7",
        "h3f4",
@@ -5370,7 +5496,9 @@
        "c5e7",
        "a1c1"
       ],
-      "reply_analysis_id": "42f09991-9a5b-441c-bf37-f7d291f07442",
+      "reply_analysis_id": "07b5c2d8-f66d-52e8-b18e-0ca8d9182b71",
+      "reply_score_cp": 36,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 449
      },
@@ -5397,7 +5525,7 @@
    "evidence": [
     {
      "claim": "the fast-pass principal variation starts with a legal capture",
-     "engine_analysis_id": "2071dedf-83ce-4d1b-900e-b733b6ea1d2b",
+     "engine_analysis_id": "e3ddde37-faac-554f-b5a2-84147c3e977f",
      "evidence_id": "recorded:https://lichess.org/ce12lh0d:32_ev1",
      "kind": "missed_opportunity",
      "payload": {
@@ -5414,7 +5542,7 @@
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
       "exchange_gain": 1,
-      "fast_analysis_id": "d0e9a26e-93b5-40dc-a647-2e6907306bea",
+      "fast_analysis_id": "57acf2e6-9355-5488-8306-24717815d1b7",
       "fast_line": [
        "c3d5",
        "a7a6",
@@ -5426,7 +5554,9 @@
        "f8c8",
        "d5c7"
       ],
-      "focused_analysis_id": "2071dedf-83ce-4d1b-900e-b733b6ea1d2b",
+      "fast_score_cp": 1053,
+      "fast_score_mate": null,
+      "focused_analysis_id": "e3ddde37-faac-554f-b5a2-84147c3e977f",
       "focused_line": [
        "f5c2",
        "c6e7",
@@ -5536,7 +5666,9 @@
        "h7h5",
        "c5c7"
       ],
-      "reply_analysis_id": "ce8dbba5-bd78-47ce-bae4-cdd2ff6c9851",
+      "reply_analysis_id": "3187c63e-e883-55c6-8b1e-722363427256",
+      "reply_score_cp": -842,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 211
      },
@@ -5563,7 +5695,7 @@
    "evidence": [
     {
      "claim": "the move newly allows the opponent's engine-proved mate in at most three",
-     "engine_analysis_id": "eaec98a1-4f96-46cc-9e50-468362864734",
+     "engine_analysis_id": "c82df12b-28ed-5d1c-b92f-0f39f24d7a39",
      "evidence_id": "recorded:https://lichess.org/l0gjct48:47_ev1",
      "kind": "blunder_analysis",
      "payload": {
@@ -5580,12 +5712,14 @@
        "tactics.skewer": "m94-skewer-v2"
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
-      "fast_analysis_id": "9013c483-c042-4021-8e2d-286933c54723",
+      "fast_analysis_id": "839b00fc-07c0-5a80-995b-caca59f41aa6",
       "fast_line": [
        "h5g6",
        "g1g6"
       ],
-      "focused_analysis_id": "eaec98a1-4f96-46cc-9e50-468362864734",
+      "fast_score_cp": -645,
+      "fast_score_mate": null,
+      "focused_analysis_id": "c82df12b-28ed-5d1c-b92f-0f39f24d7a39",
       "focused_line": [
        "a7f7"
       ],
@@ -5643,7 +5777,7 @@
       ],
       "mate_in": 1,
       "mate_rule_version": "m78-focused-source-v1",
-      "mate_source_analysis_id": "e8e69e90-aaf5-435d-a70b-7d35e0e75948",
+      "mate_source_analysis_id": "80d7de64-ad50-547a-9ecf-e7e154027e68",
       "mate_source_config": {
        "multipv": 4,
        "nodes": 1000000
@@ -5743,7 +5877,9 @@
       "proving_line": [
        "a7f7"
       ],
-      "reply_analysis_id": "a2be3c9b-3302-472c-9a40-591fdab6eff7",
+      "reply_analysis_id": "1b01e385-1b02-5760-b79f-be68501fccd1",
+      "reply_score_cp": null,
+      "reply_score_mate": 1,
       "source_score_mate": null,
       "swing_cp": 9345
      },
@@ -5770,7 +5906,7 @@
    "evidence": [
     {
      "claim": "the move newly allows the opponent's engine-proved mate in at most three",
-     "engine_analysis_id": "61bc6091-8a0c-4e36-b666-5d993779a0fd",
+     "engine_analysis_id": "8cde17f5-4204-5f64-8ddd-3d579da3896f",
      "evidence_id": "recorded:https://lichess.org/l0gjct48:49_ev1",
      "kind": "blunder_analysis",
      "payload": {
@@ -5787,12 +5923,14 @@
        "tactics.skewer": "m94-skewer-v2"
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
-      "fast_analysis_id": "08842df0-e21a-421d-b476-e41a9cf03a9e",
+      "fast_analysis_id": "9d2d6d91-98e3-5952-a489-6a0318d87c7b",
       "fast_line": [
        "d1h5",
        "h6f7"
       ],
-      "focused_analysis_id": "61bc6091-8a0c-4e36-b666-5d993779a0fd",
+      "fast_score_cp": -109,
+      "fast_score_mate": null,
+      "focused_analysis_id": "8cde17f5-4204-5f64-8ddd-3d579da3896f",
       "focused_line": [
        "a7f7"
       ],
@@ -5890,7 +6028,7 @@
       ],
       "mate_in": 1,
       "mate_rule_version": "m78-focused-source-v1",
-      "mate_source_analysis_id": "e85d5550-c23c-4f30-b36b-b41c9c7cf252",
+      "mate_source_analysis_id": "c68cada4-faf2-529c-b1c2-4693d5cd070e",
       "mate_source_config": {
        "multipv": 4,
        "nodes": 1000000
@@ -5975,7 +6113,9 @@
       "proving_line": [
        "a7f7"
       ],
-      "reply_analysis_id": "44cb5758-a5c8-4b5d-894c-7c3141470eba",
+      "reply_analysis_id": "da88ac1a-f7f8-5c0c-aa9a-6eadb395142b",
+      "reply_score_cp": null,
+      "reply_score_mate": 1,
       "source_score_mate": null,
       "swing_cp": 9881
      },
@@ -6002,7 +6142,7 @@
    "evidence": [
     {
      "claim": "the fast-pass principal variation starts with a legal check",
-     "engine_analysis_id": "47f916d1-509f-4668-85a9-b1f2fb166349",
+     "engine_analysis_id": "f8babc0d-0662-517b-ba94-d38379e2d548",
      "evidence_id": "recorded:https://lichess.org/ui2g2idg:42_ev1",
      "kind": "missed_opportunity",
      "payload": {
@@ -6016,12 +6156,14 @@
        "tactics.skewer": "m94-skewer-v2"
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
-      "fast_analysis_id": "e08c4443-7e0e-471d-9282-59e2742d02f1",
+      "fast_analysis_id": "ad778fc6-98be-53b9-9913-23bda5942154",
       "fast_line": [
        "c1c8",
        "b7c8"
       ],
-      "focused_analysis_id": "47f916d1-509f-4668-85a9-b1f2fb166349",
+      "fast_score_cp": 306,
+      "fast_score_mate": null,
+      "focused_analysis_id": "f8babc0d-0662-517b-ba94-d38379e2d548",
       "focused_line": [
        "c8c1",
        "d2c1",
@@ -6160,7 +6302,9 @@
        "c8c1",
        "d2c1"
       ],
-      "reply_analysis_id": "a6169c43-218a-4212-bc85-df628d9d3e1b",
+      "reply_analysis_id": "25c29cc5-06b5-55dd-9324-71c1deffe631",
+      "reply_score_cp": 464,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 770
      },
@@ -6187,7 +6331,7 @@
    "evidence": [
     {
      "claim": "the fast-pass principal variation starts with a legal check",
-     "engine_analysis_id": "c3ab2c1f-b723-42b7-a409-40b1f5b0cef1",
+     "engine_analysis_id": "b68a2e9f-8afb-5ad1-a5f3-f9ceb4e7e98e",
      "evidence_id": "recorded:https://lichess.org/ui2g2idg:59_ev1",
      "kind": "missed_opportunity",
      "payload": {
@@ -6201,7 +6345,7 @@
        "tactics.skewer": "m94-skewer-v2"
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
-      "fast_analysis_id": "eaa1d6af-d274-44d9-92f2-1fcfea8a5712",
+      "fast_analysis_id": "9a17b7b8-b797-5e55-8a4f-43e3289e9995",
       "fast_line": [
        "a4c2",
        "e3d2",
@@ -6220,7 +6364,9 @@
        "f4f2",
        "h4g5"
       ],
-      "focused_analysis_id": "c3ab2c1f-b723-42b7-a409-40b1f5b0cef1",
+      "fast_score_cp": 2098,
+      "fast_score_mate": null,
+      "focused_analysis_id": "b68a2e9f-8afb-5ad1-a5f3-f9ceb4e7e98e",
       "focused_line": [
        "e3d2",
        "e5f4",
@@ -6270,7 +6416,9 @@
        "e3d2",
        "d3f4"
       ],
-      "reply_analysis_id": "8e1340c7-e0ab-4c33-9350-e6c8e2200d8f",
+      "reply_analysis_id": "f917ab16-d106-5452-ae6c-6104097e0eb9",
+      "reply_score_cp": -1511,
+      "reply_score_mate": null,
       "source_score_mate": null,
       "swing_cp": 587
      },
@@ -6297,7 +6445,7 @@
    "evidence": [
     {
      "claim": "the fast-pass principal variation starts with a legal check",
-     "engine_analysis_id": "6afe4c2b-085e-4a4d-b3a0-36f991536306",
+     "engine_analysis_id": "e55b67e3-dd00-5736-bc0e-b49d2cf58000",
      "evidence_id": "recorded:https://lichess.org/r5urywfn:74_ev1",
      "kind": "missed_opportunity",
      "payload": {
@@ -6311,7 +6459,7 @@
        "tactics.skewer": "m94-skewer-v2"
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
-      "fast_analysis_id": "101bb8f9-17b0-4920-aec2-6ac53b7a597f",
+      "fast_analysis_id": "9b60947b-3922-52fe-b957-dc1b4f76365d",
       "fast_line": [
        "b5b7",
        "e7f8",
@@ -6321,7 +6469,9 @@
        "f7f6",
        "h6h8"
       ],
-      "focused_analysis_id": "6afe4c2b-085e-4a4d-b3a0-36f991536306",
+      "fast_score_cp": null,
+      "fast_score_mate": 4,
+      "focused_analysis_id": "e55b67e3-dd00-5736-bc0e-b49d2cf58000",
       "focused_line": [
        "e7d8",
        "e3f5",
@@ -6402,7 +6552,9 @@
        "h6h8",
        "e7d6"
       ],
-      "reply_analysis_id": "a6af284a-a2c4-4de5-9921-1e35511e4d57",
+      "reply_analysis_id": "28960ca9-d8de-5788-9e36-6da56a68c686",
+      "reply_score_cp": -1029,
+      "reply_score_mate": null,
       "source_score_mate": 4,
       "swing_cp": 8931
      },
@@ -6429,7 +6581,7 @@
    "evidence": [
     {
      "claim": "the fast-pass principal variation starts with a legal check",
-     "engine_analysis_id": "23b745b0-8527-49a8-a4c2-64c24ef0d85f",
+     "engine_analysis_id": "86463868-b7f3-5fbb-a94e-956fa66b856f",
      "evidence_id": "recorded:https://lichess.org/r5urywfn:86_ev1",
      "kind": "missed_opportunity",
      "payload": {
@@ -6443,7 +6595,7 @@
        "tactics.skewer": "m94-skewer-v2"
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
-      "fast_analysis_id": "f1c00849-ee19-4485-8fae-06865b63724f",
+      "fast_analysis_id": "9dd1d8a9-72b2-51b9-9b60-47ebfa3f6615",
       "fast_line": [
        "h6h7",
        "d7e8",
@@ -6453,7 +6605,9 @@
        "c7c8",
        "b8c8"
       ],
-      "focused_analysis_id": "23b745b0-8527-49a8-a4c2-64c24ef0d85f",
+      "fast_score_cp": null,
+      "fast_score_mate": 4,
+      "focused_analysis_id": "86463868-b7f3-5fbb-a94e-956fa66b856f",
       "focused_line": [
        "c8c2",
        "h6h7",
@@ -6549,7 +6703,9 @@
        "h6h7",
        "c7b8"
       ],
-      "reply_analysis_id": "c028945c-7c91-4d34-bea4-99358c941c4e",
+      "reply_analysis_id": "bf4db7d6-5492-55af-981e-6750c7338717",
+      "reply_score_cp": -1242,
+      "reply_score_mate": null,
       "source_score_mate": 4,
       "swing_cp": 8718
      },
@@ -6576,7 +6732,7 @@
    "evidence": [
     {
      "claim": "the move newly allows the opponent's engine-proved mate in at most three",
-     "engine_analysis_id": "eeab5b88-aabe-4ec8-a67d-d7dcf5fdbb6b",
+     "engine_analysis_id": "e7c92a51-a4ec-542e-985a-0e509909a1ca",
      "evidence_id": "recorded:https://lichess.org/fwbxa5oz:71_ev1",
      "kind": "blunder_analysis",
      "payload": {
@@ -6593,12 +6749,14 @@
        "tactics.skewer": "m94-skewer-v2"
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
-      "fast_analysis_id": "1dc95604-ec7b-4253-b7c3-47891539fa3c",
+      "fast_analysis_id": "5735bec6-4fc2-5f4c-91e4-1092e1472e1e",
       "fast_line": [
        "f6f5",
        "d7e5"
       ],
-      "focused_analysis_id": "eeab5b88-aabe-4ec8-a67d-d7dcf5fdbb6b",
+      "fast_score_cp": -326,
+      "fast_score_mate": null,
+      "focused_analysis_id": "e7c92a51-a4ec-542e-985a-0e509909a1ca",
       "focused_line": [
        "d7f8"
       ],
@@ -6673,7 +6831,7 @@
       ],
       "mate_in": 1,
       "mate_rule_version": "m78-focused-source-v1",
-      "mate_source_analysis_id": "fb29b8ed-0238-4a39-ae80-4f0c0a8e4611",
+      "mate_source_analysis_id": "26903e5d-d8a3-5894-9807-44a7859e5fae",
       "mate_source_config": {
        "multipv": 4,
        "nodes": 1000000
@@ -6741,7 +6899,9 @@
       "proving_line": [
        "d7f8"
       ],
-      "reply_analysis_id": "6de5b9d0-4894-4c11-89d5-fbb5d97733d3",
+      "reply_analysis_id": "1d2ee9ee-7a16-5d2d-b5c4-a66d548f46e0",
+      "reply_score_cp": null,
+      "reply_score_mate": 1,
       "source_score_mate": null,
       "swing_cp": 9664
      },
@@ -6768,7 +6928,7 @@
    "evidence": [
     {
      "claim": "the move newly allows the opponent's engine-proved mate in at most three",
-     "engine_analysis_id": "fd42833e-6e50-48f9-bbf4-9543582169f4",
+     "engine_analysis_id": "fdd6a290-258c-5e81-9731-d78e53b402f8",
      "evidence_id": "recorded:https://lichess.org/0sara2m9:23_ev1",
      "kind": "blunder_analysis",
      "payload": {
@@ -6785,7 +6945,7 @@
        "tactics.skewer": "m94-skewer-v2"
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
-      "fast_analysis_id": "7c5ecf97-feef-4f6a-9445-1663f1025539",
+      "fast_analysis_id": "44725e20-2ed2-56bf-8469-6b442b2ddd9f",
       "fast_line": [
        "f8e7",
        "c7b7",
@@ -6796,7 +6956,9 @@
        "g8h6",
        "a7c7"
       ],
-      "focused_analysis_id": "fd42833e-6e50-48f9-bbf4-9543582169f4",
+      "fast_score_cp": -1767,
+      "fast_score_mate": null,
+      "focused_analysis_id": "fdd6a290-258c-5e81-9731-d78e53b402f8",
       "focused_line": [
        "c7d7"
       ],
@@ -6870,7 +7032,7 @@
       ],
       "mate_in": 1,
       "mate_rule_version": "m78-focused-source-v1",
-      "mate_source_analysis_id": "54a37c94-72b7-4012-b0bc-91759ed57035",
+      "mate_source_analysis_id": "8050b445-88a0-56da-996f-36f84d68887e",
       "mate_source_config": {
        "multipv": 4,
        "nodes": 1000000
@@ -6954,7 +7116,9 @@
       "proving_line": [
        "c7d7"
       ],
-      "reply_analysis_id": "940b6261-6055-423a-9dd9-9ffaafc14702",
+      "reply_analysis_id": "68fdefdb-b39f-55a8-99dc-5c2028b07aed",
+      "reply_score_cp": null,
+      "reply_score_mate": 1,
       "source_score_mate": null,
       "swing_cp": 8223
      },
@@ -6981,7 +7145,7 @@
    "evidence": [
     {
      "claim": "the fast-pass principal variation exposes a tactical opportunity",
-     "engine_analysis_id": "277d55f6-e378-4aa1-a0cd-69425c4c0f83",
+     "engine_analysis_id": "f0960216-fcae-5b03-8976-eb707066115e",
      "evidence_id": "recorded:https://lichess.org/wkc0hzao:30_ev2",
      "kind": "missed_tactic",
      "payload": {
@@ -6995,7 +7159,7 @@
        "tactics.skewer": "m94-skewer-v2"
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
-      "fast_analysis_id": "40ab20ed-ade2-45f3-9a5e-5ac24c09f0aa",
+      "fast_analysis_id": "a3e8d856-006e-554e-aa9c-605c1a36132d",
       "fast_line": [
        "c4b6",
        "d7b7",
@@ -7009,7 +7173,9 @@
        "a8f3",
        "g2f3"
       ],
-      "focused_analysis_id": "277d55f6-e378-4aa1-a0cd-69425c4c0f83",
+      "fast_score_cp": 709,
+      "fast_score_mate": null,
+      "focused_analysis_id": "f0960216-fcae-5b03-8976-eb707066115e",
       "focused_line": [
        "c6d5",
        "f3d2",
@@ -7164,7 +7330,9 @@
        "d5b3",
        "b1b3"
       ],
-      "reply_analysis_id": "0c8fcf46-71fc-4ae9-92a5-df7f404745a5",
+      "reply_analysis_id": "94d182c4-9094-5a0e-8ef9-a16f246ed6a9",
+      "reply_score_cp": -239,
+      "reply_score_mate": null,
       "results_in_material_gain": true,
       "source_score_mate": null,
       "swing_cp": 470,
@@ -7203,7 +7371,7 @@
    "evidence": [
     {
      "claim": "the move newly allows the opponent's engine-proved mate in at most three",
-     "engine_analysis_id": "5f218495-943e-4ee7-ba31-34ffd2868786",
+     "engine_analysis_id": "8b21b242-5424-544e-9f98-5fef318dad0d",
      "evidence_id": "fresh80_recorded:https://lichess.org/grcc15yt:30_ev1",
      "kind": "blunder_analysis",
      "payload": {
@@ -7220,12 +7388,14 @@
        "tactics.skewer": "m94-skewer-v2"
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
-      "fast_analysis_id": "f385fd3d-1762-46ca-a4c0-107a534afce6",
+      "fast_analysis_id": "c00723fa-1059-5626-979f-2a7daea2ab05",
       "fast_line": [
        "e1g3",
        "g8f6"
       ],
-      "focused_analysis_id": "5f218495-943e-4ee7-ba31-34ffd2868786",
+      "fast_score_cp": 74,
+      "fast_score_mate": null,
+      "focused_analysis_id": "8b21b242-5424-544e-9f98-5fef318dad0d",
       "focused_line": [
        "h8h1",
        "g1h1",
@@ -7331,7 +7501,7 @@
       ],
       "mate_in": 3,
       "mate_rule_version": "m78-focused-source-v1",
-      "mate_source_analysis_id": "b327a2c4-68a5-4960-bd2e-0d885f74b53c",
+      "mate_source_analysis_id": "343afd03-f788-59f2-b10e-da731c1dc836",
       "mate_source_config": {
        "multipv": 4,
        "nodes": 1000000
@@ -7393,7 +7563,9 @@
        "h1g1",
        "h4h2"
       ],
-      "reply_analysis_id": "ad7f842e-acd1-4589-beed-0ecee37f4235",
+      "reply_analysis_id": "df6fb76b-90c9-57ab-8688-2c20edacf0bc",
+      "reply_score_cp": null,
+      "reply_score_mate": 3,
       "source_score_mate": null,
       "swing_cp": 10044
      },
@@ -7420,7 +7592,7 @@
    "evidence": [
     {
      "claim": "the move newly allows the opponent's engine-proved mate in at most three",
-     "engine_analysis_id": "f704c605-a97a-4d8b-b494-1220f1b00613",
+     "engine_analysis_id": "d66d971a-73ba-57be-8770-c17b1e8e1607",
      "evidence_id": "fresh80_recorded:https://lichess.org/grcc15yt:51_ev1",
      "kind": "blunder_analysis",
      "payload": {
@@ -7437,7 +7609,7 @@
        "tactics.skewer": "m94-skewer-v2"
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
-      "fast_analysis_id": "f525695a-9b49-485d-9557-8ed5e17e0a24",
+      "fast_analysis_id": "683d5eef-b1bd-5274-b953-12c4a64d990a",
       "fast_line": [
        "f8e8",
        "h7h8",
@@ -7451,7 +7623,9 @@
        "c4b5",
        "d5e4"
       ],
-      "focused_analysis_id": "f704c605-a97a-4d8b-b494-1220f1b00613",
+      "fast_score_cp": -959,
+      "fast_score_mate": null,
+      "focused_analysis_id": "d66d971a-73ba-57be-8770-c17b1e8e1607",
       "focused_line": [
        "h7h8",
        "g8f7",
@@ -7522,7 +7696,7 @@
       ],
       "mate_in": 2,
       "mate_rule_version": "m78-focused-source-v1",
-      "mate_source_analysis_id": "6100babb-d573-44fd-98c4-0c6128bd2829",
+      "mate_source_analysis_id": "c5bfd263-eca1-53be-be82-738a33c8add9",
       "mate_source_config": {
        "multipv": 4,
        "nodes": 1000000
@@ -7618,7 +7792,9 @@
        "g8f7",
        "h1h7"
       ],
-      "reply_analysis_id": "1a61ec5d-0362-43e1-8ed5-d908b956cb98",
+      "reply_analysis_id": "90556e09-7361-5b30-8d09-5ddc9df39273",
+      "reply_score_cp": null,
+      "reply_score_mate": 2,
       "source_score_mate": null,
       "swing_cp": 9021
      },
@@ -7645,7 +7821,7 @@
    "evidence": [
     {
      "claim": "the fast-pass principal variation exposes a tactical opportunity",
-     "engine_analysis_id": "b5ee8a2d-cbd5-4de1-90fd-4b53763421ac",
+     "engine_analysis_id": "f00be093-e8da-5e26-847b-3c6beb57b5b8",
      "evidence_id": "fresh80_recorded:https://lichess.org/cnw6r6h7:34_ev2",
      "kind": "missed_tactic",
      "payload": {
@@ -7659,7 +7835,7 @@
        "tactics.skewer": "m94-skewer-v2"
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
-      "fast_analysis_id": "c56ff3a4-0e74-4f9d-84e8-efe194a0b099",
+      "fast_analysis_id": "1c8d1400-1d33-5a19-8cb4-67751f83b23b",
       "fast_line": [
        "d5e7",
        "d6e7",
@@ -7681,7 +7857,9 @@
        "e8e7",
        "a7e7"
       ],
-      "focused_analysis_id": "b5ee8a2d-cbd5-4de1-90fd-4b53763421ac",
+      "fast_score_cp": 612,
+      "fast_score_mate": null,
+      "focused_analysis_id": "f00be093-e8da-5e26-847b-3c6beb57b5b8",
       "focused_line": [
        "d6c7",
        "b2b4",
@@ -7762,7 +7940,9 @@
        "d6c5",
        "g1h1"
       ],
-      "reply_analysis_id": "c45ab0d4-1193-45ac-9ad7-ce8ce67606f8",
+      "reply_analysis_id": "688e6e61-8c31-5855-bcfe-41a346f934dd",
+      "reply_score_cp": -87,
+      "reply_score_mate": null,
       "results_in_material_gain": true,
       "source_score_mate": null,
       "swing_cp": 525,
@@ -7801,7 +7981,7 @@
    "evidence": [
     {
      "claim": "the move newly allows the opponent's engine-proved mate in at most three",
-     "engine_analysis_id": "767a5d9e-9bac-4a3c-ab72-35ac317e3ec7",
+     "engine_analysis_id": "3768cd89-5171-5b55-ad46-5650fd2377c9",
      "evidence_id": "fresh80_recorded:https://lichess.org/mfm4dwt8:22_ev1",
      "kind": "blunder_analysis",
      "payload": {
@@ -7818,12 +7998,14 @@
        "tactics.skewer": "m94-skewer-v2"
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
-      "fast_analysis_id": "76b7ccfe-5f56-4a7a-bbbd-bbcbf8021c86",
+      "fast_analysis_id": "729b8d57-520f-5884-ba14-db0046960d0c",
       "fast_line": [
        "e2c1",
        "d8d6"
       ],
-      "focused_analysis_id": "767a5d9e-9bac-4a3c-ab72-35ac317e3ec7",
+      "fast_score_cp": -244,
+      "fast_score_mate": null,
+      "focused_analysis_id": "3768cd89-5171-5b55-ad46-5650fd2377c9",
       "focused_line": [
        "b4d3"
       ],
@@ -7910,7 +8092,7 @@
       ],
       "mate_in": 1,
       "mate_rule_version": "m78-focused-source-v1",
-      "mate_source_analysis_id": "317e1ca3-f12b-42eb-a4cd-65ffe5ec0626",
+      "mate_source_analysis_id": "f8f5fd2b-d19d-53c2-ba15-05b550639849",
       "mate_source_config": {
        "multipv": 4,
        "nodes": 1000000
@@ -7992,7 +8174,9 @@
       "proving_line": [
        "b4d3"
       ],
-      "reply_analysis_id": "4ff76343-2e8e-441c-b534-ca145697e013",
+      "reply_analysis_id": "9fae1423-476a-5ffd-baa8-af44fe199c3b",
+      "reply_score_cp": null,
+      "reply_score_mate": 1,
       "source_score_mate": null,
       "swing_cp": 9746
      },
@@ -8019,7 +8203,7 @@
    "evidence": [
     {
      "claim": "the move newly allows the opponent's engine-proved mate in at most three",
-     "engine_analysis_id": "6ef93d25-d03f-4741-9b23-89773db928f8",
+     "engine_analysis_id": "46b1799a-177a-5103-9935-37197f60d28d",
      "evidence_id": "fresh80_recorded:https://lichess.org/vnzp3o18:76_ev1",
      "kind": "blunder_analysis",
      "payload": {
@@ -8036,7 +8220,7 @@
        "tactics.skewer": "m94-skewer-v2"
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
-      "fast_analysis_id": "aa9c364c-92c7-49aa-8424-c4d242c2844d",
+      "fast_analysis_id": "de661c1c-4116-5e45-92b6-7c5251588ef1",
       "fast_line": [
        "g4g3",
        "d4d3",
@@ -8055,7 +8239,9 @@
        "e8a8",
        "f5g4"
       ],
-      "focused_analysis_id": "6ef93d25-d03f-4741-9b23-89773db928f8",
+      "fast_score_cp": 655,
+      "fast_score_mate": null,
+      "focused_analysis_id": "46b1799a-177a-5103-9935-37197f60d28d",
       "focused_line": [
        "d4f4"
       ],
@@ -8096,7 +8282,7 @@
       ],
       "mate_in": 1,
       "mate_rule_version": "m78-focused-source-v1",
-      "mate_source_analysis_id": "8d4a0297-a360-4847-ac2f-8d33a880ad3f",
+      "mate_source_analysis_id": "1a5b81ea-c8e4-5b78-848d-c8ef7b786fbd",
       "mate_source_config": {
        "multipv": 4,
        "nodes": 1000000
@@ -8179,7 +8365,9 @@
       "proving_line": [
        "d4f4"
       ],
-      "reply_analysis_id": "0cd79cc4-27d0-47e7-811e-1e306e961175",
+      "reply_analysis_id": "27fac3ae-a965-5ea7-b79c-e0c86df57c08",
+      "reply_score_cp": null,
+      "reply_score_mate": 1,
       "source_score_mate": null,
       "swing_cp": 10645
      },
@@ -8206,7 +8394,7 @@
    "evidence": [
     {
      "claim": "the fast-pass principal variation exposes a tactical opportunity",
-     "engine_analysis_id": "f66f0752-f0ce-451b-b116-6ef695534b40",
+     "engine_analysis_id": "11c09abf-cef0-5166-ba0a-993ce47c4677",
      "evidence_id": "fresh80_recorded:https://lichess.org/zyhneh6b:28_ev2",
      "kind": "missed_tactic",
      "payload": {
@@ -8220,7 +8408,7 @@
        "tactics.skewer": "m94-skewer-v2"
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
-      "fast_analysis_id": "0b759181-9af6-4377-8fb8-8a402d0ec8a5",
+      "fast_analysis_id": "a48c2f66-1367-50ed-ac4a-ee92e53f4258",
       "fast_line": [
        "e4d6",
        "e8f8",
@@ -8232,7 +8420,9 @@
        "b8d8",
        "h4g5"
       ],
-      "focused_analysis_id": "f66f0752-f0ce-451b-b116-6ef695534b40",
+      "fast_score_cp": 698,
+      "fast_score_mate": null,
+      "focused_analysis_id": "11c09abf-cef0-5166-ba0a-993ce47c4677",
       "focused_line": [
        "e8e7",
        "f6g4",
@@ -8350,7 +8540,9 @@
        "h8h5",
        "a1d1"
       ],
-      "reply_analysis_id": "8ba60ec5-5546-4260-b6ad-068780e2eee5",
+      "reply_analysis_id": "1174ecf7-73e1-517a-9fd1-5906334f8fac",
+      "reply_score_cp": -168,
+      "reply_score_mate": null,
       "results_in_material_gain": true,
       "source_score_mate": null,
       "swing_cp": 530,
@@ -8389,7 +8581,7 @@
    "evidence": [
     {
      "claim": "the fast-pass principal variation exposes a tactical opportunity",
-     "engine_analysis_id": "f957235b-fca3-48ae-b6a3-17dec41dcc18",
+     "engine_analysis_id": "ffadfca1-7746-5bb2-9ad7-75019080fdc5",
      "evidence_id": "fresh80_recorded:https://lichess.org/vwa8ajti:54_ev2",
      "kind": "missed_tactic",
      "payload": {
@@ -8403,7 +8595,7 @@
        "tactics.skewer": "m94-skewer-v2"
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
-      "fast_analysis_id": "d92647ab-263d-4a7a-902b-5f08def7d241",
+      "fast_analysis_id": "fb0cf116-dad6-51f3-bb40-8192c3cd11c6",
       "fast_line": [
        "d5f6",
        "e8d8",
@@ -8414,7 +8606,9 @@
        "g2h2",
        "h4f3"
       ],
-      "focused_analysis_id": "f957235b-fca3-48ae-b6a3-17dec41dcc18",
+      "fast_score_cp": 0,
+      "fast_score_mate": null,
+      "focused_analysis_id": "ffadfca1-7746-5bb2-9ad7-75019080fdc5",
       "focused_line": [
        "d7h3",
        "b1b8",
@@ -8531,7 +8725,9 @@
        "f1e1",
        "g8e8"
       ],
-      "reply_analysis_id": "3a188980-6d1a-4bba-a01d-6b8dfbec0d91",
+      "reply_analysis_id": "71850355-352c-5180-b261-295c291c16e0",
+      "reply_score_cp": 832,
+      "reply_score_mate": null,
       "results_in_material_gain": true,
       "source_score_mate": null,
       "swing_cp": 832,
@@ -8574,7 +8770,7 @@
    "evidence": [
     {
      "claim": "the fast-pass principal variation exposes a tactical opportunity",
-     "engine_analysis_id": "44ec6093-e2ec-4e73-92da-cfd15aed6d4d",
+     "engine_analysis_id": "ea225fd9-83cc-504c-9cd2-7f824507d7ef",
      "evidence_id": "fresh80_recorded:https://lichess.org/1ronesu1:56_ev3",
      "kind": "missed_tactic",
      "payload": {
@@ -8588,7 +8784,7 @@
        "tactics.skewer": "m94-skewer-v2"
       },
       "diagnosis_rule_version": "m48-fast-local-v1",
-      "fast_analysis_id": "1f08a7dd-d5d9-4bed-b3d2-9393c6c548f5",
+      "fast_analysis_id": "d69a9442-ec73-5173-9b0d-7816c489f383",
       "fast_line": [
        "d4e6",
        "d8d7",
@@ -8600,7 +8796,9 @@
        "f7g6",
        "f8g7"
       ],
-      "focused_analysis_id": "44ec6093-e2ec-4e73-92da-cfd15aed6d4d",
+      "fast_score_cp": null,
+      "fast_score_mate": 5,
+      "focused_analysis_id": "ea225fd9-83cc-504c-9cd2-7f824507d7ef",
       "focused_line": [
        "e6c8",
        "b7a7",
@@ -8730,7 +8928,9 @@
        "f8g8",
        "c7c6"
       ],
-      "reply_analysis_id": "ae239ad5-e005-4c33-ae2f-df0ac36774e5",
+      "reply_analysis_id": "bddd2996-be7b-566f-81bf-aff41bd78980",
+      "reply_score_cp": -908,
+      "reply_score_mate": null,
       "results_in_material_gain": true,
       "source_score_mate": 5,
       "swing_cp": 9042,

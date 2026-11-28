@@ -16,14 +16,13 @@ from scan64.explanations.assembly import (
 )
 from scan64.explanations.board_lines import (
     BOARD_NARRATOR_SYSTEM_PROMPT,
-    BoardLinesFacts,
     board_lines_request,
     board_narrator_system_prompt,
     board_slot_catalogue,
     resolve_board_lines_explanation,
     template_board_explanation,
 )
-from scan64.explanations.facts import NarratorFacts, build_narrator_facts
+from scan64.explanations.facts import build_narrator_facts
 from scan64.explanations.settings import OPERATOR_LLM_CONFIG, LocalNarratorProvider
 from scan64.explanations.slots import CHESS_PROSE, lesson_slot_catalogue
 from scan64.explanations.templates.provider import TemplateExplanationProvider
@@ -94,19 +93,17 @@ def test_a_voice_fragment_adds_no_chess_fact_and_asks_for_no_reasoning(
 def test_each_voice_builds_a_valid_lesson_and_board_prompt(voice: NarratorVoice) -> None:
     diagnosis, evidence = _missed_capture()
     facts = build_narrator_facts(diagnosis, evidence, _FEN)
-    system, user, slots = assembly._explanation_request(facts, voice).messages
+    system, slots = assembly._explanation_request(facts, voice).messages
     assert system.role == "system"
     assert system.content == f"{NARRATOR_SYSTEM_PROMPT}\n{voice_rules(voice)}"
     assert system.content == narrator_system_prompt(voice)
-    # The facts and the slot list do not depend on the voice.
-    assert NarratorFacts.model_validate_json(user.content, strict=True) == facts
+    # The slot list does not depend on the voice.
     assert slots.content == lesson_slot_catalogue(facts).prompt()
 
     board = _board_facts("start", 3)
-    system, user, slots = board_lines_request(board, voice).messages
+    system, slots = board_lines_request(board, voice).messages
     assert system.content == f"{BOARD_NARRATOR_SYSTEM_PROMPT}\n{voice_rules(voice)}"
     assert system.content == board_narrator_system_prompt(voice)
-    assert BoardLinesFacts.model_validate_json(user.content) == board.for_prompt()
     assert slots.content == board_slot_catalogue(board).prompt()
 
 

@@ -24,6 +24,7 @@ from scan64.chess.analysis.models import (
     PersistedLessonOpportunity,
 )
 from scan64.chess.analysis.notifications import AnalysisJobSubscription, AnalysisSubscriptionLimit
+from scan64.chess.boards import board_from
 from scan64.chess.games.models import Game
 from scan64.chess.games.online_import import (
     OnlineImportError,
@@ -551,9 +552,17 @@ def get_game_positions(
     game_id: UUID, request: Request, session: Session = Depends(get_session)
 ) -> list[PositionRead]:
     game = _get_owned_game(game_id, request, session)
+    # Only the positions the game passed through. Searches along a lesson's
+    # verified lines (#367) are stored as positions of the game too, so the
+    # evidence can name them, but they are not moves of this game.
+    board = board_from(game.headers.get("FEN"))
+    game_fens = [board.fen()]
+    for move in game.moves:
+        board.push_uci(move)
+        game_fens.append(board.fen())
     positions = session.exec(
         select(Position)
-        .where(Position.game_id == game_id)
+        .where(Position.game_id == game_id, col(Position.fen).in_(game_fens))
         .order_by(
             col(Position.full_move_number),
             case((col(Position.side_to_move) == "w", 0), else_=1),

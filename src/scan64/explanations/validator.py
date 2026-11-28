@@ -6,7 +6,8 @@ checked on one of two paths:
 
 - Slot path (#386, ``context.slots`` set): every slot must name a fact listed
   for the cited evidence item, and the prose outside the slots must hold no
-  chess content (``slots.CHESS_PROSE``). The returned claims hold the rendered
+  chess notation and no chess word the position's facts do not contain
+  (``slots.chess_words_outside_slots``, #408). The returned claims hold the rendered
   text. The claim grammar below is not used.
 - Grammar path (#366, ``context.slots`` unset): claim text is read with a small
   explicit grammar (see ``_validate_claim_text``); any chess token the grammar
@@ -34,9 +35,9 @@ from scan64.explanations.facts import (
     parse_played_move,
 )
 from scan64.explanations.slots import (
-    CHESS_PROSE,
     SLOT_TOKEN,
     SlotCatalogue,
+    chess_words_outside_slots,
     prose_outside_slots,
     render,
 )
@@ -133,6 +134,8 @@ def validate_generated_explanation(
     evidence_by_id = _evidence_by_id(context.evidence)
     claims: list[ExplanationClaim] = []
     for claim in generated.claims:
+        if context.slots is not None:
+            claim = _unquoted_evidence_ref(claim, evidence_by_id)
         _validate_claim_contract(claim, board, context, evidence_by_id)
         if context.slots is None:
             _validate_claim_text(
@@ -146,9 +149,49 @@ def validate_generated_explanation(
             claims.append(claim)
         else:
             text = render_slot_text(claim.text, context.slots, claim.evidence_ref)
-            claims.append(claim.model_copy(update={"text": text}))
+            update: dict[str, Any] = {"text": text}
+            if not claim.line:
+                update["line"] = slot_citation(
+                    claim.text,
+                    context.slots,
+                    claim.evidence_ref,
+                    context.verified_lines.get(claim.evidence_ref, ()),
+                )
+            claims.append(claim.model_copy(update=update))
 
     return Explanation(text=" ".join(claim.text for claim in claims), claims=claims)
+
+
+def _unquoted_evidence_ref(
+    claim: ExplanationClaim, evidence_by_id: Mapping[str, Evidence]
+) -> ExplanationClaim:
+    """Slot path: the slot list quotes each evidence_ref; drop quotes a model copied."""
+    ref = claim.evidence_ref
+    inner = ref[1:-1] if len(ref) > 2 and ref[0] == ref[-1] and ref[0] in "\"'" else ref
+    if inner != ref and inner in evidence_by_id:
+        return claim.model_copy(update={"evidence_ref": inner})
+    return claim
+
+
+def slot_citation(
+    text: str,
+    catalogue: SlotCatalogue,
+    evidence_id: str,
+    verified: Iterable[tuple[str, ...]],
+) -> tuple[str, ...]:
+    """The line a slot claim cites when it names none (#408).
+
+    The longest ``Slot.citation`` among the claim's slots that is a prefix of
+    a verified line of its evidence item; ``()`` when no slot belongs to a line.
+    """
+    slots = catalogue.slots_for(evidence_id)
+    lines = tuple(verified)
+    best: tuple[str, ...] = ()
+    for match in SLOT_TOKEN.finditer(text):
+        cited = slots[match.group("name")].citation
+        if len(cited) > len(best) and any(line[: len(cited)] == cited for line in lines):
+            best = cited
+    return best
 
 
 def render_slot_text(text: str, catalogue: SlotCatalogue, evidence_id: str) -> str:
@@ -166,11 +209,11 @@ def render_slot_text(text: str, catalogue: SlotCatalogue, evidence_id: str) -> s
     prose = prose_outside_slots(text.replace("’", "'").replace("‘", "'"))
     if "{" in prose or "}" in prose:
         raise _reject("unknown_slot", f"contains a malformed slot: {text!r}")
-    residue = CHESS_PROSE.search(prose)
+    residue = chess_words_outside_slots(prose, catalogue.vocabulary(evidence_id))
     if residue is not None:
         raise _reject(
             "chess_token_outside_slot",
-            f"states chess content outside a slot: {residue[0]!r}",
+            f"states chess content outside a slot: {residue!r}",
         )
     return render(text, slots)
 

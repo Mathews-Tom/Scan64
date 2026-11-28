@@ -4,7 +4,9 @@ The search is the free-analysis search: the same interactive pool, hint
 admission, deadline and cache as ``POST /v1/analysis/position``, so with the
 default budget the explained lines are the lines the board already shows.
 ``nodes`` and ``depth`` may only narrow that budget; ``multipv`` selects how many
-of the engine's ranked lines are explained.
+of the engine's ranked lines are explained. Within the same request deadline,
+each position along the explained lines (plies 2 to 8) is scored with a small
+search; plies the deadline does not reach stay ``unknown``.
 
 The latest explanation request from a player wins: it cancels that player's
 running model call, and an older request that is still in its engine search
@@ -44,8 +46,10 @@ from scan64.explanations.board_lines import (
     BoardLinesFacts,
     ExplanationSource,
     ScoredLine,
+    board_line_positions,
     build_board_lines_facts,
     claim_line_id,
+    line_scores,
     resolve_board_lines_explanation,
     scored_legal_lines,
 )
@@ -54,7 +58,7 @@ from scan64.explanations.settings import (
     read_local_explanation_provider,
 )
 from scan64.persistence.database import get_session
-from scan64.providers.stockfish.pool import EnginePoolManager
+from scan64.providers.stockfish.pool import HINT_DEADLINE_S, EnginePoolManager
 
 router = APIRouter(tags=["insights"])
 
@@ -227,6 +231,8 @@ async def _explained_lines(
     body: AnalysisExplanationRequest,
     count: int,
 ) -> tuple[list[ScoredLine], BoardLinesFacts]:
+    # One request deadline covers the line search and the per-move scoring.
+    deadline = asyncio.get_running_loop().time() + HINT_DEADLINE_S
     try:
         analysis = await manager.analyze_hint(board, nodes=body.nodes, depth=body.depth)
     except TimeoutError:
@@ -246,7 +252,9 @@ async def _explained_lines(
             detail="The analysis engine could not analyze this position; try again shortly",
         )
 
-    return lines, build_board_lines_facts(board, lines)
+    positions = board_line_positions(board, lines)
+    scored = await manager.analyze_hint_positions(positions, deadline=deadline)
+    return lines, build_board_lines_facts(board, lines, line_scores(positions, scored))
 
 
 def explanation_read(

@@ -13,6 +13,7 @@ from sqlmodel import Session, col, select
 from scan64.api.models import PlayerProfile
 from scan64.chess.analysis.admission import admission_controller
 from scan64.chess.analysis.credit import apply_positive_move_credits
+from scan64.chess.analysis.line_scoring import score_verified_lines
 from scan64.chess.analysis.models import (
     AnalysisJob,
     EngineAnalysis,
@@ -329,6 +330,18 @@ async def run_analysis_for_game(
             lesson_id=f"les_{uuid4()}",
             accepted_moves_san=[board_before.san(move) for move in accepted],
         )
+        # Every position along the lesson's verified lines gets an engine score
+        # (#367), through the batch pool only: the per-call adapter would start
+        # one engine process per position.
+        if pool_manager is not None:
+            await score_verified_lines(
+                adapter,
+                item.evidence,
+                diagnosis.evidence_refs,
+                fen_before,
+                concurrency=pool_manager.batch_pool.concurrency,
+                prefetch=lambda fens: adapter.prefetch(session, list(fens)),
+            )
         local_provider = await read_local_explanation_provider(
             session, game.owner_player_id, owner_generation
         )

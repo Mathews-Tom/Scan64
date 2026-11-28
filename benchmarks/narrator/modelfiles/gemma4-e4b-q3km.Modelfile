@@ -1,0 +1,13 @@
+# gemma-4-E4B-it at Q3_K_M (unsloth/gemma-4-E4B-it-GGUF, pinned revision), text only.
+# Chat format and sampling copied from the Ollama library model gemma4:e4b
+# (`ollama show gemma4:e4b --modelfile`, Ollama 0.40.18). The library model also
+# loads a vision projector and an MTP draft model; this one loads neither.
+FROM @GGUF@
+TEMPLATE {{ .Prompt }}
+RENDERER gemma4
+PARSER gemma4
+PARAMETER temperature 1
+PARAMETER top_k 64
+PARAMETER top_p 0.95
+PARAMETER num_ctx @NUM_CTX@
+PARAMETER num_predict @NUM_PREDICT@
