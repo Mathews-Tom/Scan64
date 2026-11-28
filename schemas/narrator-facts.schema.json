@@ -870,6 +870,30 @@
       "title": "PositionFacts",
       "type": "object"
     },
+    "ThemeChecks": {
+      "additionalProperties": false,
+      "description": "Three-check: the checks each side has given; three checks win.",
+      "properties": {
+        "learner_given": {
+          "maximum": 3,
+          "minimum": 0,
+          "title": "Learner Given",
+          "type": "integer"
+        },
+        "opponent_given": {
+          "maximum": 3,
+          "minimum": 0,
+          "title": "Opponent Given",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "learner_given",
+        "opponent_given"
+      ],
+      "title": "ThemeChecks",
+      "type": "object"
+    },
     "ThemeFacts": {
       "additionalProperties": false,
       "description": "A theme whose signal passed its threshold over the window.",
@@ -879,7 +903,13 @@
             "unsafe_king",
             "weak_pawns",
             "passive_pieces",
-            "lagging_development"
+            "lagging_development",
+            "pocket_deficit",
+            "king_drop_squares",
+            "drop_threats",
+            "checks_behind",
+            "check_exposure",
+            "explosion_threats"
           ],
           "title": "Key",
           "type": "string"
@@ -966,6 +996,39 @@
           },
           "title": "Weaknesses",
           "type": "array"
+        },
+        "targets": {
+          "default": [],
+          "description": "drop_threats: the learner piece each drop in pieces checks or attacks.",
+          "items": {
+            "$ref": "#/$defs/ThemePiece"
+          },
+          "title": "Targets",
+          "type": "array"
+        },
+        "pockets": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ThemePockets"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "pocket_deficit."
+        },
+        "checks": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ThemeChecks"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "checks_behind."
         }
       },
       "required": [
@@ -1009,7 +1072,7 @@
         },
         "squares": {
           "default": [],
-          "description": "passive_pieces: the squares free of enemy pawns the piece can go to.",
+          "description": "passive_pieces: the squares free of enemy pawns the piece can go to; check_exposure: the squares where the piece would give check; explosion_threats: the squares where its capture would destroy the king.",
           "items": {
             "type": "string"
           },
@@ -1023,6 +1086,48 @@
         "square"
       ],
       "title": "ThemePiece",
+      "type": "object"
+    },
+    "ThemePockets": {
+      "additionalProperties": false,
+      "description": "Crazyhouse: the pieces each side holds in hand, highest value first.",
+      "properties": {
+        "learner": {
+          "items": {
+            "enum": [
+              "pawn",
+              "knight",
+              "bishop",
+              "rook",
+              "queen",
+              "king"
+            ],
+            "type": "string"
+          },
+          "title": "Learner",
+          "type": "array"
+        },
+        "opponent": {
+          "items": {
+            "enum": [
+              "pawn",
+              "knight",
+              "bishop",
+              "rook",
+              "queen",
+              "king"
+            ],
+            "type": "string"
+          },
+          "title": "Opponent",
+          "type": "array"
+        }
+      },
+      "required": [
+        "learner",
+        "opponent"
+      ],
+      "title": "ThemePockets",
       "type": "object"
     },
     "TurningPointFacts": {

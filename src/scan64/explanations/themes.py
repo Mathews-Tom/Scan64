@@ -30,6 +30,29 @@ Themes (signal, threshold):
   ``DEVELOPMENT_GAP`` or more knights and bishops on their starting squares,
   and that many more than the opponent.
 
+These four are standard chess only: the factor module and the board parts use
+standard rules. Variant games (#402) have their own themes, read with the
+variant's board rules (``variant_themes.py``) from a trace of that variant,
+scored by an engine that plays it:
+
+- crazyhouse ``pocket_deficit``: the opponent's pieces in hand are worth
+  ``POCKET_DEFICIT`` pawns or more than the learner's;
+- crazyhouse ``king_drop_squares``: the learner's king has ``KING_DROP_SQUARES``
+  or more empty squares next to it that no other learner piece guards, more
+  than the opponent's king has, and the opponent has a piece in hand;
+- crazyhouse ``drop_threats``: the opponent has ``DROP_THREATS`` or more drops
+  on safe squares that give check or attack a learner knight, bishop, rook or
+  queen;
+- three-check ``checks_behind``: the opponent has given ``CHECKS_BEHIND`` or
+  more checks more than the learner;
+- three-check ``check_exposure``: the opponent has ``CHECK_EXPOSURE`` or more
+  moves that would give check;
+- atomic ``explosion_threats``: the opponent has ``EXPLOSION_THREATS`` or more
+  captures whose explosion would destroy the learner's king, and the learner
+  has no such capture against the opponent's king.
+
+The other supported variants have no theme yet.
+
 Turning point: in a game whose last scored position is ``-LOST_CP`` or
 worse for the learner, the learner's move from the last position where the
 learner was level or better (``-LEVEL_CP``); every position after that move is
@@ -50,14 +73,16 @@ from dataclasses import dataclass
 from typing import Literal
 
 import chess
+import chess.variant
 from pydantic import BaseModel, ConfigDict, Field
 
 from scan64.chess.analysis.models import EngineAnalysis
-from scan64.chess.boards import board_from
+from scan64.chess.variants import STANDARD, VariantName, board_class, board_variant, pgn_san
+from scan64.explanations import variant_themes
 from scan64.explanations.factor_facts import FACTOR_SOURCE, HEALTH_SCALE, health_values
 from scan64.explanations.factors import evaluate_factors
 
-THEME_SOURCE = f"scan64-themes/1, {FACTOR_SOURCE}"
+THEME_SOURCE = f"scan64-themes/2, {FACTOR_SOURCE}"
 
 # Window and persistence.
 THEME_WINDOW = 4  # learner moves up to and including the mistake
@@ -72,8 +97,27 @@ LEVEL_CP = 50  # level or better: the learner is at most half a pawn worse
 LOST_CP = 300  # the game's last scored position is this much worse or more
 TURNING_STEP_CP = 50  # the turning move itself loses at least this much
 SCORE_CLAMP_CP = 1000
+# Variant thresholds (#402).
+POCKET_DEFICIT = 3  # crazyhouse: opponent's pieces in hand minus the learner's, pawns
+KING_DROP_SQUARES = 2  # crazyhouse: unguarded empty squares next to the learner's king
+DROP_THREATS = 2  # crazyhouse: the opponent's safe drops that check or attack a piece
+CHECKS_BEHIND = 1  # three-check: the opponent's checks given minus the learner's
+CHECK_EXPOSURE = 2  # three-check: the opponent's moves that would give check
+EXPLOSION_THREATS = 1  # atomic: the opponent's captures that would destroy the king
+DETAIL_LIMIT = 3  # a variant theme names at most this many pieces or drops
 
-ThemeKey = Literal["unsafe_king", "weak_pawns", "passive_pieces", "lagging_development"]
+ThemeKey = Literal[
+    "unsafe_king",
+    "weak_pawns",
+    "passive_pieces",
+    "lagging_development",
+    "pocket_deficit",
+    "king_drop_squares",
+    "drop_threats",
+    "checks_behind",
+    "check_exposure",
+    "explosion_threats",
+]
 PieceName = Literal["pawn", "knight", "bishop", "rook", "queen", "king"]
 
 # The health-scale group each factor theme reads.
@@ -94,8 +138,24 @@ class ThemePiece(_Facts):
     square: str
     squares: tuple[str, ...] = Field(
         default=(),
-        description="passive_pieces: the squares free of enemy pawns the piece can go to.",
+        description="passive_pieces: the squares free of enemy pawns the piece can go to; "
+        "check_exposure: the squares where the piece would give check; explosion_threats: "
+        "the squares where its capture would destroy the king.",
     )
+
+
+class ThemePockets(_Facts):
+    """Crazyhouse: the pieces each side holds in hand, highest value first."""
+
+    learner: tuple[PieceName, ...]
+    opponent: tuple[PieceName, ...]
+
+
+class ThemeChecks(_Facts):
+    """Three-check: the checks each side has given; three checks win."""
+
+    learner_given: int = Field(ge=0, le=3)
+    opponent_given: int = Field(ge=0, le=3)
 
 
 class ThemeFacts(_Facts):
@@ -122,6 +182,12 @@ class ThemeFacts(_Facts):
     weaknesses: tuple[Literal["isolated", "doubled", "backward"], ...] = Field(
         default=(), description="weak_pawns: the weakness of each square in squares."
     )
+    targets: tuple[ThemePiece, ...] = Field(
+        default=(),
+        description="drop_threats: the learner piece each drop in pieces checks or attacks.",
+    )
+    pockets: ThemePockets | None = Field(default=None, description="pocket_deficit.")
+    checks: ThemeChecks | None = Field(default=None, description="checks_behind.")
 
 
 class TurningPointFacts(_Facts):
@@ -165,6 +231,11 @@ class GameTrace:
     moves: tuple[chess.Move, ...]
     scores: tuple[int | None, ...]
 
+    @property
+    def variant(self) -> VariantName:
+        """The variant the trace's boards play (their python-chess board class)."""
+        return board_variant(self.boards[0])
+
     def index_of(self, before: chess.Board, played: chess.Move) -> int | None:
         """The ply count of the position ``before`` where ``played`` was played.
 
@@ -195,13 +266,23 @@ def _white_score(analysis: EngineAnalysis | None, white_to_move: bool) -> int | 
     return value if white_to_move else -value
 
 
+def _start(initial_fen: str | None, variant: VariantName) -> chess.Board:
+    cls = board_class(variant)
+    return cls(initial_fen) if initial_fen else cls()
+
+
 def game_trace(
     initial_fen: str | None,
     moves: Sequence[str],
     evaluations: Sequence[EngineAnalysis | None],
+    variant: VariantName = STANDARD,
 ) -> GameTrace:
-    """The trace of a game from its UCI moves and one search per reached position."""
-    board = board_from(initial_fen)
+    """The trace of a game from its UCI moves and one search per reached position.
+
+    ``variant`` picks the board rules; the evaluations must come from an engine
+    that plays that variant.
+    """
+    board = _start(initial_fen, variant)
     boards = [board.copy(stack=False)]
     parsed = []
     for uci in moves:
@@ -217,10 +298,13 @@ def game_trace(
 
 
 def trace_from_scores(
-    initial_fen: str | None, moves: Sequence[str], white_cp: Sequence[int | None]
+    initial_fen: str | None,
+    moves: Sequence[str],
+    white_cp: Sequence[int | None],
+    variant: VariantName = STANDARD,
 ) -> GameTrace:
     """A trace from UCI or SAN moves and White-view scores (fixtures, hand check)."""
-    board = board_from(initial_fen)
+    board = _start(initial_fen, variant)
     boards = [board.copy(stack=False)]
     parsed = []
     for text in moves:
@@ -425,6 +509,8 @@ def _factor_value(board: chess.Board, learner: chess.Color, group: str) -> float
 
 
 def _measure(key: ThemeKey, board: chess.Board, learner: chess.Color) -> _Measure:
+    if key in _VARIANT_KEYS:
+        return _variant_measure(key, board, learner)
     if key == "lagging_development":
         mine = len(undeveloped(board, learner))
         theirs = len(undeveloped(board, not learner))
@@ -451,16 +537,37 @@ _SIGNALS: dict[ThemeKey, str] = {
     "weak_pawns": "Pawns group value, learner minus opponent, pawns (factor module)",
     "passive_pieces": "Mobility group value, learner minus opponent, pawns (factor module)",
     "lagging_development": "learner's knights and bishops at home minus the opponent's",
+    "pocket_deficit": "opponent's pieces in hand minus the learner's, pawns",
+    "king_drop_squares": "empty squares next to the learner's king that no other learner "
+    "piece guards (more than next to the opponent's king)",
+    "drop_threats": "opponent's drops on safe squares that give check or attack a learner "
+    "knight, bishop, rook or queen",
+    "checks_behind": "opponent's checks given minus the learner's",
+    "check_exposure": "opponent's moves that would give check, if it were their move",
+    "explosion_threats": "opponent's captures whose explosion would destroy the learner's king",
 }
+_VARIANT_THRESHOLDS: dict[ThemeKey, int] = {
+    "pocket_deficit": POCKET_DEFICIT,
+    "king_drop_squares": KING_DROP_SQUARES,
+    "drop_threats": DROP_THREATS,
+    "checks_behind": CHECKS_BEHIND,
+    "check_exposure": CHECK_EXPOSURE,
+    "explosion_threats": EXPLOSION_THREATS,
+}
+_VARIANT_KEYS = frozenset(_VARIANT_THRESHOLDS)
 
 
 def _threshold(key: ThemeKey) -> float:
+    if key in _VARIANT_THRESHOLDS:
+        return float(_VARIANT_THRESHOLDS[key])
     if key == "lagging_development":
         return float(DEVELOPMENT_GAP)
     return HEALTH_SCALE[_THEME_GROUPS[key]].empty
 
 
 def _details(key: ThemeKey, board: chess.Board, learner: chess.Color) -> dict[str, object]:
+    if key in _VARIANT_KEYS:
+        return _variant_details(key, board, learner)
     if key == "unsafe_king":
         files, attackers = king_exposure(board, learner)
         king = board.king(learner)
@@ -485,12 +592,117 @@ def _details(key: ThemeKey, board: chess.Board, learner: chess.Color) -> dict[st
     return {"pieces": tuple(pieces)}
 
 
+# --- Variant signals (#402) -----------------------------------------------------------
+
+
+def _variant_measure(key: ThemeKey, board: chess.Board, learner: chess.Color) -> _Measure:
+    """A variant theme's signal and whether it holds; ``board`` plays the theme's variant."""
+    opponent = not learner
+    threshold = _VARIANT_THRESHOLDS[key]
+    if isinstance(board, chess.variant.CrazyhouseBoard):
+        if key == "pocket_deficit":
+            value = variant_themes.pocket_value(board, opponent) - variant_themes.pocket_value(
+                board, learner
+            )
+            return _Measure(float(value), value >= threshold)
+        if key == "king_drop_squares":
+            mine = len(variant_themes.king_drop_squares(board, learner))
+            theirs = len(variant_themes.king_drop_squares(board, opponent))
+            holds = mine >= threshold and mine > theirs
+            return _Measure(float(mine), holds and bool(variant_themes.pocket(board, opponent)))
+        if key == "drop_threats":
+            count = len(variant_themes.drop_threats(board, learner))
+            return _Measure(float(count), count >= threshold)
+    if isinstance(board, chess.variant.ThreeCheckBoard):
+        if key == "checks_behind":
+            value = variant_themes.checks_given(board, opponent) - variant_themes.checks_given(
+                board, learner
+            )
+            return _Measure(float(value), value >= threshold)
+        if key == "check_exposure":
+            count = len(variant_themes.checking_moves(board, learner))
+            return _Measure(float(count), count >= threshold)
+    if isinstance(board, chess.variant.AtomicBoard) and key == "explosion_threats":
+        count = len(variant_themes.explosion_threats(board, learner))
+        own = variant_themes.explosion_threats(board, opponent)
+        return _Measure(float(count), count >= threshold and not own)
+    return _Measure(None, False)
+
+
+def _variant_details(key: ThemeKey, board: chess.Board, learner: chess.Color) -> dict[str, object]:
+    opponent = not learner
+    if key == "pocket_deficit":
+        assert isinstance(board, chess.variant.CrazyhouseBoard)
+        return {
+            "pockets": ThemePockets(
+                learner=tuple(_PIECE_NAMES[p] for p in variant_themes.pocket(board, learner)),
+                opponent=tuple(_PIECE_NAMES[p] for p in variant_themes.pocket(board, opponent)),
+            )
+        }
+    if key == "king_drop_squares":
+        king = board.king(learner)
+        assert king is not None
+        squares = variant_themes.king_drop_squares(board, learner)
+        return {
+            "pieces": (_piece(board, king, learner),),
+            "squares": tuple(chess.square_name(s) for s in squares),
+        }
+    if key == "drop_threats":
+        assert isinstance(board, chess.variant.CrazyhouseBoard)
+        drops: list[variant_themes.Drop] = []
+        for drop in variant_themes.drop_threats(board, learner):
+            if drop.check or all(d.target != drop.target for d in drops):
+                drops.append(drop)  # one drop per attacked piece, every check
+        drops = drops[:DETAIL_LIMIT]
+        return {
+            "pieces": tuple(
+                ThemePiece(
+                    owner="opponent",
+                    piece=_PIECE_NAMES[drop.piece_type],
+                    square=chess.square_name(drop.square),
+                )
+                for drop in drops
+            ),
+            "targets": tuple(_piece(board, drop.target, learner) for drop in drops),
+        }
+    if key == "checks_behind":
+        assert isinstance(board, chess.variant.ThreeCheckBoard)
+        return {
+            "checks": ThemeChecks(
+                learner_given=variant_themes.checks_given(board, learner),
+                opponent_given=variant_themes.checks_given(board, opponent),
+            )
+        }
+    moves = (
+        variant_themes.checking_moves(board, learner)
+        if key == "check_exposure"
+        else variant_themes.explosion_threats(board, learner)  # type: ignore[arg-type]
+    )
+    by_piece: dict[int, list[str]] = {}
+    for move in moves:
+        by_piece.setdefault(move.from_square, []).append(chess.square_name(move.to_square))
+    king = board.king(learner)
+    assert king is not None
+    pieces = [
+        _piece(board, square, learner, tuple(dict.fromkeys(targets)))
+        for square, targets in list(by_piece.items())[:DETAIL_LIMIT]
+    ]
+    return {"pieces": (_piece(board, king, learner), *pieces)}
+
+
 THEME_ORDER: tuple[ThemeKey, ...] = (
     "unsafe_king",
     "weak_pawns",
     "passive_pieces",
     "lagging_development",
 )
+# The themes measured in each variant; a variant without an entry has none.
+VARIANT_THEME_ORDER: dict[VariantName, tuple[ThemeKey, ...]] = {
+    STANDARD: THEME_ORDER,
+    "crazyhouse": ("pocket_deficit", "king_drop_squares", "drop_threats"),
+    "3check": ("checks_behind", "check_exposure"),
+    "atomic": ("explosion_threats",),
+}
 
 
 def window_plies(mistake_index: int) -> tuple[int, ...]:
@@ -513,7 +725,7 @@ def measure_themes(
     if len(window) < THEME_MIN_POSITIONS or trend is None or trend > -THEME_TREND_CP:
         return window, trend, ()
     themes = []
-    for key in THEME_ORDER:
+    for key in VARIANT_THEME_ORDER.get(trace.variant, ()):
         measures = [_measure(key, trace.boards[ply], learner) for ply in window]
         held = tuple(ply for ply, m in zip(window, measures, strict=True) if m.holds)
         if len(held) < THEME_MIN_POSITIONS or held[-1] != mistake_index:
@@ -577,7 +789,7 @@ def turning_point(
         ply=index + 1,
         move_number=board.fullmove_number,
         side="white" if board.turn == chess.WHITE else "black",
-        san=board.san(move),
+        san=pgn_san(board, move),
         uci=move.uci(),
         evaluation_before_cp=before,
         evaluation_after_cp=after,
@@ -608,10 +820,10 @@ def game_theme_facts(
 # --- Plain words ---------------------------------------------------------------------
 
 
-def _joined(parts: Sequence[str]) -> str:
+def _joined(parts: Sequence[str], conjunction: str = "and") -> str:
     if len(parts) <= 1:
         return "".join(parts)
-    return f"{', '.join(parts[:-1])} and {parts[-1]}"
+    return f"{', '.join(parts[:-1])} {conjunction} {parts[-1]}"
 
 
 def _named(piece: ThemePiece) -> str:
@@ -632,9 +844,76 @@ def _files(files: Sequence[str]) -> str:
     return f"the {_joined(names)} next to it {verb} open, with none of your pawns on {pronoun}"
 
 
+_NUMBERS = ("no", "one", "two", "three")
+
+
+def _counted(pieces: Sequence[PieceName]) -> str:
+    """``a knight and two pawns``; ``nothing`` for an empty hand."""
+    if not pieces:
+        return "nothing"
+    counts: dict[PieceName, int] = {}
+    for piece in pieces:
+        counts[piece] = counts.get(piece, 0) + 1
+    words = [
+        f"a {piece}" if n == 1 else f"{_NUMBERS[n] if n < 4 else n} {piece}s"
+        for piece, n in counts.items()
+    ]
+    return _joined(words)
+
+
+def _checks(n: int) -> str:
+    return "no checks" if n == 0 else "one check" if n == 1 else f"{_NUMBERS[n]} checks"
+
+
+def _variant_phrase(theme: ThemeFacts, span: str) -> str:
+    if theme.key == "pocket_deficit":
+        assert theme.pockets is not None
+        return (
+            f"{span}, your opponent held {_counted(theme.pockets.opponent)} in hand to drop, "
+            f"and you held {_counted(theme.pockets.learner)}"
+        )
+    if theme.key == "king_drop_squares":
+        king = theme.pieces[0]
+        return (
+            f"{span}, {_named(king)} had empty squares next to it that none of your other "
+            f"pieces guarded, where your opponent could drop a piece: {_joined(theme.squares)}"
+        )
+    if theme.key == "drop_threats":
+        parts = []
+        for drop, target in zip(theme.pieces, theme.targets, strict=True):
+            aim = "with check" if target.piece == "king" else f"attacking {_named(target)}"
+            parts.append(f"a {drop.piece} on {drop.square} {aim}")
+        return f"{span}, your opponent had strong drops ready: {_joined(parts)}"
+    if theme.key == "checks_behind":
+        checks = theme.checks
+        assert checks is not None
+        left = 3 - checks.opponent_given
+        need = (
+            "one more check would win them the game"
+            if left == 1
+            else (f"they needed {_checks(left).replace('checks', 'more checks')} to win")
+        )
+        return (
+            f"{span}, your opponent had given {_checks(checks.opponent_given)} and you "
+            f"{_checks(checks.learner_given).replace('no checks', 'none')}: {need}"
+        )
+    king, *pieces = theme.pieces
+    verb = "could give check on" if theme.key == "check_exposure" else "could capture on"
+    parts = [
+        f"{"your opponent's" if i == 0 else 'their'} {p.piece} on {p.square} "
+        f"{verb} {_joined(p.squares, 'or')}"
+        for i, p in enumerate(pieces)
+    ]
+    if theme.key == "check_exposure":
+        return f"{span}, {_named(king)} was open to checks: {_joined(parts)}"
+    return f"{span}, one capture could blow up {_named(king)}: {_joined(parts)}"
+
+
 def theme_phrase(theme: ThemeFacts) -> str:
     """The theme in plain chess words, with its pieces and squares (no factor names)."""
     span = _span(theme)
+    if theme.key in _VARIANT_KEYS:
+        return _variant_phrase(theme, span)
     if theme.key == "unsafe_king":
         king, *attackers = theme.pieces
         parts = []
@@ -692,8 +971,11 @@ __all__ = [
     "THEME_SOURCE",
     "ThemeFacts",
     "ThemeKey",
+    "ThemeChecks",
     "ThemePiece",
+    "ThemePockets",
     "TurningPointFacts",
+    "VARIANT_THEME_ORDER",
     "free_squares",
     "game_theme_facts",
     "game_trace",

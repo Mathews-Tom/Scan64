@@ -619,6 +619,14 @@ _THEME_MEANINGS = {
     "weak_pawns": "your weak pawns over several moves before the mistake",
     "passive_pieces": "your pieces' lack of room over several moves before the mistake",
     "lagging_development": "your pieces left at home over several moves before the mistake",
+    "pocket_deficit": "your opponent's extra pieces in hand over several moves before the mistake",
+    "king_drop_squares": "the unguarded squares around your king over several moves "
+    "before the mistake",
+    "drop_threats": "your opponent's strong drops over several moves before the mistake",
+    "checks_behind": "your opponent's lead in checks over several moves before the mistake",
+    "check_exposure": "your king's exposure to checks over several moves before the mistake",
+    "explosion_threats": "the explosions threatening your king over several moves "
+    "before the mistake",
 }
 
 
