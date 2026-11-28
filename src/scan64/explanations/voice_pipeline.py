@@ -12,6 +12,11 @@ word of an earlier sentence is written once more with a "Do not use:" list.
 Code repairs a "!" after the played move, ends each sentence with a full stop
 and joins the sentences.
 
+Since #401 the story runs cause, effect, then the line: when the game has a
+root-cause theme (#400), its fact comes first ("the cause"), then the move where
+the game turned ("the turning point"), then the facts of the move and the engine
+line. Without a theme or a turning point the story starts with the move.
+
 This is the method the narrator voice benchmark measured (run 8 in #457: 91%
 faithful on its positions, and 96% on held-out positions with gemma4-e4b
 Q4_K_S in #462).
@@ -21,13 +26,13 @@ from __future__ import annotations
 
 import dataclasses
 import re
-from collections.abc import Sequence
-from dataclasses import dataclass
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
 from typing import Final, Literal, Protocol, runtime_checkable
 
 import chess
 
-from scan64.explanations.role_facts import ROLES, RoleFact, colour_name, role_label
+from scan64.explanations.role_facts import ROLES, Relation, RoleFact, colour_name, role_label
 from scan64.explanations.sentence_check import (
     colour_words,
     finish,
@@ -36,6 +41,13 @@ from scan64.explanations.sentence_check import (
     pin_problems,
     repair,
     sentence_problems,
+)
+from scan64.explanations.themes import (
+    GameThemeFacts,
+    ThemeFacts,
+    TurningPointFacts,
+    theme_phrase,
+    turning_point_phrase,
 )
 
 # A failed sentence is written again at most this many times.
@@ -114,6 +126,121 @@ VOICE_EXAMPLES: Final[tuple[tuple[str, str, str], ...]] = (
 )
 
 
+# Examples for the cause and the turning point (#401). Only the prompts of
+# those two facts carry them, so the prompts of the line's facts stay the
+# measured ones.
+CAUSE_EXAMPLES: Final[tuple[tuple[str, str, str], ...]] = (
+    (
+        "The cause",
+        "From move 12 to move 15, White's king on g1 had little cover: the f-file next to it "
+        "was open, with none of White's pawns on it.",
+        "From move 12 to move 15, White's king on g1 sat in a draughty house: the f-file next "
+        "to it lay open, with none of White's pawns on it!",
+    ),
+    (
+        "The turning point",
+        "The game began to turn against White with 14.Qd2: before it the position was level, "
+        "and after it the engine never again rated it level.",
+        "With 14.Qd2 the game began to tilt against White: level before it, and never level "
+        "again in the engine's eyes after it.",
+    ),
+)
+
+CauseRole = Literal["the_cause", "the_turn"]
+CAUSE_LABELS: Final[dict[CauseRole, str]] = {
+    "the_cause": "The cause",
+    "the_turn": "The turning point",
+}
+# One root-cause theme opens the story; the others are left out and counted.
+MAX_CAUSE_THEMES: Final = 1
+
+
+@dataclass(frozen=True)
+class CauseFact:
+    """The root cause or the turning point as one fact, in White and Black words (#401).
+
+    ``sides`` maps each square the fact names a piece on to that piece's side
+    ("white" or "black"), for the pairing check. It states no move relations.
+    """
+
+    role: CauseRole
+    text: str
+    sides: Mapping[str, str] = field(default_factory=dict)
+    relations: tuple[Relation, ...] = ()
+
+
+StoryFact = RoleFact | CauseFact
+
+
+def _in_sides(phrase: str, mover: chess.Color) -> str:
+    """A #400 phrase with "your" and "your opponent" as the mover and the other side."""
+    me, them = colour_name(mover), colour_name(not mover)
+    phrase = phrase.replace("your opponent's", f"{them}'s").replace("your opponent", them)
+    return phrase.replace("your", f"{me}'s")
+
+
+def _sentence(phrase: str) -> str:
+    return finish(phrase[:1].upper() + phrase[1:])
+
+
+def _theme_sides(theme: ThemeFacts, mover: chess.Color) -> dict[str, str]:
+    return {
+        piece.square: colour_name(mover if piece.owner == "learner" else not mover).lower()
+        for piece in theme.pieces
+    }
+
+
+def _turn_text(point: TurningPointFacts, mover: chess.Color) -> str:
+    dots = "." if point.side == "white" else "..."
+    return (
+        f"The game began to turn against {colour_name(mover)} with "
+        f"{point.move_number}{dots}{point.san}: before it the position was level, and after it "
+        "the engine never again rated it level."
+    )
+
+
+def lesson_turning_point(game: GameThemeFacts) -> TurningPointFacts | None:
+    """The turning point when it is the mistake or an earlier move, as in ``game_slots``."""
+    point = game.turning_point
+    return point if point is not None and point.ply <= game.mistake_ply else None
+
+
+def cause_facts(game: GameThemeFacts | None, mover: chess.Color) -> tuple[CauseFact, ...]:
+    """The cause (the first root-cause theme) and the effect (the turning point).
+
+    ``mover`` is the learner, the side whose themes ``game`` measured.
+    """
+    if game is None:
+        return ()
+    facts = [
+        CauseFact(
+            "the_cause",
+            _sentence(_in_sides(theme_phrase(theme), mover)),
+            _theme_sides(theme, mover),
+        )
+        for theme in game.themes[:MAX_CAUSE_THEMES]
+    ]
+    point = lesson_turning_point(game)
+    if point is not None:
+        facts.append(CauseFact("the_turn", _turn_text(point, mover)))
+    return tuple(facts)
+
+
+def cause_text(game: GameThemeFacts | None) -> str:
+    """The cause and the effect in the template's words ("your king"), or "" without them.
+
+    The template puts this before its own text, so a fallback also reads cause,
+    effect, then the line (#401).
+    """
+    if game is None:
+        return ""
+    phrases = [theme_phrase(theme) for theme in game.themes[:MAX_CAUSE_THEMES]]
+    point = lesson_turning_point(game)
+    if point is not None:
+        phrases.append(turning_point_phrase(point))
+    return " ".join(_sentence(phrase) for phrase in phrases)
+
+
 @runtime_checkable
 class SentenceWriter(Protocol):
     """A provider that returns plain text for one system and one user message."""
@@ -125,12 +252,17 @@ def voice_system_prompt(mover: str) -> str:
     return VOICE_SYSTEM_PROMPT.format(mover=mover)
 
 
-def voice_prompt(role: str, fact: str, avoid: Sequence[str] = ()) -> str:
+def voice_prompt(
+    role: str,
+    fact: str,
+    avoid: Sequence[str] = (),
+    examples: Sequence[tuple[str, str, str]] = VOICE_EXAMPLES,
+) -> str:
     """The user message for one fact: the card, its examples, then the fact."""
     parts = [f"Style: {VOICE_NAME}", f"How this style writes: {VOICE_TRAITS}", "Examples:"]
     parts.extend(
         f"Fact ({example_role}): {example_fact}\nSentence: {sentence}"
-        for example_role, example_fact, sentence in VOICE_EXAMPLES
+        for example_role, example_fact, sentence in examples
     )
     ask = "Now rewrite this fact."
     if _parts(fact) > 1:
@@ -146,7 +278,7 @@ SentenceSource = Literal["model", "fact"]
 
 @dataclass(frozen=True)
 class VoicedSentence:
-    fact: RoleFact
+    fact: StoryFact
     text: str
     source: SentenceSource
     calls: int
@@ -155,7 +287,8 @@ class VoicedSentence:
 @dataclass(frozen=True)
 class VoicedExplanation:
     sentences: tuple[VoicedSentence, ...]
-    # Facts left out by ``select_facts``: each role merges at most three.
+    # Facts left out by ``select_facts`` (each role merges at most three) and
+    # root-cause themes after the first.
     dropped_facts: int = 0
 
     @property
@@ -209,7 +342,7 @@ def _named_pins(fact: RoleFact) -> str:
     return text
 
 
-def _pinned(fact: RoleFact) -> set[tuple[str, str]]:
+def _pinned(fact: StoryFact) -> set[tuple[str, str]]:
     return {
         (chess.piece_name(relation.target.piece), chess.square_name(relation.target.square))
         for relation in fact.relations
@@ -252,8 +385,10 @@ def select_facts(facts: Sequence[RoleFact]) -> tuple[tuple[RoleFact, ...], int]:
     return tuple(chosen), len(facts) - used
 
 
-def _sides(fact: RoleFact) -> dict[str, str]:
+def _sides(fact: StoryFact) -> dict[str, str]:
     """The side of each piece the fact's relations name, by square."""
+    if isinstance(fact, CauseFact):
+        return dict(fact.sides)
     sides: dict[str, str] = {}
     for relation in fact.relations:
         for piece in (relation.subject, relation.target, relation.through):
@@ -273,19 +408,30 @@ async def voice_facts(
     *,
     mover: bool,
     played: str,
+    game: GameThemeFacts | None = None,
 ) -> VoicedExplanation:
     """Rewrite each fact as one checked sentence and join them.
 
     ``mover`` is the side that played ``played`` (``chess.WHITE`` is ``True``);
-    ``played`` is its numbered SAN, such as ``5.Nxf7``. A provider error ends
-    the pipeline: the caller falls back to its template.
+    ``played`` is its numbered SAN, such as ``5.Nxf7``. ``game`` holds the
+    root-cause themes and the turning point (#400): their facts come first,
+    so the story runs cause, effect, then the line (#401). A provider error
+    ends the pipeline: the caller falls back to its template.
     """
     system = voice_system_prompt(colour_name(mover))
-    selected, dropped = select_facts(facts)
+    line, dropped = select_facts(facts)
+    selected: tuple[StoryFact, ...] = (*cause_facts(game, mover), *line)
+    if game is not None:
+        dropped += max(0, len(game.themes) - MAX_CAUSE_THEMES)
     used: set[str] = set()
     sentences: list[VoicedSentence] = []
     for fact in selected:
-        role = role_label(fact.role, mover)
+        if isinstance(fact, CauseFact):
+            role = CAUSE_LABELS[fact.role]
+            examples = (*VOICE_EXAMPLES, *CAUSE_EXAMPLES)
+        else:
+            role = role_label(fact.role, mover)
+            examples = VOICE_EXAMPLES
         kinds = [relation.kind for relation in fact.relations]
         sides = _sides(fact)
         allowed = min(2, _parts(fact.text))
@@ -295,7 +441,9 @@ async def voice_facts(
         calls = 0
         for _ in range(1 + MAX_RETRIES):
             calls += 1
-            raw = await writer.rewrite(system, voice_prompt(role, fact.text, sorted(avoid)))
+            raw = await writer.rewrite(
+                system, voice_prompt(role, fact.text, sorted(avoid), examples)
+            )
             text = repair(_first_line(raw), played)
             if (
                 not text
@@ -326,6 +474,15 @@ async def voice_facts(
 
 
 __all__ = [
+    "CAUSE_EXAMPLES",
+    "CAUSE_LABELS",
+    "MAX_CAUSE_THEMES",
+    "CauseFact",
+    "CauseRole",
+    "StoryFact",
+    "cause_facts",
+    "cause_text",
+    "lesson_turning_point",
     "MAX_EXCLAMATIONS",
     "MAX_RETRIES",
     "VOICE_EXAMPLES",
