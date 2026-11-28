@@ -79,6 +79,8 @@ MOVE_POSITIVE = [
     ("skewer", "4r3/8/8/4k3/8/8/4N3/4R1K1 w - - 0 1", "e2c1", "e8"),
     # The front rook may stay: then it is the piece taken (#497).
     ("skewer", SKEWER_STAYS, "e7g5", "d2"),
+    # Bb7+ Kg1 Nf3+: two checks in a row only delay the fork (#498).
+    ("fork", "r1b1r3/6k1/8/1N6/7n/P3P3/7P/7K w - - 0 1", "b5c7", "e8"),
     ("discovered_attack", "4q1k1/8/8/8/8/8/4N3/4R1K1 w - - 0 1", "e2c3", "e8"),
     ("discovered_check", "4k3/8/8/8/8/8/4N3/4R1K1 w - - 0 1", "e2c3", "e8"),
 ]
@@ -94,6 +96,8 @@ MOVE_NEGATIVE = [
     ("skewer", "2r3k1/p2q1pbp/1p2pnp1/nB1p4/3P4/1Pr1P2P/P1QB1PP1/2R2RK1 w - - 0 1", "d2e1"),
     # Mate: the king in front never moves (#497).
     ("skewer", "1k1r4/ppp2Q2/3p4/3P4/4P3/P7/2q2Pr1/3RK3 b - - 0 28", "g2g1"),
+    # A third check in a row breaks the fork (#498).
+    ("fork", "r1b1r3/6k1/8/1N6/8/P3P1Nr/7P/7K w - - 0 1", "b5c7"),
     ("discovered_attack", "4q1k1/8/8/8/8/8/4N3/4R1K1 w - - 0 1", "g1h1"),
     ("discovered_check", "4k3/8/8/8/8/8/4N3/4R1K1 w - - 0 1", "g1h1"),
 ]
