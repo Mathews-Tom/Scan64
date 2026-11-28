@@ -766,5 +766,5 @@ The local provider checks the model list once per explanation and rechecks conse
 **Counts.** Section 17's counters gain two fields per pipeline: `sentences` (sentences written) and `sentence_fallbacks` (sentences that use the plain fact text). `GET /v1/diagnostics/narrator` reports both.
 
 **Limits.**
-- One explanation sends one request per fact, plus retries: about 4 to 12 requests for a lesson. On the voice benchmark this took 0.5 s at the median and 0.74 s at p95 per comment on an RTX 5090. The coach's 0.25 s explanation budget is shorter than that, so the coach usually shows the template.
+- One explanation sends one request per fact, plus retries. On the five voice benchmark positions the fact generator gives 6 to 15 facts per move. With gemma4-e4b Q3_K_M on an RTX 5090 (100 explanations, 920 sentences), one explanation took 0.91 s at the median and 1.83 s at p95, and 0.8% of the sentences used the plain fact text. The coach's 0.25 s explanation budget is shorter than that, so the coach usually shows the template.
 - The check reads words, not meaning. A sentence that stays inside its fact's moves, squares and pieces but states a wrong relation can still pass. One fact per call keeps that rare: each call has only one fact to get wrong.
