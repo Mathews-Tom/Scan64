@@ -42,6 +42,7 @@ from scan64.explanations.settings import (
     local_explanation_owner_generation,
     read_local_explanation_provider,
 )
+from scan64.explanations.themes import game_trace
 from scan64.learning.diagnosis.arbitration import arbitrate_diagnoses
 from scan64.learning.diagnosis.models import DiagnosisCandidate, LearningOpportunity, PlayerContext
 from scan64.learning.diagnosis.ranking import OpportunityRanker, RankingFactors
@@ -148,6 +149,9 @@ async def run_analysis_for_game(
     san_moves = uci_moves_to_san(game.moves, initial_fen)
     fast_pass = await orchestrator.run_fast_pass(san_moves, initial_fen)
     candidates = fast_pass.candidates
+    # The game's positions and fast-pass scores give lessons the root-cause
+    # themes and the turning point (#400, #482).
+    trace = game_trace(initial_fen, game.moves, fast_pass.evaluations)
     focused_orchestrator = FocusedPassOrchestrator(
         adapter,
         FocusedPassConfig(
@@ -349,7 +353,7 @@ async def run_analysis_for_game(
             session, game.owner_player_id, owner_generation
         )
         lesson.explanation = await resolve_explanation(
-            diagnosis, item.evidence, fen_before, local_provider=local_provider
+            diagnosis, item.evidence, fen_before, local_provider=local_provider, game=trace
         )
 
         try:
