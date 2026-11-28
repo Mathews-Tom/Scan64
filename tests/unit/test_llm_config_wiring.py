@@ -178,3 +178,35 @@ def test_llm_config_rejects_context_tokens_for_a_hosted_provider(tmp_path: Path)
 
 def _request() -> ExplanationRequest:
     return ExplanationRequest(messages=(LLMMessage(role="user", content="evidence"),))
+
+
+def _openai_toml(tmp_path: Path, extra: str = "") -> Path:
+    return _write_toml(
+        tmp_path,
+        '[llm]\nprovider = "openai"\nmodel = "m"\nbase_url = "https://api.example.com"\n'
+        f'api_key_environment = "KEY"\n{extra}',
+    )
+
+
+@pytest.mark.parametrize("toml", [_ollama_toml, _openai_toml])
+@pytest.mark.parametrize(
+    ("extra", "seconds"),
+    [("", 180.0), ("timeout_seconds = 30\n", 30.0), ("timeout_seconds = 600.0\n", 600.0)],
+)
+def test_llm_config_reads_the_operator_timeout(
+    tmp_path: Path, toml: object, extra: str, seconds: float
+) -> None:
+    """#414: the operator client needs more than httpx's 5 s default; 180 s matches local."""
+    assert callable(toml)
+    config = LLMProviderConfig.from_toml(toml(tmp_path, extra))
+    assert config.timeout_seconds == seconds
+
+
+@pytest.mark.parametrize("toml", [_ollama_toml, _openai_toml])
+@pytest.mark.parametrize("value", ["0", "-1", "600.5", "true", '"30"', "nan", "inf"])
+def test_llm_config_rejects_an_invalid_operator_timeout(
+    tmp_path: Path, toml: object, value: str
+) -> None:
+    assert callable(toml)
+    with pytest.raises(LLMConfigurationError, match="timeout_seconds"):
+        LLMProviderConfig.from_toml(toml(tmp_path, f"timeout_seconds = {value}\n"))

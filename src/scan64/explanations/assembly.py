@@ -304,7 +304,7 @@ async def run_with_explanation_provider[T](
             return template_result
         return await attempt(provider, operator_voice)
 
-    async with httpx.AsyncClient() as owned_client:
+    async with httpx.AsyncClient(timeout=config.timeout_seconds) as owned_client:
         provider = create_llm_provider(config, client=owned_client, environment=environment_values)
         if provider is None:
             return template_result

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import os
 import tomllib
 from collections.abc import Mapping
@@ -24,6 +25,11 @@ from scan64.providers.llm.adapters import (
     OllamaExplanationAdapter,
 )
 
+# Operator request time limit (#414), the same default and ceiling as the local
+# provider's SCAN64_LOCAL_LLM_TIMEOUT_SECONDS. Narrator requests take 10-58 s.
+DEFAULT_OPERATOR_TIMEOUT_SECONDS = 180.0
+MAX_OPERATOR_TIMEOUT_SECONDS = 600.0
+
 
 class LLMConfigurationError(RuntimeError):
     """Raised when deployment configuration cannot safely select an LLM provider."""
@@ -38,6 +44,7 @@ class LLMProviderConfig:
     # Narrator voice (#387): ``voice`` in the [llm] table; absent means the default.
     voice: NarratorVoice = DEFAULT_NARRATOR_VOICE
     context_tokens: int = DEFAULT_OLLAMA_CONTEXT_TOKENS
+    timeout_seconds: float = DEFAULT_OPERATOR_TIMEOUT_SECONDS
 
     @classmethod
     def from_toml(cls, path: Path) -> LLMProviderConfig:
@@ -77,6 +84,7 @@ class LLMProviderConfig:
         if not isinstance(base_url, str) or not base_url:
             raise LLMConfigurationError("llm.base_url must be a non-empty string")
 
+        timeout_seconds = _timeout_seconds(raw_llm.get("timeout_seconds"))
         api_key_environment = raw_llm.get("api_key_environment")
         if provider == "openai":
             if "context_tokens" in raw_llm:
@@ -91,6 +99,7 @@ class LLMProviderConfig:
                 base_url=base_url,
                 api_key_environment=api_key_environment,
                 voice=voice,
+                timeout_seconds=timeout_seconds,
             )
         return cls(
             provider=provider,
@@ -98,7 +107,24 @@ class LLMProviderConfig:
             base_url=base_url,
             voice=voice,
             context_tokens=_context_tokens(raw_llm.get("context_tokens")),
+            timeout_seconds=timeout_seconds,
         )
+
+
+def _timeout_seconds(value: object) -> float:
+    if value is None:
+        return DEFAULT_OPERATOR_TIMEOUT_SECONDS
+    if (
+        not isinstance(value, int | float)
+        or isinstance(value, bool)
+        or not math.isfinite(value)
+        or not 0 < value <= MAX_OPERATOR_TIMEOUT_SECONDS
+    ):
+        raise LLMConfigurationError(
+            f"llm.timeout_seconds must be a number of seconds in "
+            f"(0, {MAX_OPERATOR_TIMEOUT_SECONDS:g}]"
+        )
+    return float(value)
 
 
 def _context_tokens(value: object) -> int:
