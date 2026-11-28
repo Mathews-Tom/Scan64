@@ -754,12 +754,12 @@ Scores only decide a concept; they never reach the text.
 | Concept | Rule |
 |---|---|
 | Fork | After the move, the piece attacks two or more enemy pieces (the king counts, pawns do not). After every legal reply, it can take one of them with gain. A reply that gives check only delays the fork when the mover can answer the check and the fork then holds again (up to two checks in a row). |
-| Skewer | After the move, a bishop, rook or queen attacks the king, or a piece worth more than the piece behind it. The line piece is the piece that moved, or a piece the move uncovers (a discovered skewer). After every legal reply, it can take the piece behind, or the front piece with gain when that piece stays. A check only delays the skewer, as for a fork. The piece behind is never a pawn. |
+| Skewer | After the move, a bishop, rook or queen attacks the king, or a piece worth more than the piece behind it. The line piece is the piece that moved, or a piece the move uncovers (a discovered skewer). After every legal reply, it can take the piece behind, or the front piece with gain when that piece stays. A check only delays the skewer, as for a fork. The piece behind is never a pawn. It is no skewer when the opponent's reply wins at least as much (its static exchange), or when the move ends the game. The text says what falls when the front piece moves and when it stays; a king can only move. |
 | Discovered attack or check | A queen, rook or bishop that did not move attacks a new piece (not a pawn) after the move. A new attack on the king is a discovered check. |
 | Hanging piece | A piece (not a pawn or king, as in the lesson diagnosis rule) is attacked and not defended, or attacked by a less valuable piece. |
 | Trapped piece | The piece is attacked, staying loses material, and every move it can make loses material. |
 | Back-rank weakness | The king is on its first rank. Each square in front of it holds its own piece or is attacked. An enemy rook or queen can give mate on that rank. |
-| Overloading | One piece is the only defender of two attacked pieces. The opponent takes one, the defender recaptures without loss, and the other is then unguarded and taken, with a gain of material. |
+| Overloading | One piece is the only defender of two attacked pieces. The opponent takes one, the defender recaptures without loss, and the other is then unguarded and taken, with a gain of material. A king can be the defender. A queen trade that then wins only a pawn does not count. |
 | Passed, isolated, doubled, backward pawn | Passed: no enemy pawn ahead on its file or the files next to it. Doubled: two pawns of one side on a file. Isolated and backward: the factor module's terms. |
 | Blockade | A piece stands on the square in front of an enemy passed pawn. |
 | Outpost, weak square | The factor module's outpost square: on the fourth to sixth rank, guarded by a pawn, and no enemy pawn can ever attack it. A knight or bishop on it stands on an outpost. Empty, it is a weak square for the opponent. |
@@ -774,7 +774,7 @@ Scores only decide a concept; they never reach the text.
 **Example facts.**
 
 - "Nc7+ is a fork: the white knight on c7 attacks the black rook on a8 and the black king on e8, and one of them is lost."
-- "Nc1+ opens a skewer: the white rook on e1 attacks the black king on e5, and when the king moves, the rook takes the black rook on e8."
+- "Nc1+ opens a skewer: the white rook on e1 attacks the black king on e5, and when the king moves, the white rook on e1 takes the black rook on e8."
 - "the black knight on d6 blockades the passed pawn on d5."
 - "d3 is prophylaxis: it stops Black's Nxe4, which would have won the white pawn on e4."
 
@@ -786,6 +786,7 @@ Scores only decide a concept; they never reach the text.
 
 - A fork or skewer must hold after every legal reply. After a check, the mover must keep the forking or skewering piece on its square. A run of more than two checks breaks it.
 - Overloading needs the defender's recapture to be safe. Prophylaxis is not stated for a piece that steps out of the threatened capture.
+- A skewer needs the line piece to stay on its square, so it is not found when the front piece can take the line piece, even if that loses material. The piece behind can be guarded.
 - A discovered skewer needs the front piece to be newly attacked. A skewer opened by a piece that steps out from between the front piece and the piece behind is not found.
 - The intent concepts trust the engine line they are given. A line cut in the middle of an exchange can show material that the next move wins back.
 - The library is not yet wired into the narrator facts. The voice pipeline (#454) states its facts one at a time.

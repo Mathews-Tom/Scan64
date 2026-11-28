@@ -343,7 +343,9 @@ def overloaded_pieces(board: chess.Board, colour: chess.Color) -> list[ConceptFa
 
     The opponent takes one target, the defender recaptures, and the other
     target is then unguarded and taken. The fact needs that sequence to win
-    material, so a recapture that wins a queen is no overload.
+    material, so a recapture that wins a queen is no overload. A queen trade
+    that then wins only a pawn is no overload either. The defender may be the
+    king.
     """
     enemy = _with_turn(board, not colour)
     if enemy is None:
@@ -385,6 +387,10 @@ def _overload(
         if not captures:
             continue
         take = min(captures, key=lambda m: _value(enemy.piece_at(m.from_square)))
+        queen_trade = (
+            enemy.piece_type_at(take.from_square) == chess.QUEEN
+            and enemy.piece_type_at(first) == chess.QUEEN
+        )
         recapture = chess.Move(defender, first)
         after = enemy.copy(stack=False)
         after.push(take)
@@ -397,6 +403,8 @@ def _overload(
         for second in targets:
             if second == first or after.attackers(colour, second):
                 continue
+            if queen_trade and after.piece_type_at(second) == chess.PAWN:
+                continue  # a queen trade that wins a pawn
             for grab in after.legal_moves:
                 if grab.to_square != second:
                     continue
@@ -490,6 +498,40 @@ def _ray_behind(
     return pairs
 
 
+def _balance(board: chess.Board, colour: chess.Color) -> int:
+    """``colour``'s material minus the opponent's."""
+    return sum(
+        PIECE_VALUES[p.piece_type] * (1 if p.color == colour else -1)
+        for p in board.piece_map().values()
+        if p.piece_type != chess.KING
+    )
+
+
+def _lost_to_reply(board: chess.Board, colour: chess.Color, start: int) -> int:
+    """What ``colour`` has lost since ``start``, with the last reply's exchange played out."""
+    reply = board.pop()
+    lost = start - _balance(board, colour)
+    if board.is_capture(reply) or reply.promotion is not None:
+        lost += max(0, static_exchange(board, reply))
+    board.push(reply)
+    return lost
+
+
+def _skewer_text(
+    board: chess.Board, line_piece: chess.Square, front: chess.Square, behind: chess.Square
+) -> str:
+    """What the line piece takes; a king in front can only move."""
+    name, target = piece_phrase(board, line_piece), piece_phrase(board, behind)
+    line_name = _NAMES[board.piece_type_at(line_piece) or chess.QUEEN]
+    if board.piece_type_at(front) == chess.KING:
+        return f"when the king moves, {name} takes {target}."
+    front_name = _NAMES[board.piece_type_at(front) or chess.QUEEN]
+    return (
+        f"if the {front_name} moves, {name} takes {target}; "
+        f"if it stays, the {line_name} takes the {front_name}."
+    )
+
+
 def _skewers(
     after: chess.Board, attacker: chess.Square, fresh: chess.SquareSet | None = None
 ) -> list[tuple[chess.Square, chess.Square]]:
@@ -500,7 +542,10 @@ def _skewers(
     piece = after.piece_at(attacker)
     if piece is None or piece.piece_type not in _SLIDERS:
         return []
+    if not any(after.legal_moves):
+        return []  # mate or stalemate: the front piece cannot move
     found = []
+    start = _balance(after, piece.color)
     for front, behind in _ray_behind(after, attacker, piece.piece_type):
         if fresh is not None and front not in fresh:
             continue
@@ -521,10 +566,17 @@ def _skewers(
         ) -> bool:
             if b.piece_at(attacker) != piece:
                 return False
+            # The piece behind, or the front piece when that one stayed.
+            gains = []
             if b.piece_at(behind) == bp and chess.Move(attacker, behind) in b.legal_moves:
-                return True
-            # The front piece stayed: it is the one taken.
-            return b.piece_at(front) == fp and _gains(b, chess.Move(attacker, front))
+                gains.append(static_exchange(b, chess.Move(attacker, behind)))
+            take_front = chess.Move(attacker, front)
+            if b.piece_at(front) == fp and _gains(b, take_front):
+                gains.append(static_exchange(b, take_front))
+            if not gains:
+                return False
+            lost = _lost_to_reply(b, piece.color, start)
+            return lost <= 0 or max(gains) > lost
 
         if _holds(after, wins):
             found.append((front, behind))
@@ -537,7 +589,8 @@ def skewer(board: chess.Board, move: chess.Move) -> list[ConceptFact]:
     The line piece is the piece that moved, or one the move uncovers (a
     discovered skewer). After every legal reply, or after the mover answers
     a check, it can take the piece behind, or the front piece when that one
-    stays. As for forks, the piece behind is never a pawn.
+    stays. The skewer does not count when the opponent's reply wins at least
+    as much. As for forks, the piece behind is never a pawn.
     """
     mover = board.turn
     after = board.copy(stack=False)
@@ -548,8 +601,8 @@ def skewer(board: chess.Board, move: chess.Move) -> list[ConceptFact]:
         facts.append(
             ConceptFact(
                 "skewer",
-                f"{san} skewers {piece_phrase(after, front)}: when it moves, "
-                f"{piece_phrase(after, move.to_square)} takes {piece_phrase(after, behind)}.",
+                f"{san} skewers {piece_phrase(after, front)}: "
+                f"{_skewer_text(after, move.to_square, front, behind)}",
                 (move.to_square, front, behind),
             )
         )
@@ -560,10 +613,8 @@ def skewer(board: chess.Board, move: chess.Move) -> list[ConceptFact]:
                 ConceptFact(
                     "skewer",
                     f"{san} opens a skewer: {piece_phrase(after, square)} attacks "
-                    f"{piece_phrase(after, front)}, and when the "
-                    f"{_NAMES[after.piece_type_at(front) or chess.KING]} moves, the "
-                    f"{_NAMES[after.piece_type_at(square) or chess.QUEEN]} takes "
-                    f"{piece_phrase(after, behind)}.",
+                    f"{piece_phrase(after, front)}, and "
+                    f"{_skewer_text(after, square, front, behind)}",
                     (square, front, behind),
                 )
             )

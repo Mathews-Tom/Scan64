@@ -25,6 +25,8 @@ POSITION_POSITIVE = [
     ("trapped_piece", "r5k1/B1p5/1p6/8/8/8/8/6K1 w - - 0 1", "a7"),
     ("back_rank_weakness", "6k1/5ppp/8/8/8/8/8/4R1K1 w - - 0 1", "g8"),
     ("overloading", "k7/3q4/8/1n6/8/7b/8/1R4KR w - - 0 1", "d7"),
+    # A king can be overloaded, and a rook trade that wins a pawn counts (#488).
+    ("overloading", "3rk3/5p2/8/8/2B5/8/8/3RK3 w - - 0 1", "e8"),
     ("passed_pawn", "4k3/8/8/3P4/8/8/8/4K3 w - - 0 1", "d5"),
     ("isolated_pawn", "4k3/8/8/8/3P4/8/PP6/4K3 w - - 0 1", "d4"),
     ("doubled_pawns", "4k3/8/8/8/8/2P5/2P5/4K3 w - - 0 1", "c3"),
@@ -48,6 +50,8 @@ POSITION_NEGATIVE = [
     ("back_rank_weakness", "6k1/5pp1/7p/8/8/8/8/4R1K1 w - - 0 1"),  # h7 is free
     ("overloading", "k7/3q4/8/1n6/6p1/7b/8/1R4KR w - - 0 1"),  # two defenders
     ("overloading", "k7/3q4/8/1n6/8/7b/1R5R/1Q4KR w - - 0 1"),  # the recapture loses the queen
+    # A queen trade that wins only a pawn is no overload (#488).
+    ("overloading", "r1bqk2r/p4ppp/8/4p3/1nB5/8/PPP2PPP/R2QK2R w KQkq - 0 12"),
     ("passed_pawn", "4k3/2p5/8/3P4/8/8/8/4K3 w - - 0 1"),
     ("isolated_pawn", "4k3/8/8/8/3P4/4P3/8/4K3 w - - 0 1"),
     ("doubled_pawns", "4k3/8/8/8/8/3P4/2P5/4K3 w - - 0 1"),
@@ -61,6 +65,8 @@ POSITION_NEGATIVE = [
     ("space", chess.STARTING_FEN),
 ]
 
+SKEWER_STAYS = "2kr3r/p1p1b2p/2p1p3/P3Pp2/1P3R2/2P3P1/2bN3P/R1B3K1 b - - 0 23"
+
 # (concept, FEN, move, square the fact names)
 MOVE_POSITIVE = [
     ("fork", "r3k3/8/8/1N6/8/8/8/4K3 w - - 0 1", "b5c7", "a8"),
@@ -71,6 +77,10 @@ MOVE_POSITIVE = [
     ("skewer", "8/k4n2/8/3r3n/8/3P3P/2B2PP1/7K w - - 0 1", "c2b3", "f7"),
     # The knight uncovers the rook: a discovered skewer (#487).
     ("skewer", "4r3/8/8/4k3/8/8/4N3/4R1K1 w - - 0 1", "e2c1", "e8"),
+    # The front rook may stay: then it is the piece taken (#497).
+    ("skewer", SKEWER_STAYS, "e7g5", "d2"),
+    # Bb7+ Kg1 Nf3+: two checks in a row only delay the fork (#498).
+    ("fork", "r1b1r3/6k1/8/1N6/7n/P3P3/7P/7K w - - 0 1", "b5c7", "e8"),
     ("discovered_attack", "4q1k1/8/8/8/8/8/4N3/4R1K1 w - - 0 1", "e2c3", "e8"),
     ("discovered_check", "4k3/8/8/8/8/8/4N3/4R1K1 w - - 0 1", "e2c3", "e8"),
 ]
@@ -81,6 +91,13 @@ MOVE_NEGATIVE = [
     ("fork", "r1b1r3/6k1/8/1N6/8/P7/7P/7K w - - 0 1", "b5c7"),  # Re1+ saves the rook
     ("skewer", "8/k4n2/8/3r3n/8/7P/2B2PP1/7K w - - 0 1", "c2b3"),  # Rd1+ saves the rook
     ("skewer", "4r3/8/8/4kb2/8/8/4N3/4R1K1 w - - 0 1", "e2c1"),  # Be4 blocks the rook
+    # Rxc2 wins at least as much as the skewer (#497).
+    ("skewer", "2kr3r/p1p1b2p/4p3/P1p1Pp2/1P3R2/2P3P1/R1bN3P/2B3K1 b - - 1 24", "e7g5"),
+    ("skewer", "2r3k1/p2q1pbp/1p2pnp1/nB1p4/3P4/1Pr1P2P/P1QB1PP1/2R2RK1 w - - 0 1", "d2e1"),
+    # Mate: the king in front never moves (#497).
+    ("skewer", "1k1r4/ppp2Q2/3p4/3P4/4P3/P7/2q2Pr1/3RK3 b - - 0 28", "g2g1"),
+    # A third check in a row breaks the fork (#498).
+    ("fork", "r1b1r3/6k1/8/1N6/8/P3P1Nr/7P/7K w - - 0 1", "b5c7"),
     ("discovered_attack", "4q1k1/8/8/8/8/8/4N3/4R1K1 w - - 0 1", "g1h1"),
     ("discovered_check", "4k3/8/8/8/8/8/4N3/4R1K1 w - - 0 1", "g1h1"),
 ]
@@ -146,9 +163,15 @@ def test_fact_texts() -> None:
     )
     assert opened[0].text == (
         "Nc1+ opens a skewer: the white rook on e1 attacks the black king on e5, and when the "
-        "king moves, the rook takes the black rook on e8."
+        "king moves, the white rook on e1 takes the black rook on e8."
     )
-    blockade = _names(position_concepts(chess.Board(POSITION_POSITIVE[8][1])), "blockade")
+    stays = _names(move_concepts(chess.Board(SKEWER_STAYS), chess.Move.from_uci("e7g5")), "skewer")
+    assert stays[0].text == (
+        "Bg5 skewers the white rook on f4: if the rook moves, the black bishop on g5 takes the "
+        "white knight on d2; if it stays, the bishop takes the rook."
+    )
+    blockade_fen = next(fen for concept, fen, _ in POSITION_POSITIVE if concept == "blockade")
+    blockade = _names(position_concepts(chess.Board(blockade_fen)), "blockade")
     assert blockade[0].text == "the black knight on d6 blockades the passed pawn on d5."
 
 
