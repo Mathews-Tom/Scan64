@@ -568,7 +568,7 @@
           "type": "string"
         },
         "uci": {
-          "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$",
+          "pattern": "^([a-h][1-8][a-h][1-8][qrbn]?|[PNBRQ]@[a-h][1-8])$",
           "title": "Uci",
           "type": "string"
         },
@@ -732,6 +732,22 @@
       "properties": {
         "fen": {
           "title": "Fen",
+          "type": "string"
+        },
+        "variant": {
+          "default": "chess",
+          "description": "The rules the position uses.",
+          "enum": [
+            "chess",
+            "crazyhouse",
+            "3check",
+            "atomic",
+            "antichess",
+            "kingofthehill",
+            "horde",
+            "racingkings"
+          ],
+          "title": "Variant",
           "type": "string"
         },
         "side_to_move": {

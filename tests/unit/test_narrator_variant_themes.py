@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 import re
-from typing import get_args
+from typing import Any, get_args
+from unittest.mock import AsyncMock
 
 import chess
 import chess.variant
 import pytest
+from chess_lesson_spec import Diagnosis, Explanation
 
+from scan64.chess.analysis.models import EngineAnalysis
+from scan64.explanations import assembly
 from scan64.explanations.claims import THEME_TOPICS, ClaimFacts, unsupported_claim
-from scan64.explanations.facts import Material
+from scan64.explanations.facts import Material, NarratorFacts, build_narrator_facts
 from scan64.explanations.slots import _THEME_MEANINGS, game_slots
 from scan64.explanations.themes import (
     THEME_SOURCE,
@@ -18,6 +22,7 @@ from scan64.explanations.themes import (
     GameThemeFacts,
     GameTrace,
     ThemeKey,
+    game_trace,
     measure_themes,
     theme_phrase,
     trace_from_scores,
@@ -29,6 +34,8 @@ from scan64.explanations.variant_themes import (
     explosion_threats,
     king_drop_squares,
 )
+from scan64.learning.evidence.models import Evidence
+from scan64.providers.llm import ExplanationRequest, LLMProviderError
 
 _CRAZYHOUSE = chess.variant.CrazyhouseBoard
 _THREE_CHECK = chess.variant.ThreeCheckBoard
@@ -61,7 +68,7 @@ PRESENT: dict[ThemeKey, tuple[type[chess.Board], str]] = {
         _THREE_CHECK,
         "rnb1kbnr/pppp1ppp/8/4p3/4P2q/8/PPPP2PP/RNBQKBNR w KQkq - 3+3 0 3",
     ),
-    # Nxd2 or Nxe2 explodes next to the king on e1.
+    # Nxd1 or Nxe2 explodes next to the king on e1.
     "explosion_threats": (
         _ATOMIC,
         "rnbqkb1r/pppppppp/8/8/8/2n5/PPPPPPPP/R1BQKBNR w KQkq - 0 3",
@@ -259,3 +266,96 @@ def test_a_crazyhouse_trace_replays_drops_and_names_the_turning_drop() -> None:
     assert trace.moves[-1].drop == chess.PAWN
     point = turning_point(trace, 6, chess.WHITE)
     assert point is not None and point.san == "P@b4"
+
+
+# --- Wiring (#506) --------------------------------------------------------------------
+
+
+def _mistake(key: ThemeKey, uci: str | None = None) -> tuple[GameTrace, Diagnosis, Evidence, str]:
+    """The trace of the theme's position with its mistake, and evidence of that mistake."""
+    cls, fen = PRESENT[key]
+    trace = _static_trace(cls, [fen] * 4)
+    played = trace.moves[6] if uci is None else chess.Move.from_uci(uci)
+    trace = GameTrace(trace.boards, (*trace.moves[:6], played), trace.scores)
+    evidence = Evidence(
+        evidence_id="ev",
+        kind="tactical_motif",
+        position_id="pos",
+        claim="A mistake",
+        engine_analysis_id="an",
+        payload={
+            "before_fen": trace.boards[6].fen(),
+            "played_move": played.uci(),
+        },
+    )
+    diagnosis = Diagnosis(
+        primary="board_awareness.hanging_piece", confidence=1.0, evidence_refs=["ev"]
+    )
+    return trace, diagnosis, evidence, fen
+
+
+def _facts(key: ThemeKey) -> NarratorFacts:
+    trace, diagnosis, evidence, fen = _mistake(key)
+    return build_narrator_facts(diagnosis, [evidence], fen, trace)
+
+
+@pytest.mark.parametrize("key", list(PRESENT))
+def test_the_facts_of_a_variant_mistake_hold_its_themes(key: ThemeKey) -> None:
+    facts = _facts(key)
+    assert facts.position.variant == PRESENT[key][0].uci_variant
+    assert facts.factors is None  # the factor module reads standard chess only
+    assert facts.game is not None
+    assert key in {theme.key for theme in facts.game.themes}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("key", ["drop_threats", "check_exposure", "explosion_threats"])
+async def test_the_prompt_of_a_variant_mistake_states_its_theme(
+    key: ThemeKey, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The template texts read standard chess proofs; only the narrator's facts are tested here.
+    template = AsyncMock(return_value=Explanation(text="template"))
+    monkeypatch.setattr(assembly.TemplateExplanationProvider, "explain", template)
+    prompts = []
+
+    class Recorder:
+        async def generate(self, request: ExplanationRequest) -> Any:
+            prompts.append(request.messages[-1].content)
+            raise LLMProviderError("recorded only")
+
+    trace, diagnosis, evidence, fen = _mistake(key)
+    await assembly.resolve_explanation(
+        diagnosis,
+        [evidence],
+        fen,
+        local_provider=Recorder(),  # type: ignore[arg-type]
+        environment={},
+        game=trace,
+    )
+    assert len(prompts) == 1 and f"{{theme:{key}}}" in prompts[0]
+
+
+def test_a_drop_is_a_move_fact_and_keeps_the_material() -> None:
+    fen = PRESENT["pocket_deficit"][1].replace("[np]", "[Pnp]")
+    _, diagnosis, evidence, _ = _mistake("pocket_deficit")
+    trace = _static_trace(_CRAZYHOUSE, [fen] * 4)
+    drop = chess.Move.from_uci("P@d4")
+    trace = GameTrace(trace.boards, (*trace.moves[:6], drop), trace.scores)
+    payload = {"before_fen": trace.boards[6].fen(), "played_move": "P@d4"}
+    evidence = evidence.model_copy(update={"payload": payload})
+    position = build_narrator_facts(diagnosis, [evidence], fen, trace).position
+    assert (position.played_move.san, position.played_move.piece) == ("P@d4", "pawn")
+    assert position.played_move.material_after == position.material
+
+
+@pytest.mark.parametrize("variant", ["crazyhouse", "3check", "atomic"])
+def test_a_variant_trace_rejects_scores_of_another_variant(variant: Any) -> None:
+    def scores(config: dict[str, Any]) -> list[EngineAnalysis | None]:
+        return [None, EngineAnalysis(config=config, raw_result=[{"score_cp": 10}])]
+
+    with pytest.raises(ValueError, match="chess search"):
+        game_trace(None, ["e2e4"], scores({}), variant=variant)
+    with pytest.raises(ValueError, match=f"{variant} search"):
+        game_trace(None, ["e2e4"], scores({"variant": variant}))
+    trace = game_trace(None, ["e2e4"], scores({"variant": variant}), variant=variant)
+    assert trace.variant == variant and trace.scores == (None, -10)

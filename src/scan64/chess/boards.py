@@ -6,14 +6,17 @@ from collections.abc import Sequence
 
 import chess
 
+from scan64.chess.variants import STANDARD, VariantName, board_class
 
-def board_from(initial_fen: str | None) -> chess.Board:
-    """A board at ``initial_fen``, or the standard start when it is absent.
+
+def board_from(initial_fen: str | None, variant: VariantName = STANDARD) -> chess.Board:
+    """A board at ``initial_fen``, or the variant's start when it is absent.
 
     ``chess.Board(None)`` is an empty board and ``chess.Board("")`` raises, so
     the absent case must be spelled out rather than passed through.
     """
-    return chess.Board(initial_fen) if initial_fen else chess.Board()
+    cls = board_class(variant)
+    return cls(initial_fen) if initial_fen else cls()
 
 
 def uci_moves_to_san(uci_moves: Sequence[str], initial_fen: str | None = None) -> list[str]:

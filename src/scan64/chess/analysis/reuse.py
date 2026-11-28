@@ -6,13 +6,19 @@ import json
 from copy import deepcopy
 from typing import Any
 
+import chess
 from sqlmodel import Session, col, select
 
 from scan64.chess.analysis.models import EngineAnalysis
 from scan64.chess.boards import board_from
 from scan64.chess.games.models import Game
 from scan64.chess.positions.models import Position
-from scan64.providers.stockfish.adapter import EngineAdapter, IdentifiedEngineAdapter
+from scan64.providers.stockfish.adapter import (
+    EngineAdapter,
+    IdentifiedEngineAdapter,
+    search_board,
+    variant_config,
+)
 
 
 def _key(fen: str, config: dict[str, Any]) -> tuple[str, str] | None:
@@ -84,12 +90,15 @@ class BatchAnalysisAdapter:
 
     async def analyze_position(
         self,
-        fen: str,
+        fen: str | chess.Board,
         nodes: int | None = None,
         depth: int | None = None,
         time_ms: int | None = None,
         multipv: int = 1,
     ) -> EngineAnalysis:
+        target = fen
+        board = search_board(fen)
+        fen = fen if isinstance(fen, str) else board.fen()
         saved = None
         if self._saved and isinstance(self.adapter, IdentifiedEngineAdapter):
             config = dict(
@@ -98,6 +107,7 @@ class BatchAnalysisAdapter:
                 depth=depth,
                 time_ms=time_ms,
                 multipv=multipv,
+                **variant_config(board),
             )
             key = _key(fen, config)
             if key is not None:
@@ -109,7 +119,7 @@ class BatchAnalysisAdapter:
             )
         else:
             analysis = await self.adapter.analyze_position(
-                fen, nodes=nodes, depth=depth, time_ms=time_ms, multipv=multipv
+                target, nodes=nodes, depth=depth, time_ms=time_ms, multipv=multipv
             )
             key = _key(fen, analysis.config)
             if key is not None:

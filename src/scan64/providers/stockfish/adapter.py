@@ -40,7 +40,7 @@ class EngineAdapter(Protocol):
 
     async def analyze_position(
         self,
-        fen: str,
+        fen: str | chess.Board,
         nodes: int | None = None,
         depth: int | None = None,
         time_ms: int | None = None,
@@ -54,6 +54,18 @@ class IdentifiedEngineAdapter(EngineAdapter, Protocol):
 
 
 StockfishConfig = EngineConfig
+
+
+def search_board(fen: str | chess.Board) -> chess.Board:
+    """The board a search runs on: a FEN is standard chess, a variant needs its board."""
+    return fen if isinstance(fen, chess.Board) else chess.Board(fen)
+
+
+def variant_config(board: chess.Board) -> dict[str, Any]:
+    """The analysis config's ``variant`` key: absent for standard chess, so stored
+    rows keep their reuse key."""
+    variant = type(board).uci_variant
+    return {} if variant == chess.Board.uci_variant else {"variant": variant}
 
 
 def search_limit(
@@ -173,12 +185,13 @@ class StockfishAdapter:
 
     async def analyze_position(
         self,
-        fen: str,
+        fen: str | chess.Board,
         nodes: int | None = None,
         depth: int | None = None,
         time_ms: int | None = None,
         multipv: int = 1,
     ) -> EngineAnalysis:
+        board = search_board(fen)
         signature = executable_signature(self.config.binary_path)
         engine = await self._start()
         try:
@@ -193,14 +206,19 @@ class StockfishAdapter:
             limit = search_limit(nodes, depth, time_ms, node_scale=self.config.node_scale)
             raw_result = await search(
                 engine,
-                chess.Board(fen),
+                board,
                 limit,
                 multipv,
                 deadline_s=self.config.search_deadline_s,
                 score_scale=self.config.score_scale,
             )
             config_dict = dict(
-                self._identity, nodes=nodes, depth=depth, time_ms=time_ms, multipv=multipv
+                self._identity,
+                nodes=nodes,
+                depth=depth,
+                time_ms=time_ms,
+                multipv=multipv,
+                **variant_config(board),
             )
             return EngineAnalysis(
                 position_id=None,  # To be filled by the caller
