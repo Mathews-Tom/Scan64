@@ -39,6 +39,7 @@ RelationKind = Literal[
     "gives_check",
     "mates",
     "stalemates",
+    "draws",
     "blocks",
     "pins",
     "frees",
@@ -102,8 +103,12 @@ class Relation:
     direction: Direction | None = None
     # The square an ``opens`` relation makes reachable.
     square: chess.Square | None = None
-    # The opponent's move a ``prevents`` relation says cannot be played at once.
+    # The opponent's move a ``prevents`` relation says cannot be played at once,
+    # and the position it was legal in: after the played move.
     reply: str | None = None
+    reply_fen: str | None = None
+    # An ``attacks`` relation that held before ``move`` too ("already attacks").
+    already: bool = False
 
 
 @dataclass(frozen=True)
@@ -358,7 +363,8 @@ def _move_sentences(board: chess.Board, move: chess.Move, *, owned: bool) -> lis
                 said.append(
                     _Said(
                         f"{label} was not the only way to block the check: "
-                        f"{_joined(others)} also {'block' if len(others) > 1 else 'blocks'} it.",
+                        f"{_joined(others)} also {'block' if len(others) > 1 else 'blocks'} "
+                        f"the check from {checker.phrase()}.",
                         Relation("blocks", uci, fen, subject=moved, through=checker),
                     )
                 )
@@ -367,7 +373,7 @@ def _move_sentences(board: chess.Board, move: chess.Move, *, owned: bool) -> lis
     if after.is_checkmate():
         said.append(
             _Said(
-                f"{label} gives check to {_king(after, opponent).phrase()}, and it is mate: "
+                f"{label} gives checkmate to {_king(after, opponent).phrase()}: "
                 f"the game ends, and {colour_name(mover)} wins.",
                 Relation("mates", uci, fen, subject=moved, target=_king(after, opponent)),
             )
@@ -379,6 +385,15 @@ def _move_sentences(board: chess.Board, move: chess.Move, *, owned: bool) -> lis
                 f"{label} is stalemate: {colour_name(opponent)} has no legal move and is not "
                 "in check, so the game ends at once as a draw.",
                 Relation("stalemates", uci, fen, subject=moved),
+            )
+        )
+        return said
+    if after.is_insufficient_material():
+        said.append(
+            _Said(
+                f"After {label} neither side has enough material left to give mate, "
+                "so the game ends at once as a draw.",
+                Relation("draws", uci, fen, subject=moved),
             )
         )
         return said
@@ -472,7 +487,7 @@ def _free_sentences(board: chess.Board, move: chess.Move) -> list[_Said]:
     label = numbered_san(board, move)
     return [
         _Said(
-            f"{label} frees {_on(board, square).phrase()}: it could not move before.",
+            f"{label} frees {_on(board, square).phrase()}, which could not move before.",
             Relation("frees", move.uci(), board.fen(), target=_on(board, square)),
         )
         for square in sorted(_freed(board, move))
@@ -531,10 +546,23 @@ def _line_sentences(board: chess.Board, moves: Sequence[chess.Move]) -> list[_Sa
                         ),
                     )
                 )
+            if after.is_insufficient_material():
+                said.append(
+                    _Said(
+                        f"The line goes on to {numbered_san(scratch, move)}, and the game is "
+                        "drawn: neither side has enough material left to give mate.",
+                        Relation(
+                            "draws",
+                            move.uci(),
+                            scratch.fen(),
+                            subject=_on(after, move.to_square),
+                        ),
+                    )
+                )
             if after.is_checkmate():
                 said.append(
                     _Said(
-                        f"The line goes on to {numbered_san(scratch, move)}, and it is mate: "
+                        f"The line goes on to {numbered_san(scratch, move)}, checkmate: "
                         f"the game ends, and {colour_name(scratch.turn)} wins.",
                         Relation(
                             "mates",
@@ -619,7 +647,14 @@ def _threat_sentences(
         said.append(
             _Said(
                 f"{attacker.owned_phrase()} {already}attacks {target.owned_phrase()}.",
-                Relation("attacks", played.uci(), board.fen(), subject=attacker, target=target),
+                Relation(
+                    "attacks",
+                    played.uci(),
+                    board.fen(),
+                    subject=attacker,
+                    target=target,
+                    already=bool(already),
+                ),
             )
         )
         if not defended:
@@ -658,6 +693,29 @@ def _mobility_legal(board: chess.Board, square: chess.Square) -> int:
     scratch = board.copy(stack=False)
     scratch.turn = colour
     return sum(1 for move in scratch.legal_moves if move.from_square == square)
+
+
+def _pin_line_moves(board: chess.Board, square: chess.Square) -> bool:
+    """The pinned piece on ``square`` has a pseudo-legal move along its pin line.
+
+    Such a move is legal but for a check, so the check, not the pin, stops it.
+    """
+    colour = board.color_at(square)
+    if colour is None:
+        return False
+    scratch = board.copy(stack=False)
+    scratch.turn = colour
+    line = board.pin(colour, square)
+    return any(
+        move.from_square == square and move.to_square in line for move in scratch.pseudo_legal_moves
+    )
+
+
+def _mate_needs(board: chess.Board, square: chess.Square) -> bool:
+    """``board`` is mate, and without the piece on ``square`` it is not."""
+    without = board.copy(stack=False)
+    without.remove_piece_at(square)
+    return board.is_checkmate() and not without.is_checkmate()
 
 
 def _joined(items: Sequence[str]) -> str:
@@ -730,11 +788,16 @@ def role_facts(
                 continue
             held = _on(after_best, square)
             king = _king(after_best, opponent)
-            consequence = "cannot move" if _mobility_legal(after_best, square) == 0 else "is pinned"
+            # "Cannot move, because ... pins": only when the pin alone stops every move.
+            # A check that also stops its moves along the pin line is a second reason.
+            alone = _mobility_legal(after_best, square) == 0 and not _pin_line_moves(
+                after_best, square
+            )
+            consequence = "cannot move" if alone else "is pinned"
             misses.append(
                 _Said(
                     f"{held.owned_phrase()} {consequence}, because "
-                    f"{holder.phrase()} pins it to {king.phrase()}.",
+                    f"{holder.phrase()} pins {held.phrase()} to {king.phrase()}.",
                     Relation("pins", best, fen, subject=holder, target=held, through=king),
                 )
             )
@@ -744,7 +807,12 @@ def role_facts(
             blockers = [
                 piece for piece in _blockers(after_best, king.square) if piece.colour == opponent
             ]
-            if blockers and all(piece.piece == chess.PAWN for piece in blockers):
+            # Each named pawn is one the mate needs: without it, it is no mate.
+            if (
+                blockers
+                and all(piece.piece == chess.PAWN for piece in blockers)
+                and all(_mate_needs(after_best, piece.square) for piece in blockers)
+            ):
                 misses.append(
                     _Said(
                         f"{king.owned_phrase()} is shut in by "
@@ -763,7 +831,7 @@ def role_facts(
                 _Said(
                     f"{shut.phrase().capitalize()} was already shut in by "
                     f"{_phrases(by, own='the ')} before {played_label}, and {played_label} "
-                    "does not free it.",
+                    f"does not free {shut.phrase()}.",
                     Relation("shuts_in", played, fen, subject=shut, target=by[0]),
                     tuple(
                         Relation("shuts_in", played, fen, subject=shut, target=piece)
@@ -797,7 +865,7 @@ def role_facts(
                     _Said(
                         f"{pinned.phrase().capitalize()} cannot take "
                         f"{_on(after_reply, reply.to_square).phrase()}: {holder.phrase()} pins "
-                        f"it to {king.phrase()}.",
+                        f"{pinned.phrase()} to {king.phrase()}.",
                         Relation(
                             "pins",
                             reply.uci(),
@@ -846,6 +914,7 @@ def role_facts(
                                 else None
                             ),
                             reply=threat.uci(),
+                            reply_fen=after_played.fen(),
                         ),
                     )
                 )
