@@ -1,0 +1,70 @@
+# Human-annotated public-domain games (issue #463).
+# Build: uv run python scripts/build-annotated-corpus.py --data-dir <dir outside the repository>
+# The books are downloaded into <data-dir>/raw and the corpus is written to
+# <data-dir>/corpus; no book text enters the repository. The manifest and the
+# report below are the only outputs tracked here.
+
+[output]
+manifest = "docs/evaluation/annotated-corpus-manifest.json"
+report = "docs/evaluation/annotated-corpus.md"
+
+# A source with a [sources.<id>.layout] table is read; one without is listed
+# in the manifest as pending, with the reason.
+# expected_games is the number of game headers counted in the book by hand; the
+# build fails when the reader finds a different number.
+
+[sources.capablanca_chess_fundamentals]
+title = "Chess Fundamentals"
+author = "José Raúl Capablanca"
+published = 1921
+page = "https://www.gutenberg.org/ebooks/33870"
+url = "https://mirror.csclub.uwaterloo.ca/gutenberg/3/3/8/7/33870/33870-8.txt"
+sha256 = "18256bb515c846caf1608a9a35332eeb23b906ab3aabfd65f5cbe6abe7946939"
+encoding = "latin-1"
+licence = """Public domain in the United States: first published 1921 (more than 95 years ago); \
+Project Gutenberg eBook #33870. The transcribed printing carries a 1934 preface and the 1949 \
+renewal by Olga Capablanca; annotations revised for the 1934 printing would stay in US copyright \
+until 2030. Open question for the owner before any training use."""
+
+[sources.capablanca_chess_fundamentals.layout]
+header = '^GAME (?P<number>\d+)\. '
+separator = '^\s*\*\s+\*\s+\*'
+expected_games = 14
+stop_at_result = false
+# "[Illustration] {4}": a diagram marker, with or without its page marker.
+skip = ['^\s*\[Illustration\](?:\s*\{\d+\})?\s*$']
+
+[sources.lasker_chess_strategy]
+title = "Chess Strategy (second edition, translated by J. du Mont)"
+author = "Edward Lasker"
+published = 1915
+page = "https://www.gutenberg.org/ebooks/5614"
+url = "https://mirror.csclub.uwaterloo.ca/gutenberg/5/6/1/5614/5614-0.txt"
+sha256 = "85d9e3ea5175bc1abc8f1bd51652abe58c23e5d3e78ef6f28e866bf2674265c8"
+encoding = "utf-8-sig"
+licence = "Public domain in the United States: published 1915; Project Gutenberg eBook #5614."
+
+[sources.lasker_chess_strategy.layout]
+# The book prints both "GAME No." and "GAME NO.", some without indent.
+header = '(?i)^\s*GAME No\. (?P<number>\d+)\.?\s*$'
+expected_games = 48
+stop_at_result = true
+skip = []
+
+[sources.em_lasker_manual]
+title = "Lasker's Manual of Chess"
+author = "Emanuel Lasker"
+published = 1927
+pending = "No public-domain plain text found; scans only. Needs a transcription source."
+
+[sources.nimzowitsch_my_system]
+title = "My System (English translation)"
+author = "Aron Nimzowitsch"
+published = 1929
+pending = "No public-domain plain text found; scans only. Needs a transcription source."
+
+[sources.steinitz_modern_chess_instructor]
+title = "The Modern Chess Instructor"
+author = "Wilhelm Steinitz"
+published = 1889
+pending = "No public-domain plain text found; scans only. Needs a transcription source."
