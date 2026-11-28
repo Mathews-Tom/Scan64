@@ -45,7 +45,7 @@ from scan64.explanations.assembly import (
     run_with_explanation_provider,
     slot_rules,
 )
-from scan64.explanations.claims import ClaimFacts
+from scan64.explanations.claims import ClaimFacts, OutcomeFacts
 from scan64.explanations.factor_facts import (
     FactorFacts,
     PointScore,
@@ -641,14 +641,28 @@ def board_slot_catalogue(facts: BoardLinesFacts) -> SlotCatalogue:
             changes,
         )
     names = {name for slots in by_evidence.values() for name in slots}
-    example = "{label:line-1} starts with {first:line-1}."
+    example = "{label:line-1} starts with {first:line-1}, and {outcome:line-1}."
     if "diff:line-2" in names:
-        example = "{label:line-2} starts with {first:line-2} and scores {diff:line-2}."
+        example = (
+            "{label:line-2} starts with {first:line-2}, scores {diff:line-2}, and {outcome:line-2}."
+        )
     combined = (
         {COMPARISON_EVIDENCE_ID: tuple(line.line_id for line in facts.lines)}
         if len(facts.lines) > 1
         else {}
     )
+    # A line item's outcome words are checked against its own line (#449);
+    # ``comparison`` against every line, since its prose may mean any of them.
+    outcomes = {
+        evidence_id: tuple(
+            OutcomeFacts(
+                change=line.outcome.material_change,
+                balance=line.outcome.material_at_end.learner_advantage,
+            )
+            for line in lines
+        )
+        for evidence_id, lines in items.items()
+    }
     return SlotCatalogue(
         by_evidence=by_evidence,
         shared=frozenset(slot.name for slot in shared),
@@ -657,6 +671,7 @@ def board_slot_catalogue(facts: BoardLinesFacts) -> SlotCatalogue:
         claims=claims,
         example=example,
         combined=combined,
+        outcomes=outcomes,
     )
 
 
@@ -803,20 +818,22 @@ def template_board_explanation(facts: BoardLinesFacts) -> Explanation:
 # --- Provider wording ----------------------------------------------------------------
 
 BOARD_NARRATOR_SYSTEM_PROMPT = (
-    "You explain the chess engine's top lines for one position. Code computed every fact "
-    "with the board library, the chess engine and the factor module; you only choose plain "
-    "words around them. Line 1 is the engine's first choice.\n"
+    "You explain the chess engine's top lines for one position. Code computed every fact; you "
+    "only choose plain words around them. Line 1 is the engine's first choice.\n"
     "- "
     + slot_rules(
         "{first:line-1} or {line:line-1}",
         "The slot list ends with an example claim text.",
     )
     + "\n"
-    "Answer with claims: explain what each line wins, loses or threatens, then compare the "
-    "lines. Each claim: text (one or two plain sentences with slots), evidence_ref (the "
-    f'quoted evidence_ref of its line, or "{COMPARISON_EVIDENCE_ID}" to compare lines), '
-    'line [], certainty "observed", disclosure_level 1. Call the sides "the side to move" '
-    'and "the opponent".'
+    # #449: outcome words outside slots are checked by claims.outcome_claims.
+    "Answer with claims: each line's outcome ({outcome:...}, {balance:...}), then a comparison "
+    'of the lines. A claim may restate an outcome with the side ("the side to move wins '
+    'material"); a line itself never wins or loses. Start each claim with a {label:...} slot. '
+    "Each claim: text (one or two plain sentences with slots), evidence_ref (the "
+    f'quoted evidence_ref of its line, or "{COMPARISON_EVIDENCE_ID}", not a slot, to compare '
+    'lines), line [], certainty "observed", disclosure_level 1. Call the sides "the side to '
+    'move" and "the opponent".'
 )
 
 

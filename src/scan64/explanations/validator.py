@@ -26,7 +26,7 @@ from typing import Any, Literal, get_args
 import chess
 from chess_lesson_spec import Explanation, ExplanationClaim, LessonSpec
 
-from scan64.explanations.claims import unsupported_claim
+from scan64.explanations.claims import outcome_claims, unsupported_claim
 from scan64.explanations.facts import (
     PIECE_LIST_FIELDS,
     PIECE_SQUARE_FIELDS,
@@ -231,6 +231,11 @@ def render_slot_text(text: str, catalogue: SlotCatalogue, evidence_id: str) -> s
     prose = prose_outside_slots(text.replace("’", "'").replace("‘", "'"))
     if "{" in prose or "}" in prose:
         raise _reject("unknown_slot", f"contains a malformed slot: {text!r}")
+    # Analysis Board line items (#449): outcome words inside a material claim
+    # are admitted; the line's outcome must support the claim (checked below).
+    false_outcome = None
+    if (outcome := catalogue.outcomes.get(evidence_id)) is not None:
+        prose, false_outcome = outcome_claims(prose, outcome)
     residue = chess_words_outside_slots(
         prose, catalogue.vocabulary(evidence_id), catalogue.phrases.get(evidence_id, ())
     )
@@ -241,6 +246,13 @@ def render_slot_text(text: str, catalogue: SlotCatalogue, evidence_id: str) -> s
         )
     # After the slot-token rule, so these reasons count only what the claim
     # rule adds (#431).
+    if false_outcome is not None:
+        if false_outcome.negated:
+            raise _reject("negated_claim", f"states a negated chess claim: {false_outcome.text!r}")
+        raise _reject(
+            "unsupported_claim",
+            f"states a line outcome the line does not have: {false_outcome.text!r}",
+        )
     # The claim rule reads {best} as "the best move" (``claims._about_best``).
     claim_prose = SLOT_TOKEN.sub(
         lambda match: " the best move " if match.group("name") == "best" else " ~ ",

@@ -31,7 +31,7 @@ from dataclasses import dataclass, field, replace
 
 import chess
 
-from scan64.explanations.claims import ClaimFacts, factor_group
+from scan64.explanations.claims import ClaimFacts, OutcomeFacts, factor_group
 from scan64.explanations.factor_facts import FactorChange, FactorFacts
 from scan64.explanations.facts import (
     CentipawnEvaluation,
@@ -210,6 +210,10 @@ class SlotCatalogue:
     # An example claim text built from this catalogue's own slots (prompt only).
     example: str | None = None
     combined: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    # Material outcome of each line of an Analysis Board evidence item (#449):
+    # its outcome words are admitted inside a claim every one of these lines
+    # supports (``claims.outcome_claims``). Lessons have none.
+    outcomes: Mapping[str, tuple[OutcomeFacts, ...]] = field(default_factory=dict)
 
     def slots_for(self, evidence_id: str) -> Mapping[str, Slot]:
         return self.by_evidence.get(evidence_id, {})

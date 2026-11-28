@@ -30,6 +30,17 @@ adds rejections: a supported claim still passes the vocabulary rule as well.
 A claim is checked against every fact position of the item (before the move,
 after each move of its lines), not one moment: "you were winning" and "you are
 winning" are the same claim.
+
+Analysis Board lines (#449): the words that state a line's material outcome
+(``OUTCOME_WORDS``: material, win, lose, gain, equal, advantage, ahead, behind)
+are no fact name, so the vocabulary rule rejects them. On an Analysis Board
+evidence item, ``outcome_claims`` admits them inside a material claim that the
+line's outcome facts (``OutcomeFacts``: the material change over the whole line
+and the balance at its end) support, side and size checked, and returns the
+first such claim they do not support. A line item has its own line; the
+``comparison`` item every line, and its claim must hold for each. A side-free
+claim there is about the side to move; one in a sentence that names the
+opponent is not read as either side. Lessons have no outcome facts.
 """
 
 from __future__ import annotations
@@ -392,12 +403,27 @@ CLAIM_RULES: tuple[tuple[_Rule, _Reader], ...] = (
     # Material balance: "material is level", "you are up a piece", "you're a pawn down".
     (
         _Rule(
-            r"\bmaterial(?:\s+balance)?(?:\s+(?:is|was|stays|remains|stayed|remained))"
+            r"\bmaterial(?:\s+balance)?(?:\s+(?:that|which))?"
+            r"(?:\s+at\s+the\s+end(?:\s+of\s+(?:this|the)\s+line)?)?"
+            r"(?:\s+(?:is|was|stays|remains|stayed|remained|being))"
             rf"(?:\s+(?:now|still|roughly|about))*\s+(?:{_EQUAL})\b"
             rf"|\b(?:{_EQUAL})\s+material\b",
             _I,
         ),
         lambda match: Claim("balance", 0, 0, 0),
+    ),
+    # No material change (#449): "the material balance does not change".
+    (
+        _Rule(
+            r"\bmaterial(?:\s+balance)?(?:\s+(?:that|which))?\s+(?:does\s+not|doesn't|did\s+not"
+            r"|didn't|will\s+not|won't|never)\s+changes?\b"
+            r"|\bno\s+change\s+(?:to|in)\s+the\s+material(?:\s+balance)?\b"
+            r"|\bmaterial(?:\s+balance)?\s+not\s+changing\b|\bno\s+material\s+change\b"
+            r"|\bmaterial(?:\s+balance)?(?:\s+(?:that|which))?"
+            r"(?:\s+(?:is|was|stays|remains|stayed|remained|being))\s+(?:the\s+same|unchanged)\b",
+            _I,
+        ),
+        lambda match: Claim("change", 0, 0, 0),
     ),
     # Owner subjects: "your material is up two pawns", "your side is two pawns ahead".
     (
@@ -507,6 +533,15 @@ CLAIM_RULES: tuple[tuple[_Rule, _Reader], ...] = (
         _Rule(
             rf"\b{_SUBJECT}{_HAVE}\s+(?:a|the)\s+material\s+(?:advantage|edge|lead|plus"
             r"|(?P<minus>deficit|disadvantage))\b",
+            _I,
+        ),
+        _signed("balance"),
+    ),
+    # "a material advantage for the side to move", "a material deficit for the opponent" (#449).
+    (
+        _Rule(
+            r"\bmaterial\s+(?:advantage|edge|lead|plus|(?P<minus>deficit|disadvantage))"
+            rf"\s+for\s+(?P<who>{_OPPONENT}|them|{_LEARNER})\b",
             _I,
         ),
         _signed("balance"),
@@ -828,16 +863,134 @@ def unsupported_claim(prose: str, facts: ClaimFacts) -> RejectedClaim | None:
     return None
 
 
+# --- Line outcome words (#449) ---------------------------------------------------------
+
+# The material words of ``slots.CHESS_WORDS`` that state a line's outcome.
+OUTCOME_WORDS = re.compile(
+    r"\b(?:material|win|wins|winning|won|lose|loses|losing|lost|gain|gains|gained|gaining"
+    r"|ahead|behind|advantage|equal)\b",
+    re.IGNORECASE,
+)
+# "wins material for the opponent": the side the claim is about, after it.
+_FOR_SIDE = re.compile(rf"\s+for\s+(?P<who>{_OPPONENT}|them|{_LEARNER})\b", re.IGNORECASE)
+# A sentence that names the opponent: a side-free claim in it is not read as either side.
+_NAMES_OPPONENT = re.compile(r"\b(?:opponent|opponent's|they|them|their|theirs)\b", re.IGNORECASE)
+
+
+@dataclass(frozen=True)
+class OutcomeFacts:
+    """A line's material outcome, side to move's view (Analysis Board, #449).
+
+    ``change`` is the material the side to move wins over the whole line
+    (negative: loses); ``balance`` its material advantage at the line's end.
+    """
+
+    change: int
+    balance: int
+
+
+def _outcome_side(claim: Claim, prose: str, match: re.Match[str]) -> int | None:
+    """The side an outcome claim is about: its own side word, a following "for ...",
+    else the side to move; ``None`` when a side-free claim's sentence names the opponent."""
+    if claim.side != 0:
+        return claim.side
+    after = _FOR_SIDE.match(prose, match.end())
+    if after is not None:
+        return _side(after.group("who"))
+    if _NAMES_OPPONENT.search(_sentence_at(prose, match.start())):
+        return None
+    return 1
+
+
+def outcome_supported(
+    claim: Claim, side: int | None, outcome: OutcomeFacts, *, exact: bool = False
+) -> bool:
+    """Whether the line's outcome states ``claim`` (a balance or change claim) for ``side``.
+
+    A change claim ("wins a pawn") is checked against the change over the whole
+    line, a balance claim ("is up a rook", "material is equal") against the
+    balance at its end. Sizes are checked as in ``supported`` (a piece or rook
+    may be one pawn more), except an ``exact`` count of points, which the slot
+    values state ("5 points of material"); bare "material" needs only the sign.
+    """
+    value = outcome.change if claim.topic == "change" else outcome.balance
+    if claim.amount == SLOT_AMOUNT:
+        return False
+    if claim.sign == 0:
+        return value == 0
+    if side is None:
+        return False
+    gained = side * claim.sign * value
+    if claim.amount is None:
+        return gained > 0
+    slack = 1 if claim.amount >= 3 and not exact else 0
+    return claim.amount <= gained <= claim.amount + slack
+
+
+# A count in points ("two points of material") is exact; a piece may be a pawn more.
+_POINTS = re.compile(r"\bpoints?\b", re.IGNORECASE)
+
+
+def outcome_claims(
+    prose: str, outcomes: Sequence[OutcomeFacts]
+) -> tuple[str, RejectedClaim | None]:
+    """Admit the outcome words of the material claims in ``prose`` (#449).
+
+    Returns ``prose`` with every ``OUTCOME_WORDS`` match blanked that lies inside
+    a balance or change claim of ``CLAIM_RULES``, and the first of those claims
+    that some line of ``outcomes`` does not support (a negated one included):
+    a line item has its one line; ``comparison`` has every line, so a material
+    claim there must hold for each of them ("all lines keep material equal"),
+    since code cannot tell which line the prose means. Outcome words
+    outside such a claim stay, so the vocabulary rule still rejects them
+    ("this line wins for the side to move", "the material balance is better").
+    """
+    admitted = list(prose)
+    rejected: RejectedClaim | None = None
+    remaining = prose
+    for rule, read in CLAIM_RULES:
+        pattern = rule.compiled()
+        for match in pattern.finditer(remaining):
+            words = list(OUTCOME_WORDS.finditer(match[0]))
+            if not words:
+                continue
+            claim = read(match)
+            if claim.topic not in ("balance", "change"):
+                continue
+            groups = match.groupdict()
+            if rejected is None and (groups.get("neg") or groups.get("neg2")):
+                rejected = RejectedClaim(match[0].strip(), negated=True)
+            elif rejected is None and not all(
+                outcome_supported(
+                    claim,
+                    _outcome_side(claim, prose, match),
+                    outcome,
+                    exact=bool(_POINTS.search(match[0])),
+                )
+                for outcome in outcomes
+            ):
+                rejected = RejectedClaim(match[0].strip(), negated=False)
+            for word in words:
+                begin, end = match.start() + word.start(), match.start() + word.end()
+                admitted[begin:end] = " " * (end - begin)
+        remaining = pattern.sub(lambda match: " " * len(match[0]), remaining)
+    return "".join(admitted), rejected
+
+
 __all__ = [
     "BETTER_CP",
     "CLAIM_RULES",
     "EQUAL_CP",
     "FACTOR_TOPICS",
+    "OUTCOME_WORDS",
     "WINNING_CP",
     "Claim",
     "ClaimFacts",
+    "OutcomeFacts",
     "RejectedClaim",
     "factor_group",
+    "outcome_claims",
+    "outcome_supported",
     "supported",
     "unsupported_claim",
 ]
