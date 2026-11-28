@@ -65,6 +65,8 @@ POSITION_NEGATIVE = [
     ("space", chess.STARTING_FEN),
 ]
 
+SKEWER_STAYS = "2kr3r/p1p1b2p/2p1p3/P3Pp2/1P3R2/2P3P1/2bN3P/R1B3K1 b - - 0 23"
+
 # (concept, FEN, move, square the fact names)
 MOVE_POSITIVE = [
     ("fork", "r3k3/8/8/1N6/8/8/8/4K3 w - - 0 1", "b5c7", "a8"),
@@ -75,6 +77,8 @@ MOVE_POSITIVE = [
     ("skewer", "8/k4n2/8/3r3n/8/3P3P/2B2PP1/7K w - - 0 1", "c2b3", "f7"),
     # The knight uncovers the rook: a discovered skewer (#487).
     ("skewer", "4r3/8/8/4k3/8/8/4N3/4R1K1 w - - 0 1", "e2c1", "e8"),
+    # The front rook may stay: then it is the piece taken (#497).
+    ("skewer", SKEWER_STAYS, "e7g5", "d2"),
     ("discovered_attack", "4q1k1/8/8/8/8/8/4N3/4R1K1 w - - 0 1", "e2c3", "e8"),
     ("discovered_check", "4k3/8/8/8/8/8/4N3/4R1K1 w - - 0 1", "e2c3", "e8"),
 ]
@@ -85,6 +89,11 @@ MOVE_NEGATIVE = [
     ("fork", "r1b1r3/6k1/8/1N6/8/P7/7P/7K w - - 0 1", "b5c7"),  # Re1+ saves the rook
     ("skewer", "8/k4n2/8/3r3n/8/7P/2B2PP1/7K w - - 0 1", "c2b3"),  # Rd1+ saves the rook
     ("skewer", "4r3/8/8/4kb2/8/8/4N3/4R1K1 w - - 0 1", "e2c1"),  # Be4 blocks the rook
+    # Rxc2 wins at least as much as the skewer (#497).
+    ("skewer", "2kr3r/p1p1b2p/4p3/P1p1Pp2/1P3R2/2P3P1/R1bN3P/2B3K1 b - - 1 24", "e7g5"),
+    ("skewer", "2r3k1/p2q1pbp/1p2pnp1/nB1p4/3P4/1Pr1P2P/P1QB1PP1/2R2RK1 w - - 0 1", "d2e1"),
+    # Mate: the king in front never moves (#497).
+    ("skewer", "1k1r4/ppp2Q2/3p4/3P4/4P3/P7/2q2Pr1/3RK3 b - - 0 28", "g2g1"),
     ("discovered_attack", "4q1k1/8/8/8/8/8/4N3/4R1K1 w - - 0 1", "g1h1"),
     ("discovered_check", "4k3/8/8/8/8/8/4N3/4R1K1 w - - 0 1", "g1h1"),
 ]
@@ -150,9 +159,15 @@ def test_fact_texts() -> None:
     )
     assert opened[0].text == (
         "Nc1+ opens a skewer: the white rook on e1 attacks the black king on e5, and when the "
-        "king moves, the rook takes the black rook on e8."
+        "king moves, the white rook on e1 takes the black rook on e8."
     )
-    blockade = _names(position_concepts(chess.Board(POSITION_POSITIVE[8][1])), "blockade")
+    stays = _names(move_concepts(chess.Board(SKEWER_STAYS), chess.Move.from_uci("e7g5")), "skewer")
+    assert stays[0].text == (
+        "Bg5 skewers the white rook on f4: if the rook moves, the black bishop on g5 takes the "
+        "white knight on d2; if it stays, the bishop takes the rook."
+    )
+    blockade_fen = next(fen for concept, fen, _ in POSITION_POSITIVE if concept == "blockade")
+    blockade = _names(position_concepts(chess.Board(blockade_fen)), "blockade")
     assert blockade[0].text == "the black knight on d6 blockades the passed pawn on d5."
 
 
