@@ -2,6 +2,7 @@ import { apiBase, apiFetch } from '../platform';
 import { readProgress } from './progress';
 import type {
   AnalysisJobRead,
+  HealthHintRead,
   BotRead,
   AttemptCreate,
   AttemptRead,
@@ -647,6 +648,16 @@ export class ApiClient {
     return await response.json() as PlayAssistanceRead;
   }
 
+  /** Count reading the health meters at ``fen`` as the first hint level (#417). */
+  static async recordHealthHint(sessionId: string, playerId: string, fen: string): Promise<HealthHintRead> {
+    const response = await apiFetch(`${apiBase()}/play-sessions/${sessionId}/health-hint`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getPlayerAuthorizationHeader(playerId) },
+      body: JSON.stringify({ player_id: playerId, fen }),
+    });
+    if (!response.ok) throw await playRequestError(response, 'Could not record the health reading as a hint');
+    return await response.json() as HealthHintRead;
+  }
 
   static async resumePlaySessionOpponentMove(sessionId: string, expectedClockVersion: number): Promise<PlayMoveResponse> {
     const response = await apiFetch(`${apiBase()}/play-sessions/${sessionId}/opponent-move`, {

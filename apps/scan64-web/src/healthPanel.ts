@@ -1,24 +1,41 @@
 import type { HealthLevel, HealthMeterRead, HealthTrend } from './api/types';
 
+// A switch kept in localStorage, with a session value when storage is refused.
+function preference(key: string, fallback: boolean): { read: () => boolean; save: (enabled: boolean) => boolean } {
+  let session: boolean | undefined;
+  return {
+    read: () => {
+      if (session !== undefined) return session;
+      try {
+        const stored = localStorage.getItem(key);
+        if (stored === 'true' || stored === 'false') return stored === 'true';
+      } catch { /* Restricted storage still permits a session preference. */ }
+      return fallback;
+    },
+    save: (enabled: boolean) => {
+      session = enabled;
+      try {
+        localStorage.setItem(key, String(enabled));
+        return true;
+      } catch { return false; }
+    },
+  };
+}
+
 // The position health panel is on by default (#416); the Settings switch turns it off.
-const STORAGE_KEY = 'scan64-health-panel';
-let sessionPreference: boolean | undefined;
+const panel = preference('scan64-health-panel', true);
+export const readHealthPanel = panel.read;
+export const saveHealthPanel = panel.save;
 
-export function readHealthPanel(): boolean {
-  if (sessionPreference !== undefined) return sessionPreference;
-  try {
-    if (localStorage.getItem(STORAGE_KEY) === 'false') return false;
-  } catch { /* Restricted storage still permits a session preference. */ }
-  return true;
-}
+// The meters during play (#417): on by default, switched beside the hint options.
+const play = preference('scan64-play-health', true);
+export const readPlayHealth = play.read;
+export const savePlayHealth = play.save;
 
-export function saveHealthPanel(enabled: boolean): boolean {
-  sessionPreference = enabled;
-  try {
-    localStorage.setItem(STORAGE_KEY, String(enabled));
-    return true;
-  } catch { return false; }
-}
+// Reading the meters during play counts as the first hint level only when this is on.
+const counts = preference('scan64-play-health-counts', false);
+export const readPlayHealthCounts = counts.read;
+export const savePlayHealthCounts = counts.save;
 
 // Segments per meter: the fill rounds to whole segments.
 export const SEGMENTS = 12;

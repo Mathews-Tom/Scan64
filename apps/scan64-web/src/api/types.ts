@@ -620,6 +620,12 @@ export interface PlayAssistanceRead {
   assistance_modes: AssistanceMode[];
 }
 
+export interface HealthHintRead {
+  fen: string;
+  generation: number;
+  assistance_modes: AssistanceMode[];
+}
+
 export interface PlaySessionRead {
   player_color?: 'white' | 'black';
   opponent_move?: string | null;
