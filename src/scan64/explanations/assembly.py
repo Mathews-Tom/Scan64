@@ -34,6 +34,7 @@ from scan64.explanations.facts import (
     build_narrator_facts,
     verified_lines_by_evidence,
 )
+from scan64.explanations.phrase_bank import phrase_facts
 from scan64.explanations.role_facts import RoleFact, RoleFactsError, numbered_san, role_facts
 from scan64.explanations.settings import OPERATOR_LLM_CONFIG, LocalNarratorProvider
 from scan64.explanations.slots import lesson_slot_catalogue
@@ -351,6 +352,35 @@ async def _attempt_voiced_generation(
     return voiced_explanation(voiced, evidence_ref)
 
 
+def phrase_bank_explanation(
+    diagnosis: Diagnosis,
+    evidence: Sequence[Evidence],
+    fen: str,
+    template_explanation: Explanation,
+) -> Explanation:
+    """The explanation without a model: the phrase bank over the role facts (#461).
+
+    The template stays the floor when the facts cannot be built or there is no
+    better move to compare.
+    """
+    try:
+        facts = build_narrator_facts(diagnosis, evidence, fen)
+    except NarratorFactsError as error:
+        logger.warning("Narrator facts unavailable: %s", error)
+        return template_explanation
+    story = lesson_role_facts(facts)
+    if not story:
+        return template_explanation
+    voiced = phrase_facts(story)
+    record_voiced_sentences(voiced, "lesson")
+    evidence_ref = (
+        template_explanation.claims[0].evidence_ref
+        if template_explanation.claims
+        else facts.evidence[0].evidence_id
+    )
+    return voiced_explanation(voiced, evidence_ref)
+
+
 async def _attempt_grounded_generation(
     provider: LLMExplanationProvider,
     diagnosis: Diagnosis,
@@ -394,8 +424,13 @@ async def run_with_explanation_provider[T](
     environment: Mapping[str, str] | None,
     client: httpx.AsyncClient | None,
     voice: NarratorVoice | None = None,
+    without_model: Callable[[], T] | None = None,
 ) -> T:
     """Run ``attempt`` with the configured provider and voice, else return ``template_result``.
+
+    ``without_model``, when given, makes the result used when no provider runs
+    in place of ``template_result``; it is called only then. A provider that
+    runs and is rejected still returns what ``attempt`` returns.
 
     Explicit operator configuration (``SCAN64_LLM_CONFIG``) takes precedence over
     the owner's installation-local model; with neither, or a ``template``
@@ -405,6 +440,10 @@ async def run_with_explanation_provider[T](
     config's ``llm.voice``, else the voice saved with the local grant
     (``LocalNarratorProvider``), else ``DEFAULT_NARRATOR_VOICE``.
     """
+
+    def no_model() -> T:
+        return template_result if without_model is None else without_model()
+
     environment_values = os.environ if environment is None else environment
     raw_path = environment_values.get(OPERATOR_LLM_CONFIG)
     if raw_path is None:
@@ -415,23 +454,23 @@ async def run_with_explanation_provider[T](
                 else DEFAULT_NARRATOR_VOICE
             )
             return await attempt(local_provider, voice or local_voice)
-        return template_result
+        return no_model()
 
     config = LLMProviderConfig.from_toml(Path(raw_path))
     if config.provider == "template":
-        return template_result
+        return no_model()
     operator_voice = voice or config.voice
 
     if client is not None:
         provider = create_llm_provider(config, client=client, environment=environment_values)
         if provider is None:
-            return template_result
+            return no_model()
         return await attempt(provider, operator_voice)
 
     async with httpx.AsyncClient() as owned_client:
         provider = create_llm_provider(config, client=owned_client, environment=environment_values)
         if provider is None:
-            return template_result
+            return no_model()
         return await attempt(provider, operator_voice)
 
 
@@ -448,7 +487,8 @@ async def resolve_explanation(
     """Resolve the client-visible explanation for a diagnosis.
 
     Always computes the deterministic template explanation first -- it is the
-    floor every diagnosis falls back to. Explicit operator configuration takes
+    floor every diagnosis falls back to. Without a model, the phrase bank words
+    the role facts instead (#461). Explicit operator configuration takes
     precedence over the owner's installation-local model. Both are subject to
     the same grounding check; only a grounded response replaces the template.
 
@@ -470,4 +510,7 @@ async def resolve_explanation(
         environment=environment,
         client=client,
         voice=voice,
+        without_model=lambda: phrase_bank_explanation(
+            diagnosis, evidence, fen, template_explanation
+        ),
     )
