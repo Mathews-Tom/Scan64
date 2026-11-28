@@ -14,6 +14,7 @@ from scan64.providers.engine.config import (
     LADDER_ENGINE_CONFIG_ENV,
     STOCKFISH_PATH_ENV,
 )
+from scan64.providers.engine.install_defaults import BUNDLED_ENGINES_DIR_ENV
 
 
 def test_serve_dispatch_uses_loopback_and_opens_browser(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -217,3 +218,24 @@ def test_missing_ladder_profile_binary_names_the_ladder_profile(
         serve_command("127.0.0.1", 8001, open_browser=False)
     message = str(error.value)
     assert message.startswith(f"The ladder engine profile {ladder} (arasan) needs arasan-missing")
+
+
+def test_a_fresh_packaged_install_checks_the_bundled_engines(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The image's bundled profiles, with binaries that are not there (#396).
+    bundled = tmp_path / "engines"
+    bundled.mkdir()
+    for name in ("caissa", "arasan"):
+        (bundled / f"{name}.toml").write_text(
+            f'[engine]\nname = "{name}"\nbinary_path = "{name}-missing"\n'
+        )
+    # Empty means unset; monkeypatch restores what serve selects in os.environ.
+    monkeypatch.setenv(ENGINE_CONFIG_ENV, "")
+    monkeypatch.setenv(LADDER_ENGINE_CONFIG_ENV, "")
+    monkeypatch.setenv(BUNDLED_ENGINES_DIR_ENV, str(bundled))
+    monkeypatch.setenv("SCAN64_DATABASE_URL", f"sqlite:///{(tmp_path / 'scan64.db').as_posix()}")
+    monkeypatch.setenv("PATH", "")
+    with pytest.raises(SystemExit, match=r"arasan\.toml \(arasan\) needs arasan-missing"):
+        serve_command("127.0.0.1", 8001, open_browser=False)
+    assert 'engines = "bundled"' in (tmp_path / "scan64.db.engines.toml").read_text()

@@ -234,6 +234,10 @@ def main() -> NoReturn:
         ).start()
         configuration = configuration_from_environment(os.environ)
         configure_environment(configuration)
+        # Before the backup: a fresh install is one with no database yet.
+        from scan64.providers.engine.install_defaults import apply_install_engines
+
+        apply_install_engines(os.environ["SCAN64_DATABASE_URL"])
         # Windowed PyInstaller deliberately sets absent standard streams to None.
         # Uvicorn's formatters need real streams; retain diagnostics without ever
         # creating a console or recording request headers/the shell token.
