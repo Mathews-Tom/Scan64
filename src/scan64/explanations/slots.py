@@ -283,7 +283,14 @@ class SlotCatalogue:
             if allowed:
                 out.append(f"Allowed plain words: {', '.join(allowed)}.")
         out += [f"Factor slots ({{factor:...}}) come from {source}." for source in sources]
-        if not sources:
+        story = [name for name in first if _story_rank(first[name]) in (0, 1)]
+        if story:
+            order = ", then ".join(f"{{{name}}}" for name in story)
+            out.append(
+                f"Story order: {order}, then the moves. Start the first claim with "
+                f"{{{story[0]}}}. These slots name a measured cause, also without a factor slot."
+            )
+        elif not sources:
             out.append("No factor slot: no cause was measured, so name no cause.")
         if self.example:
             out.append(f'Example claim text with these slots: "{self.example}"')
@@ -306,6 +313,43 @@ def render(text: str, slots: Mapping[str, Slot]) -> str:
         return slot.value
 
     return SLOT_TOKEN.sub(value, text)
+
+
+# Story order (#507): the theme, the turning point, then the concrete line. A
+# slot is part of the line when it states a move or a detail of the tactic;
+# {played} (the learner's own move), the mistake class, evaluation and factor
+# slots may stand anywhere.
+_TACTIC_SLOTS = frozenset({"tactic", "mate_in", "material_gain", "piece", "square"})
+
+
+def _story_rank(slot: Slot) -> int | None:
+    kind = slot.name.split(":")[0]
+    if kind == "theme":
+        return 0
+    if kind == "turning_point":
+        return 1
+    if slot.name == "played":
+        return None
+    return 2 if slot.moves or kind in _TACTIC_SLOTS else None
+
+
+def story_order_problem(slots: Iterable[Slot]) -> str | None:
+    """The first theme or turning point slot told too late, else ``None``.
+
+    ``slots`` are an explanation's slots in reading order. Only the first use
+    of each slot counts: a theme told first may be named again later.
+    """
+    reached = 0
+    seen: set[str] = set()
+    for slot in slots:
+        rank = _story_rank(slot)
+        if rank is None or slot.name in seen:
+            continue
+        seen.add(slot.name)
+        if rank < reached:
+            return slot.name
+        reached = rank
+    return None
 
 
 def slot_names(text: str) -> list[str]:
@@ -610,7 +654,7 @@ def lesson_slot_catalogue(facts: NarratorFacts) -> SlotCatalogue:
         terms=terms,
         phrases={item.evidence_id: factor_phrases for item in facts.evidence},
         claims=claims,
-        example=_lesson_example({slot.name for slot in shared}),
+        example=_lesson_example([slot.name for slot in shared]),
     )
 
 
@@ -647,10 +691,18 @@ def game_slots(game: GameThemeFacts | None) -> list[Slot]:
     return slots
 
 
-def _lesson_example(names: set[str]) -> str:
-    """``You played {played}, but {best} was stronger: {capture:best}.`` from existing slots."""
+def _lesson_example(names: Sequence[str]) -> str:
+    """``You played {played}, but {best} was stronger: {capture:best}.`` from existing slots.
+
+    A theme and the turning point come before it (#507).
+    """
+    theme = next((name for name in names if name.startswith("theme:")), None)
+    story = [theme] if theme else []
+    if "turning_point" in names:
+        story.append("turning_point")
+    lead = "".join(f"{{{name}}}. " for name in story)
     if "best" not in names:
-        return "You played {played}, a {mistake}."
+        return lead + "You played {played}, a {mistake}."
     text = "You played {played}, but {best} was stronger"
     clause = next(
         (
@@ -664,7 +716,7 @@ def _lesson_example(names: set[str]) -> str:
     factor = next((name for name in sorted(names) if name.startswith("factor:")), None)
     if factor is not None:
         text += f" That was a {{mistake}}: {{{factor}}}."
-    return text
+    return lead + text
 
 
 __all__ = [
@@ -694,5 +746,6 @@ __all__ = [
     "prose_outside_slots",
     "render",
     "slot_names",
+    "story_order_problem",
     "vocabulary",
 ]

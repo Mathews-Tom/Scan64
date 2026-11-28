@@ -10,7 +10,8 @@ checked on one of two paths:
   (``slots.chess_words_outside_slots``, #408) and no relational claim (material,
   evaluation, king safety, threats, activity) the facts do not support
   (``claims.unsupported_claim``, #431). The returned claims hold the rendered
-  text. The claim grammar below is not used.
+  text. The claim grammar below is not used. A theme or turning point slot
+  must come before the line (``slots.story_order_problem``, #507).
 - Grammar path (#366, ``context.slots`` unset): claim text is read with a small
   explicit grammar (see ``_validate_claim_text``); any chess token the grammar
   cannot place rejects the generation rather than passing unchecked.
@@ -39,10 +40,13 @@ from scan64.explanations.facts import (
 )
 from scan64.explanations.slots import (
     SLOT_TOKEN,
+    Slot,
     SlotCatalogue,
     chess_words_outside_slots,
     prose_outside_slots,
     render,
+    slot_names,
+    story_order_problem,
 )
 from scan64.learning.evidence.composer import PIECE_VALUES, line_material_gain
 from scan64.learning.evidence.models import Evidence
@@ -83,6 +87,8 @@ RejectionReason = Literal[
     # Claim rule (#431): a relational claim outside slots no fact supports.
     "unsupported_claim",
     "negated_claim",
+    # Story order (#507): a theme or turning point slot after the line.
+    "cause_after_line",
 ]
 REJECTION_REASONS: tuple[RejectionReason, ...] = get_args(RejectionReason)
 
@@ -139,6 +145,7 @@ def validate_generated_explanation(
 
     evidence_by_id = _evidence_by_id(context.evidence)
     claims: list[ExplanationClaim] = []
+    told: list[Slot] = []
     for claim in generated.claims:
         if context.slots is not None:
             claim = _unquoted_evidence_ref(claim, evidence_by_id)
@@ -155,6 +162,8 @@ def validate_generated_explanation(
             claims.append(claim)
         else:
             text = render_slot_text(claim.text, context.slots, claim.evidence_ref)
+            slots = context.slots.slots_for(claim.evidence_ref)
+            told += [slots[name] for name in slot_names(claim.text)]
             update: dict[str, Any] = {"text": text}
             if not claim.line:
                 update["line"] = slot_citation(
@@ -165,6 +174,9 @@ def validate_generated_explanation(
                 )
             claims.append(claim.model_copy(update=update))
 
+    late = story_order_problem(told)
+    if late is not None:
+        raise _reject("cause_after_line", f"tells the cause after the line: {{{late}}}")
     return Explanation(text=" ".join(claim.text for claim in claims), claims=claims)
 
 
