@@ -57,7 +57,9 @@ SECOND_ENGINE = _second_engine()
 pytestmark = pytest.mark.skipif(
     SECOND_ENGINE is None and not IN_CI, reason="second UCI engine binary is not installed"
 )
-STOCKFISH = shutil.which(os.environ.get("SCAN64_STOCKFISH_PATH", "stockfish"))
+# tests/conftest.py removes SCAN64_STOCKFISH_PATH, so the default profile runs
+# the Stockfish on PATH.
+STOCKFISH = shutil.which("stockfish")
 
 
 @pytest.fixture
