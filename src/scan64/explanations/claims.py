@@ -399,6 +399,54 @@ CLAIM_RULES: tuple[tuple[_Rule, _Reader], ...] = (
         ),
         lambda match: Claim("balance", 0, 0, 0),
     ),
+    # Owner subjects: "your material is up two pawns", "your side is two pawns ahead".
+    (
+        _Rule(
+            rf"\b{_OWNER}\s+(?:material|side|army|forces|position){_BE}\s+{_UP}\s+(?:by\s+)?"
+            rf"(?:in\s+|on\s+)?{_COUNTED}\b",
+            _I,
+        ),
+        _balance(1),
+    ),
+    (
+        _Rule(
+            rf"\b{_OWNER}\s+(?:material|side|army|forces|position){_BE}\s+{_COUNT_REQUIRED}"
+            rf"{_UNIT_PIECES}\s+{_UP}\b",
+            _I,
+        ),
+        _balance(1),
+    ),
+    # "You lead by two pawns", "you have two pawns more", "your extra pawn".
+    (
+        _Rule(rf"\b{_SUBJECT}\s+(?:lead|leads|led)\s+by\s+{_COUNT_REQUIRED}{_UNIT_PIECES}", _I),
+        _balance(1),
+    ),
+    (
+        _Rule(
+            rf"\b{_SUBJECT}{_HAVE}\s+{_COUNT_REQUIRED}{_UNIT_PIECES}\s+(?:more|(?P<dir>fewer|less))\b",
+            _I,
+        ),
+        lambda match: Claim(
+            "balance",
+            _side(match.group("who")),
+            -1 if match.group("dir") else 1,
+            _amount(match),
+        ),
+    ),
+    (
+        _Rule(rf"\b{_OWNER}\s+(?:extra|spare|additional)\s+{_UNIT_PIECES}", _I),
+        _balance(1),
+    ),
+    # "a two-pawn lead", "your two-pawn edge".
+    (
+        _Rule(
+            rf"(?:\b{_SUBJECT}{_HAVE}\s+(?:a|an|the)\s+|\b{_OWNER}\s+)"
+            r"(?P<count>one|two|three|four|five|six|seven|eight|nine)-(?P<unit>pawn|piece|knight"
+            r"|bishop|rook|queen|point)\s+(?:material\s+)?(?:edge|lead|advantage|plus)\b",
+            _I,
+        ),
+        _balance(1),
+    ),
     (
         _Rule(
             rf"(?:\b{_SUBJECT}{_BE}\s+)?(?:\b|(?=~)){_COUNT_REQUIRED}{_UNIT_PIECES}\s+{_UP}\b"
@@ -442,7 +490,8 @@ CLAIM_RULES: tuple[tuple[_Rule, _Reader], ...] = (
     ),
     (
         _Rule(
-            rf"\b{_OWNER}\s+material\s+(?:edge|lead|advantage|plus|balance)\s+(?:is|was)"
+            rf"\b{_OWNER}\s+(?:material\s+(?:edge|lead|advantage|plus|balance)|edge|lead"
+            r"|advantage|plus)(?:\s+in\s+material)?\s+(?:is|was)"
             rf"\s+{_COUNT_REQUIRED}{_UNIT_PIECES}",
             _I,
         ),

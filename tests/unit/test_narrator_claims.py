@@ -466,6 +466,20 @@ EDGE_CLAIMS = [
     ("Your opponent has a material lead.", {-1, -2, -3, -4, -9}),
     ("Your opponent has two extra pawns.", {-2}),
     ("They are a piece up.", {-3, -4}),
+    # Pre-PR check: owner subjects, "lead by", "N pawns more", "extra pawn", "two-pawn".
+    ("Your material is up two pawns.", {2}),
+    ("Your side is two pawns ahead.", {2}),
+    ("Your opponent's side is two pawns ahead.", {-2}),
+    ("Your edge is two pawns.", {2}),
+    ("Your plus in material is two pawns.", {2}),
+    ("You lead by two pawns.", {2}),
+    ("Your opponent leads by two pawns.", {-2}),
+    ("You have two pawns more.", {2}),
+    ("You have two pawns fewer.", {-2}),
+    ("Your extra pawn decides.", {1}),
+    ("Their extra pawn matters.", {-1}),
+    ("You enjoy a two-pawn lead.", {2}),
+    ("Your two-pawn edge counts.", {2}),
 ]
 
 
