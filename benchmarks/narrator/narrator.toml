@@ -93,6 +93,19 @@ deep_nodes = 1000000
 deep_multipv = 4
 concurrency = 8
 
+# Analysis Board lines (#449): the 12 recorded positions of the Analysis Board
+# tests at the endpoint's default MultiPV 3, with their recorded per-move
+# searches. Deterministic, no engine needed:
+#   uv run python -m benchmarks.narrator.build_board_positions benchmarks/narrator/narrator.toml
+# Run with --positions-file benchmarks/narrator/positions-board.json: the runner
+# then calls board_pipeline_entry and board_grounding_context ([run]; defaults
+# in run_benchmark.py) instead of the lesson pipeline.
+[positions.board]
+file = "benchmarks/narrator/positions-board.json"
+lines = "tests/fixtures/analysis_board_lines.json"
+line_evaluations = "tests/fixtures/analysis_board_line_evaluations.json"
+multipv = 3
+
 # Every model is served as an Ollama model named "scan64-bench-<name>" built from
 # modelfiles/<name>.Modelfile. `from` is either an Ollama library tag (pulled)
 # or a pinned Hugging Face GGUF (downloaded and sha256-checked).

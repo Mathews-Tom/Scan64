@@ -7,6 +7,8 @@ Usage (repository root, Ollama serving at each model's ``base_url``):
     uv run python -m benchmarks.narrator.run_benchmark CONFIG --summarize RUNS.jsonl
     uv run python -m benchmarks.narrator.run_benchmark CONFIG --voice terse \
         --positions-file benchmarks/narrator/positions-caissa.json --num-ctx 4096
+    uv run python -m benchmarks.narrator.run_benchmark CONFIG \
+        --positions-file benchmarks/narrator/positions-board.json --num-ctx 4096
 
 Every generation goes through the production path: the configured
 ``pipeline_entry`` (default ``resolve_explanation``) with an
@@ -16,6 +18,15 @@ The pipeline's own validator decides acceptance; the accepted/fallback outcome
 and the fallback reason come from the pipeline (``template_fallback_counts``).
 Each claim is then validated on its own against the same grounding context to
 count rejected claims per explanation and their reasons.
+
+A positions file of kind ``board-lines`` (``build_board_positions``, #449)
+measures the Analysis Board narrator instead: the runner rebuilds each
+position's ``BoardLinesFacts`` from its recorded searches and calls the
+configured ``board_pipeline_entry`` (default ``resolve_board_lines_explanation``)
+and ``board_grounding_context`` (default ``board_slot_grounding``). A call is
+accepted when the explanation's source is the narrator. The metrics are the
+same, except coverage: the share of the explained lines that the slots of an
+accepted answer name (``board_coverage``).
 
 One JSON line per (model, position, run) is appended to ``runs_<stamp>.jsonl``
 as soon as it finishes; ``--resume`` skips lines already present and refuses a
@@ -41,7 +52,7 @@ import sys
 import time
 import tomllib
 from collections import Counter
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Iterator, Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -51,7 +62,18 @@ import chess
 import httpx
 from chess_lesson_spec import Diagnosis, Explanation
 
+from benchmarks.narrator.build_board_positions import BOARD_KIND
+from scan64.chess.analysis.models import EngineAnalysis
 from scan64.explanations import assembly
+from scan64.explanations.board_lines import (
+    BoardLinesExplanation,
+    BoardLinesFacts,
+    board_line_positions,
+    build_board_lines_facts,
+    claim_line_id,
+    line_scores,
+    scored_legal_lines,
+)
 from scan64.explanations.slots import slot_names
 from scan64.explanations.validator import (
     _SAN_TOKEN,
@@ -105,6 +127,14 @@ CHESS_FACT_REASONS = frozenset(
 
 PipelineEntry = Callable[..., Awaitable[Explanation]]
 ContextBuilder = Callable[[Diagnosis, Sequence[Evidence], str], GroundedExplanationContext]
+# Analysis Board (#449): async (facts, *, local_provider, environment, voice)
+#   -> BoardLinesExplanation, and (facts) -> GroundedExplanationContext.
+BoardPipelineEntry = Callable[..., Awaitable[BoardLinesExplanation]]
+BoardContextBuilder = Callable[[BoardLinesFacts], GroundedExplanationContext]
+DEFAULT_BOARD_PIPELINE_ENTRY = "scan64.explanations.board_lines:resolve_board_lines_explanation"
+DEFAULT_BOARD_GROUNDING_CONTEXT = "scan64.explanations.board_lines:board_slot_grounding"
+# The code of every Analysis Board record (records carry a mistake code per position).
+BOARD_CODE = "analysis_board"
 
 
 @dataclass(frozen=True)
@@ -146,6 +176,10 @@ class BenchConfig:
     models: tuple[ModelEntry, ...]
     # The TOML file this config was read from; its digest is in the run header.
     config_file: Path
+    # Entry points for a board-lines positions file (#449); ``for_positions``
+    # swaps them in as pipeline_entry and grounding_context.
+    board_pipeline_entry: str = DEFAULT_BOARD_PIPELINE_ENTRY
+    board_grounding_context: str = DEFAULT_BOARD_GROUNDING_CONTEXT
 
 
 def load_config(path: Path) -> BenchConfig:
@@ -191,6 +225,25 @@ def load_config(path: Path) -> BenchConfig:
         positions_file=REPO_ROOT / run.get("positions_file", raw["positions"]["file"]),
         models=models,
         config_file=path.resolve(),
+        board_pipeline_entry=run.get("board_pipeline_entry", DEFAULT_BOARD_PIPELINE_ENTRY),
+        board_grounding_context=run.get("board_grounding_context", DEFAULT_BOARD_GROUNDING_CONTEXT),
+    )
+
+
+def positions_kind(path: Path) -> str:
+    """``board-lines`` for an Analysis Board positions file, else ``lessons``."""
+    kind = json.loads(path.read_text(encoding="utf-8")).get("kind", "lessons")
+    return str(kind)
+
+
+def for_positions(config: BenchConfig) -> BenchConfig:
+    """The config with the board entry points when its positions file is a board file."""
+    if positions_kind(config.positions_file) != BOARD_KIND:
+        return config
+    return replace(
+        config,
+        pipeline_entry=config.board_pipeline_entry,
+        grounding_context=config.board_grounding_context,
     )
 
 
@@ -384,6 +437,8 @@ class Position:
 
 def load_positions(path: Path) -> list[Position]:
     raw = json.loads(path.read_text(encoding="utf-8"))
+    if raw.get("kind", "lessons") != "lessons":
+        raise ValueError(f"{path}: a {raw['kind']} positions file, not lessons")
     return [
         Position(
             position_id=item["position_id"],
@@ -394,6 +449,56 @@ def load_positions(path: Path) -> list[Position]:
         )
         for item in raw["positions"]
     ]
+
+
+@dataclass
+class BoardPosition:
+    """An Analysis Board position: the facts the endpoint builds from its searches (#449)."""
+
+    position_id: str
+    fen: str
+    facts: BoardLinesFacts
+    code: str = BOARD_CODE
+
+
+def board_facts(
+    item: dict[str, Any], multipv: int, line_search_config: dict[str, Any]
+) -> BoardLinesFacts:
+    """Facts as ``POST /v1/analysis/position/explanation`` builds them, from recorded searches."""
+    board = chess.Board(item["fen"])
+    analysis = EngineAnalysis(config=item["config"], raw_result=item["raw_result"])
+    lines = scored_legal_lines(board, analysis)[:multipv]
+    positions = board_line_positions(board, lines)
+    recorded = {tuple(search["moves"]): search["raw_result"] for search in item["line_searches"]}
+    searches: list[EngineAnalysis | None] = [
+        EngineAnalysis(
+            config=line_search_config,
+            raw_result=recorded[tuple(move.uci() for move in position.move_stack)],
+        )
+        for position in positions
+    ]
+    return build_board_lines_facts(board, lines, line_scores(positions, searches))
+
+
+def load_board_positions(path: Path) -> list[BoardPosition]:
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    if raw.get("kind") != BOARD_KIND:
+        raise ValueError(f"{path}: not a {BOARD_KIND} positions file")
+    return [
+        BoardPosition(
+            position_id=item["position_id"],
+            fen=item["fen"],
+            facts=board_facts(item, int(raw["multipv"]), raw["line_search_config"]),
+        )
+        for item in raw["positions"]
+    ]
+
+
+def load_any_positions(path: Path) -> list[Position] | list[BoardPosition]:
+    """Lesson or Analysis Board positions, by the file's kind."""
+    if positions_kind(path) == BOARD_KIND:
+        return load_board_positions(path)
+    return load_positions(path)
 
 
 class _MeteredTransport(httpx.AsyncBaseTransport):
@@ -516,9 +621,21 @@ class RecordingProvider:
         return self.generated
 
 
-def _claim_reason(claim: Any, context: GroundedExplanationContext) -> tuple[str | None, str | None]:
+ExplanationCheck = Callable[[Explanation], None]
+
+
+def _claim_reason(
+    claim: Any, context: GroundedExplanationContext, check: ExplanationCheck | None = None
+) -> tuple[str | None, str | None]:
+    """The reason the pipeline would reject ``claim`` alone, or ``(None, None)``.
+
+    ``check`` runs on the validated explanation: the Analysis Board also
+    rejects a claim linked to no line (``claim_line_id``, ``missing_line``).
+    """
     try:
-        validate_generated_explanation(GeneratedExplanation(claims=(claim,)), context)
+        explanation = validate_generated_explanation(GeneratedExplanation(claims=(claim,)), context)
+        if check is not None:
+            check(explanation)
     except GroundedExplanationValidationError as error:
         return error.reason, str(error)
     except Exception as error:
@@ -582,9 +699,12 @@ def _claim_slots(claim: Any, context: GroundedExplanationContext) -> list[dict[s
 
 
 def _claim_record(
-    claim: Any, context: GroundedExplanationContext, board: chess.Board
+    claim: Any,
+    context: GroundedExplanationContext,
+    board: chess.Board,
+    check: ExplanationCheck | None = None,
 ) -> dict[str, Any]:
-    reason, message = _claim_reason(claim, context)
+    reason, message = _claim_reason(claim, context, check)
     evidence = {item.evidence_id: item for item in context.evidence}.get(claim.evidence_ref)
     san: list[dict[str, Any]] = []
     if evidence is not None:
@@ -605,6 +725,24 @@ def _claim_record(
     }
 
 
+def _recording_provider(
+    model: ModelEntry, config: BenchConfig, client: httpx.AsyncClient
+) -> RecordingProvider:
+    adapter = create_llm_provider(
+        LLMProviderConfig(
+            provider="ollama",
+            model=model.served_name,
+            base_url=model.base_url,
+            context_tokens=config.num_ctx,
+        ),
+        client=client,
+        environment={},
+    )
+    if adapter is None:
+        raise RuntimeError("create_llm_provider returned no provider for an ollama config")
+    return RecordingProvider(adapter)
+
+
 async def run_one(
     model: ModelEntry,
     position: Position,
@@ -615,19 +753,7 @@ async def run_one(
 ) -> dict[str, Any]:
     transport = _MeteredTransport(config.request_overrides)
     async with httpx.AsyncClient(transport=transport, timeout=config.request_timeout_s) as client:
-        adapter = create_llm_provider(
-            LLMProviderConfig(
-                provider="ollama",
-                model=model.served_name,
-                base_url=model.base_url,
-                context_tokens=config.num_ctx,
-            ),
-            client=client,
-            environment={},
-        )
-        if adapter is None:
-            raise RuntimeError("create_llm_provider returned no provider for an ollama config")
-        provider = RecordingProvider(adapter)
+        provider = _recording_provider(model, config, client)
         before = assembly.template_fallback_counts()
         # A pipeline exception is a measured outcome: the app would surface it
         # instead of the template (see the report, validator `_tactic` defect).
@@ -644,10 +770,7 @@ async def run_one(
             )
         except Exception as error:
             pipeline_exception = f"{type(error).__name__}: {error}; cause={error.__cause__!r}"
-        after = assembly.template_fallback_counts()
-    fallback = [reason for reason, count in after.items() if count > before.get(reason, 0)]
-    if len(fallback) > 1:
-        raise RuntimeError(f"More than one fallback recorded for one call: {fallback}")
+        fallback = _fallbacks_since(before)
     accepted = explanation is not None and bool(explanation.claims)
     if explanation is not None and accepted == bool(fallback):
         raise RuntimeError("Pipeline outcome and fallback counter disagree")
@@ -656,21 +779,112 @@ async def run_one(
     else:
         outcome = "accepted" if accepted else "fallback"
     context = context_builder(position.diagnosis, list(position.evidence), position.fen)
+    return _run_record(
+        model,
+        position.position_id,
+        position.code,
+        run_index,
+        outcome=outcome,
+        pipeline_exception=pipeline_exception,
+        fallback_reason=fallback[0] if fallback else None,
+        provider=provider,
+        transport=transport,
+        explanation_text=explanation.text if explanation is not None else None,
+        context=context,
+    )
+
+
+async def run_one_board(
+    model: ModelEntry,
+    position: BoardPosition,
+    run_index: int,
+    config: BenchConfig,
+    entry: BoardPipelineEntry,
+    context_builder: BoardContextBuilder,
+) -> dict[str, Any]:
+    """One Analysis Board call (#449): accepted when the narrator's wording is shown."""
+    transport = _MeteredTransport(config.request_overrides)
+    async with httpx.AsyncClient(transport=transport, timeout=config.request_timeout_s) as client:
+        provider = _recording_provider(model, config, client)
+        before = assembly.template_fallback_counts()
+        result: BoardLinesExplanation | None = None
+        pipeline_exception: str | None = None
+        try:
+            result = await entry(
+                position.facts, local_provider=provider, environment={}, voice=config.voice
+            )
+        except Exception as error:
+            pipeline_exception = f"{type(error).__name__}: {error}; cause={error.__cause__!r}"
+        fallback = _fallbacks_since(before)
+    if result is None:
+        outcome = "pipeline_exception"
+    else:
+        outcome = "accepted" if result.source == "narrator" else "fallback"
+        if (outcome == "accepted") == bool(fallback) or result.fallback_reason != (
+            fallback[0] if fallback else None
+        ):
+            raise RuntimeError("Pipeline outcome and fallback counter disagree")
+    facts = position.facts
+
+    def linked(explanation: Explanation) -> None:
+        for claim in explanation.claims:
+            claim_line_id(claim, facts)
+
+    return _run_record(
+        model,
+        position.position_id,
+        position.code,
+        run_index,
+        outcome=outcome,
+        pipeline_exception=pipeline_exception,
+        fallback_reason=fallback[0] if fallback else None,
+        provider=provider,
+        transport=transport,
+        explanation_text=result.explanation.text if result is not None else None,
+        context=context_builder(facts),
+        check=linked,
+    )
+
+
+def _fallbacks_since(before: dict[str, int]) -> list[str]:
+    after = assembly.template_fallback_counts()
+    fallback = [reason for reason, count in after.items() if count > before.get(reason, 0)]
+    if len(fallback) > 1:
+        raise RuntimeError(f"More than one fallback recorded for one call: {fallback}")
+    return fallback
+
+
+def _run_record(
+    model: ModelEntry,
+    position_id: str,
+    code: str,
+    run_index: int,
+    *,
+    outcome: str,
+    pipeline_exception: str | None,
+    fallback_reason: str | None,
+    provider: RecordingProvider,
+    transport: _MeteredTransport,
+    explanation_text: str | None,
+    context: GroundedExplanationContext,
+    check: ExplanationCheck | None = None,
+) -> dict[str, Any]:
+    """One run record; each generated claim is validated on its own against ``context``."""
     board = chess.Board(context.fen)
     claims = (
-        [_claim_record(claim, context, board) for claim in provider.generated.claims]
+        [_claim_record(claim, context, board, check) for claim in provider.generated.claims]
         if provider.generated is not None
         else []
     )
     body = transport.last_body or {}
     return {
         "model": model.name,
-        "position_id": position.position_id,
-        "code": position.code,
+        "position_id": position_id,
+        "code": code,
         "run": run_index,
         "outcome": outcome,
         "pipeline_exception": pipeline_exception,
-        "fallback_reason": fallback[0] if fallback else None,
+        "fallback_reason": fallback_reason,
         "provider_error": provider.error,
         "latency_s": provider.latency_s,
         "prompt_chars": sum(len(m.content) for m in provider.request.messages)
@@ -682,7 +896,7 @@ async def run_one(
         "first_token_s": transport.first_token_s,
         "thinking_chars": transport.thinking_chars,
         "think_tag_in_content": "<think>" in str((body.get("message") or {}).get("content", "")),
-        "explanation_text": explanation.text if explanation is not None else None,
+        "explanation_text": explanation_text,
         "claims": claims,
         # Every slot the generated claims name, in claim order (#386). Present
         # only in records of the slot pipeline; coverage counts from it.
@@ -751,14 +965,20 @@ def _unload_all(models: Sequence[ModelEntry]) -> None:
 
 async def measure_model(
     model: ModelEntry,
-    positions: Sequence[Position],
+    positions: Sequence[Position] | Sequence[BoardPosition],
     config: BenchConfig,
     sink: Path,
     done: set[tuple[str, str, int]],
     all_models: Sequence[ModelEntry],
 ) -> None:
-    entry = cast(PipelineEntry, _resolve(config.pipeline_entry))
-    context_builder = cast(ContextBuilder, _resolve(config.grounding_context))
+    entry = _resolve(config.pipeline_entry)
+    context_builder = _resolve(config.grounding_context)
+
+    async def run_position(position: Position | BoardPosition, run_index: int) -> dict[str, Any]:
+        if isinstance(position, BoardPosition):
+            return await run_one_board(model, position, run_index, config, entry, context_builder)
+        return await run_one(model, position, run_index, config, entry, context_builder)
+
     pending = [
         (position, run)
         for run in range(config.runs_per_position)
@@ -772,7 +992,7 @@ async def measure_model(
     _wait_for_free_gpu(config)
     idle_mib = _nvidia_used_mib()
     started = time.perf_counter()
-    warm = await run_one(model, positions[0], -1, config, entry, context_builder)
+    warm = await run_position(positions[0], -1)
     load_s = time.perf_counter() - started
     loaded = httpx.get(f"{model.base_url}/api/ps", timeout=30).json()["models"]
     served = [item for item in loaded if item["name"].startswith(model.served_name)]
@@ -796,7 +1016,7 @@ async def measure_model(
         },
     )
     for count, (position, run) in enumerate(pending, start=1):
-        record = await run_one(model, position, run, config, entry, context_builder)
+        record = await run_position(position, run)
         used = _nvidia_used_mib()
         if used is not None:
             peak_mib = used if peak_mib is None else max(peak_mib, used)
@@ -985,16 +1205,29 @@ def names_factor(run: dict[str, Any]) -> bool | None:
     )
 
 
+def position_contexts(config: BenchConfig) -> Iterator[tuple[str, GroundedExplanationContext]]:
+    """Each position's grounding context under the configured grounding context."""
+    if positions_kind(config.positions_file) == BOARD_KIND:
+        board_builder = cast(BoardContextBuilder, _resolve(config.grounding_context))
+        for board in load_board_positions(config.positions_file):
+            yield board.position_id, board_builder(board.facts)
+        return
+    builder = cast(ContextBuilder, _resolve(config.grounding_context))
+    for position in load_positions(config.positions_file):
+        yield (
+            position.position_id,
+            builder(position.diagnosis, list(position.evidence), position.fen),
+        )
+
+
 def factor_positions(config: BenchConfig) -> frozenset[str]:
     """Positions whose slot list holds at least one factor slot."""
-    builder = cast(ContextBuilder, _resolve(config.grounding_context))
     found = set()
-    for position in load_positions(config.positions_file):
-        context = builder(position.diagnosis, list(position.evidence), position.fen)
+    for position_id, context in position_contexts(config):
         if context.slots is not None and any(
             name.startswith(FACTOR_SLOT_PREFIX) for name in context.slots.names()
         ):
-            found.add(position.position_id)
+            found.add(position_id)
     return frozenset(found)
 
 
@@ -1009,6 +1242,33 @@ def factor_metric(
     }
 
 
+# --- Analysis Board coverage (#449) ------------------------------------------------
+#
+# A board answer has no played move. Its coverage is the share of the explained
+# lines that a used, listed slot names (``{label:line-2}``, ``{outcome:line-2}``,
+# ``{capture:line-2:1}``, ``{factor:mobility:line-2}``); ``{eval}`` names none.
+
+_SLOT_LINE = re.compile(r"(?<![A-Za-z0-9])line-(\d+)(?![0-9])")
+
+
+def board_coverage(slots: Sequence[dict[str, Any]], line_count: int) -> float:
+    """Share of the ``line_count`` explained lines that the listed slots name."""
+    named = {
+        int(number)
+        for slot in slots
+        if slot.get("value") is not None
+        for number in _SLOT_LINE.findall(str(slot["name"]))
+    }
+    return len(named & set(range(1, line_count + 1))) / line_count
+
+
+def _board_line_counts(config: BenchConfig) -> dict[str, int]:
+    return {
+        board.position_id: len(board.facts.lines)
+        for board in load_board_positions(config.positions_file)
+    }
+
+
 def _position_facts(config: BenchConfig) -> dict[str, KeyFacts]:
     raw = json.loads(config.positions_file.read_text(encoding="utf-8"))
     return {
@@ -1018,7 +1278,15 @@ def _position_facts(config: BenchConfig) -> dict[str, KeyFacts]:
 
 def summarize(records: Sequence[dict[str, Any]], config: BenchConfig) -> dict[str, Any]:
     header = next(record for record in records if record.get("record") == "header")
-    facts = _position_facts(config)
+    board = positions_kind(config.positions_file) == BOARD_KIND
+    facts = {} if board else _position_facts(config)
+    line_counts = _board_line_counts(config) if board else {}
+
+    def covered_share(run: dict[str, Any]) -> float:
+        if board:
+            return board_coverage(run["slots_used"], line_counts[run["position_id"]])
+        return run_coverage(run, facts[run["position_id"]])
+
     with_factor = factor_positions(config)
     by_model: dict[str, dict[str, Any]] = {}
     for model in config.models:
@@ -1041,7 +1309,7 @@ def summarize(records: Sequence[dict[str, Any]], config: BenchConfig) -> dict[st
         latencies = [run["latency_s"] for run in runs]
         prompt_tokens = [r["prompt_eval_count"] for r in runs if r["prompt_eval_count"] is not None]
         accepted_runs = [run for run in runs if run["outcome"] == "accepted"]
-        covered = [run_coverage(run, facts[run["position_id"]]) for run in accepted_runs]
+        covered = [covered_share(run) for run in accepted_runs]
         by_code: dict[str, float] = {}
         for code in sorted({run["code"] for run in runs}):
             subset = [run for run in runs if run["code"] == code]
@@ -1117,7 +1385,12 @@ def summarize(records: Sequence[dict[str, Any]], config: BenchConfig) -> dict[st
             if any(r["eval_count"] is not None for r in runs)
             else None,
         }
-    return {"header": header, "models": by_model}
+    # Lesson summaries keep their keys, so a recomputed old summary is unchanged.
+    return {
+        "header": header,
+        "models": by_model,
+        **({"positions_kind": BOARD_KIND} if board else {}),
+    }
 
 
 def _fmt(value: float | None, pattern: str) -> str:
@@ -1151,10 +1424,16 @@ def summary_markdown(summary: dict[str, Any]) -> str:
         # Voice (#387); headers before #387 have none and keep their summary text.
         + (f" Narrator voice `{header['voice']}`." if "voice" in header else ""),
         "",
-        "Coverage: share of three key engine facts (played move, key move, result) that "
-        "an accepted answer states. Delivered coverage counts a fallback as 0. Full "
-        "coverage: share of all calls accepted with all three facts. Names a factor: share of "
-        "accepted answers that use at least one listed factor slot (a measured factor "
+        (
+            "Analysis Board lines (#449). Coverage: share of the explained lines that the slots "
+            "of an accepted answer name. Delivered coverage counts a fallback as 0. Full "
+            "coverage: share of all calls accepted with every line named. Names a factor: share of "
+            if summary.get("positions_kind") == BOARD_KIND
+            else "Coverage: share of three key engine facts (played move, key move, result) that "
+            "an accepted answer states. Delivered coverage counts a fallback as 0. Full "
+            "coverage: share of all calls accepted with all three facts. Names a factor: share of "
+        )
+        + "accepted answers that use at least one listed factor slot (a measured factor "
         "change), over all accepted answers and over those whose position has a factor slot.",
         "",
         "| Model | Role | Params (B) | Grounding pass | Coverage (accepted) "
@@ -1195,7 +1474,7 @@ def write_summary(sink: Path, config: BenchConfig) -> tuple[Path, Path]:
     header = next(record for record in records if record.get("record") == "header")
     # The run's own positions file decides the key facts, whatever the config says.
     if "positions_file" in header:
-        config = replace(config, positions_file=REPO_ROOT / header["positions_file"])
+        config = for_positions(replace(config, positions_file=REPO_ROOT / header["positions_file"]))
     summary = summarize(records, config)
     stamp = sink.stem.removeprefix("runs_")
     json_path = sink.with_name(f"summary_{stamp}.json")
@@ -1220,7 +1499,7 @@ def _ollama_versions(config: BenchConfig) -> str:
 async def run(
     config: BenchConfig, sink: Path, selected: Sequence[ModelEntry], limit: int | None
 ) -> None:
-    positions = load_positions(config.positions_file)[:limit]
+    positions = load_any_positions(config.positions_file)[:limit]
     identity = pipeline_identity(config)
     if sink.exists():
         records = _read(sink)
@@ -1292,6 +1571,7 @@ def main() -> None:
     parser.add_argument("--voice", help="override [run].voice (coach, terse, playful)")
     parser.add_argument("--positions-file", type=Path, help="override [run].positions_file")
     parser.add_argument("--num-ctx", type=int, help="override [run].num_ctx (sent per request)")
+    parser.add_argument("--runs-per-position", type=int, help="override [run].runs_per_position")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -1302,6 +1582,10 @@ def main() -> None:
         config = replace(config, positions_file=(REPO_ROOT / args.positions_file).resolve())
     if args.num_ctx is not None:
         config = replace(config, num_ctx=args.num_ctx)
+    if args.runs_per_position is not None:
+        config = replace(config, runs_per_position=args.runs_per_position)
+    # A board-lines positions file selects the Analysis Board entry points (#449).
+    config = for_positions(config)
     if args.summarize is not None:
         for path in write_summary(args.summarize, config):
             print(f"wrote {path}")

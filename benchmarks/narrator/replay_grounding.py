@@ -4,7 +4,8 @@ Reads the committed raw records (``results/runs_*.jsonl``), rebuilds each
 claim's grounding context from the run's positions file and validates the
 stored claim text again. No model is called. A run whose recorded
 ``positions_sha256`` differs from the current positions file cannot be rebuilt
-and is skipped.
+and is skipped, and so is an Analysis Board run (a ``board-lines`` positions
+file, #449): the replay covers the lesson pipeline.
 
 The result compares each claim's stored ``rejection_reason`` with today's:
 ``newly_rejected`` (accepted then, rejected now) by reason code, and
@@ -28,11 +29,13 @@ from typing import Any, cast
 
 from chess_lesson_spec import ExplanationClaim
 
+from benchmarks.narrator.build_board_positions import BOARD_KIND
 from benchmarks.narrator.run_benchmark import (
     ContextBuilder,
     _claim_reason,
     _resolve,
     load_positions,
+    positions_kind,
 )
 from scan64.explanations.validator import GroundedExplanationContext
 
@@ -87,6 +90,7 @@ def replay(results: Path = RESULTS, root: Path = ROOT) -> Replay:
         if (
             not positions_file.exists()
             or hashlib.sha256(positions_file.read_bytes()).hexdigest() != header["positions_sha256"]
+            or positions_kind(positions_file) == BOARD_KIND
         ):
             out.skipped_files.append(path.name)
             continue
@@ -136,7 +140,10 @@ def main() -> None:
     args = parser.parse_args()
     result = replay()
     print(f"replayed files: {', '.join(result.runs_files)}")
-    print(f"skipped files (positions changed, or no slot-path run): {len(result.skipped_files)}")
+    print(
+        "skipped files (positions changed, Analysis Board, or no slot-path run): "
+        f"{len(result.skipped_files)}"
+    )
     print(f"claims accepted before: {result.accepted_before}")
     print(f"newly rejected: {sum(result.newly_rejected.values())} {dict(result.newly_rejected)}")
     print(f"claims rejected before: {result.rejected_before}")
