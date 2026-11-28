@@ -267,7 +267,7 @@ def _side(who: str | None) -> int:
     who = " ".join(who.lower().split())
     if who == "the":
         return 0
-    if "opponent" in who or who in ("they", "their", "the other side"):
+    if "opponent" in who or who in ("they", "them", "their", "the other side"):
         return -1
     return 1
 
@@ -298,7 +298,10 @@ def _balance(sign: int) -> _Reader:
             claim_sign = 1 if direction.lower() in ("up", "ahead") else -1
         else:
             claim_sign = sign
-        return Claim("balance", _side(match.groupdict().get("who")), claim_sign, _amount(match))
+        groups = match.groupdict()
+        # The side is a subject ("you are up a pawn") or an owner ("your material edge").
+        side = _side(groups.get("who") or groups.get("owner"))
+        return Claim("balance", side, claim_sign, _amount(match))
 
     return read
 
@@ -396,6 +399,77 @@ CLAIM_RULES: tuple[tuple[_Rule, _Reader], ...] = (
         ),
         lambda match: Claim("balance", 0, 0, 0),
     ),
+    # Owner subjects: "your material is up two pawns", "your side is two pawns ahead".
+    (
+        _Rule(
+            rf"\b{_OWNER}\s+(?:material|side|army|forces|position){_BE}\s+{_UP}\s+(?:by\s+)?"
+            rf"(?:in\s+|on\s+)?{_COUNTED}\b",
+            _I,
+        ),
+        _balance(1),
+    ),
+    (
+        _Rule(
+            rf"\b{_OWNER}\s+(?:material|side|army|forces|position){_BE}\s+{_COUNT_REQUIRED}"
+            rf"{_UNIT_PIECES}\s+{_UP}\b",
+            _I,
+        ),
+        _balance(1),
+    ),
+    # "You lead by two pawns", "you have two pawns more", "your extra pawn".
+    (
+        _Rule(rf"\b{_SUBJECT}\s+(?:lead|leads|led)\s+by\s+{_COUNT_REQUIRED}{_UNIT_PIECES}", _I),
+        _balance(1),
+    ),
+    # "You are two pawns to the good", "two pawns to the good".
+    (
+        _Rule(
+            rf"(?:\b{_SUBJECT}{_BE}\s+)?(?:\b|(?=~)){_COUNT_REQUIRED}{_UNIT_PIECES}\s+to\s+the\s+good\b",
+            _I,
+        ),
+        _balance(1),
+    ),
+    # "A material edge of two pawns (for you)".
+    (
+        _Rule(
+            r"\bmaterial\s+(?:edge|lead|advantage|plus)\s+of\s+"
+            rf"{_COUNT_REQUIRED}{_UNIT_PIECES}(?:\s+for\s+(?P<who>{_OPPONENT}|them|{_LEARNER}))?",
+            _I,
+        ),
+        _balance(1),
+    ),
+    (
+        _Rule(
+            rf"(?:\b{_SUBJECT}{_HAVE}\s+)?(?:\b|(?=~)){_COUNT_REQUIRED}{_UNIT_PIECES}\s+"
+            r"(?:more|(?P<dir>fewer|less))\b",
+            _I,
+        ),
+        lambda match: Claim(
+            "balance",
+            _side(match.group("who")),
+            -1 if match.group("dir") else 1,
+            _amount(match),
+        ),
+    ),
+    (
+        # Singular only: "your extra pieces are active" names no count.
+        _Rule(
+            rf"\b{_OWNER}\s+(?:extra|spare|additional)\s+(?P<unit>pawn|piece|minor\s+piece"
+            r"|knight|bishop|rook|queen|exchange)\b",
+            _I,
+        ),
+        _balance(1),
+    ),
+    # "a two-pawn lead", "your two-pawn edge".
+    (
+        _Rule(
+            rf"(?:\b{_SUBJECT}{_HAVE}\s+(?:a|an|the)\s+|\b{_OWNER}\s+|\b(?:a|an)\s+)"
+            r"(?P<count>one|two|three|four|five|six|seven|eight|nine)[-\s](?P<unit>pawn|piece|knight"
+            r"|bishop|rook|queen|point)\s+(?:material\s+)?(?:edge|lead|advantage|plus)\b",
+            _I,
+        ),
+        _balance(1),
+    ),
     (
         _Rule(
             rf"(?:\b{_SUBJECT}{_BE}\s+)?(?:\b|(?=~)){_COUNT_REQUIRED}{_UNIT_PIECES}\s+{_UP}\b"
@@ -439,7 +513,8 @@ CLAIM_RULES: tuple[tuple[_Rule, _Reader], ...] = (
     ),
     (
         _Rule(
-            rf"\b{_OWNER}\s+material\s+(?:edge|lead|advantage|plus|balance)\s+(?:is|was)"
+            rf"\b{_OWNER}\s+(?:material\s+(?:edge|lead|advantage|plus|balance)|edge|lead"
+            r"|advantage|plus)(?:\s+in\s+material)?\s+(?:is|was)"
             rf"\s+{_COUNT_REQUIRED}{_UNIT_PIECES}",
             _I,
         ),

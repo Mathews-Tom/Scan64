@@ -445,3 +445,77 @@ def test_material_wording_with_a_count_still_follows_the_facts() -> None:
 def test_evaluation_wording_with_the_pawn_unit_passes(text: str) -> None:
     context, evidence_id = _lesson(LEVEL)
     assert _validate(text, context, evidence_id).count("pawns") == 1
+
+
+EDGE_CLAIMS = [
+    # (text, learner material advantages that support it)
+    ("Your material edge is two pawns.", {2}),
+    ("Your opponent's material edge is two pawns.", {-2}),
+    ("Your material lead is a pawn.", {1}),
+    ("Their material advantage is a piece.", {-3, -4}),
+    ("You are ahead by two pawns.", {2}),
+    ("You are two pawns ahead.", {2}),
+    ("You are up two pawns.", {2}),
+    ("You have two extra pawns.", {2}),
+    ("You have an extra piece.", {3, 4}),
+    ("You are up in material.", {1, 2, 3, 4, 5, 6, 9}),
+    ("You are materially up.", {1, 2, 3, 4, 5, 6, 9}),
+    ("You have a material edge.", {1, 2, 3, 4, 5, 6, 9}),
+    ("Your opponent is ahead by two pawns.", {-2}),
+    ("Your opponent is up in material.", {-1, -2, -3, -4, -5, -6, -9}),
+    ("Your opponent has a material lead.", {-1, -2, -3, -4, -5, -6, -9}),
+    ("Your opponent has two extra pawns.", {-2}),
+    ("They are a piece up.", {-3, -4}),
+    # Pre-PR check: owner subjects, "lead by", "N pawns more", "extra pawn", "two-pawn".
+    ("Your material is up two pawns.", {2}),
+    ("Your side is two pawns ahead.", {2}),
+    ("Your opponent's side is two pawns ahead.", {-2}),
+    ("Your edge is two pawns.", {2}),
+    ("Your plus in material is two pawns.", {2}),
+    ("You lead by two pawns.", {2}),
+    ("Your opponent leads by two pawns.", {-2}),
+    ("You have two pawns more.", {2}),
+    ("You have two pawns fewer.", {-2}),
+    ("Your extra pawn decides.", {1}),
+    ("Their extra pawn matters.", {-1}),
+    ("Your extra rook decides.", {5, 6}),
+    # Review of #443: no side named (either side, size checked), and "to the good".
+    ("A two-pawn lead.", {2, -2}),
+    ("With a two-pawn lead, play simply.", {2, -2}),
+    ("A pawn more.", {1, -1}),
+    ("Two pawns more.", {2, -2}),
+    ("A material edge of two pawns.", {2, -2}),
+    ("A material edge of two pawns for you.", {2}),
+    ("A material edge of two pawns for your opponent.", {-2}),
+    ("A material edge of two pawns for them.", {-2}),
+    ("A two pawn lead.", {2, -2}),
+    ("You are two pawns to the good.", {2}),
+    ("Your opponent is two pawns to the good.", {-2}),
+    ("Two pawns to the good.", {2, -2}),
+    ("You enjoy a two-pawn lead.", {2}),
+    ("Your two-pawn edge counts.", {2}),
+]
+
+
+@pytest.mark.parametrize(("text", "supporting"), EDGE_CLAIMS)
+@pytest.mark.parametrize("balance", [-9, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 9])
+def test_a_material_edge_claim_checks_its_side_and_size(
+    text: str, supporting: set[int], balance: int
+) -> None:
+    """#442 re-review: "your material edge is two pawns" was accepted two pawns down."""
+    facts = ClaimFacts(balances=frozenset({balance}))
+    assert (unsupported_claim(text, facts) is None) == (balance in supporting)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Your extra pieces are active.",
+        "Your additional pieces help.",
+        "Your extra effort pays off.",
+        "You have two options more.",
+        "That is all to the good.",
+    ],
+)
+def test_an_uncounted_extra_is_no_material_claim(text: str) -> None:
+    assert unsupported_claim(text, ClaimFacts(balances=frozenset({0}))) is None
