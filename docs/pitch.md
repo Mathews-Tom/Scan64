@@ -38,7 +38,7 @@ Keyboard move entry (strict UCI or canonical English SAN), readable chess positi
 
 Download the [latest published installers](https://github.com/Mathews-Tom/Scan64/releases/latest): macOS `.dmg`, Windows `-setup.exe`, or Linux `.AppImage` / `.deb`. The desktop app opens one window and bundles Python and Stockfish; no developer tools or separate engine installation are needed. It offers puzzle download/import with progress, signature-checked updates on macOS, Windows and AppImage, and an explicit **Restart to update** action. Debian packages link to the release download instead of self-updating.
 
-Follow the [README install steps and client demos](../README.md#get-started), or run the one-port source application or a locally built Docker image. Installers are not operating-system signed; macOS builds are ad-hoc signed and not notarized. Version 0.6.1 and earlier cannot update to the unified desktop app automatically, and their data is not migrated. No hosted service or published container image is provided. The [user guide](user-guide.md) covers the play-to-training workflow, OS warnings, updates and local data. The local quality gate is:
+Follow the [install steps](getting-started.md) and [client demos](about.md#see-it-in-action), or run the one-port source application or a locally built Docker image. Installers are not operating-system signed; macOS builds are ad-hoc signed and not notarized. Version 0.6.1 and earlier cannot update to the unified desktop app automatically, and their data is not migrated. No hosted service or published container image is provided. The [user guide](user-guide.md) covers the play-to-training workflow, OS warnings, updates and local data. The local quality gate is:
 
 ```sh
 scripts/check.sh
