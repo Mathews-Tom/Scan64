@@ -3,7 +3,7 @@
   python -m benchmarks.narrator.explanation positions --engine stockfish --out POSITIONS.json
   python -m benchmarks.narrator.explanation run --voice Tal --model M --out tal.jsonl
   python -m benchmarks.narrator.explanation blind A.jsonl ... --seed 403 --out JUDGE_DIR --key-out K
-  python -m benchmarks.narrator.explanation summarise [--doc PAGE]
+  python -m benchmarks.narrator.explanation summarise RUN_FOLDER [--doc PAGE]
 
 ``results/`` is immutable: no command writes there.
 """
@@ -49,7 +49,8 @@ def main(argv: list[str] | None = None) -> None:
     bl.add_argument("--out", required=True, help="the judge's folder: the items only")
     bl.add_argument("--key-out", required=True, help="the key, outside the judge's folder")
     su = sub.add_parser("summarise", help="print the tables, or write them into a page")
-    su.add_argument("--doc")
+    su.add_argument("folder", type=Path, help="a run's folder, for example results/run2")
+    su.add_argument("--doc", help="write the tables into this page's block for the run")
     args = parser.parse_args(argv)
 
     if args.command == "positions":
@@ -81,10 +82,10 @@ def main(argv: list[str] | None = None) -> None:
         key_out.write_text(json.dumps(key, indent=1) + "\n")
     elif args.doc:
         doc = Path(args.doc)
-        page = summarise.write_doc(doc.read_text(encoding="utf-8"))
+        page = summarise.write_doc(doc.read_text(encoding="utf-8"), args.folder)
         doc.write_text(page, encoding="utf-8")
     else:
-        print(summarise.tables(), end="")
+        print(summarise.tables(args.folder), end="")
 
 
 if __name__ == "__main__":
