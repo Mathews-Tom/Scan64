@@ -253,7 +253,6 @@ The rule for a later change stays: rerun this benchmark when the prompt builder,
 - Engine comparison on the same positions: Caissa diagnoses 32 of 50 positions. A comparison on the same 32 positions on both engines removes the position-set difference.
 - ~~`think = false` in production: the app adapters send no `think` field. The benchmark numbers assume it.~~ Done in #429: both Ollama paths send `think: false`.
 - `praxis-4b` loops to the output cap in 18 of 96 calls (p95 7.06 s) and writes malformed line moves in 27.
-- `benchmarks/narrator/HANDOFF-5090.md` is a machine handoff note, not a benchmark file. It should leave the repository; it stays on this branch because file deletion is outside this terminal's policy.
 
 ## Configuration
 

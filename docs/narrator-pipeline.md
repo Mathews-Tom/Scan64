@@ -382,9 +382,9 @@ Paths 4 to 5a are logged by `record_template_fallback` (event `explanation_templ
 3. Widen verified lines: include every `focused_multipv` entry, `fast_line`, `proving_line`, `mating_line` and `mate_source_multipv` in `_verified_lines_for`. Pass the lesson source analysis (MultiPV 2/4/8, 1 000 000 nodes) into `resolve_explanation` as evidence.
 4. Raise coach depth or reuse a deeper search: replace `focused_analysis=after_analysis` (`coach_interruption.py:250`) with a MultiPV search inside the coach budget, or keep the 10 000-node line labelled as `interactive` evidence.
 5. ~~Precompute per-move facts (#367): for each move of each verified line, give SAN, the piece moved, capture, check, material balance and engine evaluation. Serialise as JSON with a declared schema instead of `repr`.~~ Done (section 5), with an engine evaluation after every move since the line pass.
-6. Budget the prompt: measure the serialised request against `_MAX_REQUEST_BYTES` (128 KiB) and the model context. Set `options.num_ctx` in `OllamaExplanationAdapter`. When a line must be shortened, cut it deterministically at a stated ply and mark the cut in the payload. Review the 4 s local limit for background jobs; the coach keeps 0.25 s.
+6. Budget the prompt: measure the serialised request against `_MAX_REQUEST_BYTES` (256 KiB) and the model context. Set `options.num_ctx` in `OllamaExplanationAdapter`. When a line must be shortened, cut it deterministically at a stated ply and mark the cut in the payload. Review the 4 s local limit for background jobs; the coach keeps 0.25 s.
 7. Ground the claim text (#366) so long lines cannot carry invented prose facts.
-8. Log every fallback with its reason (provider error class, validator message) and record the explanation source on `Explanation`. Nothing measures acceptance rates today.
+8. Log every fallback with its reason (provider error class, validator message) and record the explanation source on `Explanation`. Done: `narrator_counts` records attempts, accepted outputs and template fallbacks (section 15).
 9. ~~Expose narration of MultiPV lines on the Analysis Board (#368), with the same validator and template floor.~~ Done (section 12).
 10. Choose the narrator model through the evaluation in #369 before changing the default.
 
@@ -730,5 +730,5 @@ The process counts narrator outcomes per pipeline: `lesson` (`resolve_explanatio
 `fallback_rate` is `fallbacks / attempts`, or `null` before the first attempt.
 
 ```bash
-curl -s http://127.0.0.1:8001/v1/diagnostics/narrator  # scan64 serve default port
+curl -s http://127.0.0.1:8001/v1/diagnostics/narrator  # scan64-cli serve default port
 ```

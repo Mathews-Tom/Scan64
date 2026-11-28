@@ -1,0 +1,34 @@
+# Pages of the documentation site (site/docs/), in navigation order.
+# Each page renders one Markdown file from the repository. Links between
+# these files become links between pages; links to any other repository file
+# go to that file on GitHub. Rebuild with:
+#   uv run python scripts/site/build_docs.py
+
+repository = "https://github.com/Mathews-Tom/Scan64/blob/main/"
+landing = "../"
+
+[[section]]
+title = "Use Scan64"
+pages = [
+  { slug = "about", title = "About Scan64", source = "docs/about.md", summary = "What Scan64 does, what it shows you, and what it does not claim." },
+  { slug = "getting-started", title = "Get started", source = "docs/getting-started.md", summary = "Install the desktop app, Docker or a source checkout, then play and review your first game." },
+  { slug = "user-guide", title = "User guide", source = "docs/user-guide.md", summary = "Every screen: play, review, training, puzzles, the Analysis Board, settings and your data." },
+  { slug = "configuration", title = "Configuration", source = "docs/configuration.md", summary = "Every server setting, its default and where it is read." },
+]
+
+[[section]]
+title = "Engines and models"
+pages = [
+  { slug = "engines", title = "Analysis engines", source = "docs/engines.md", summary = "The bundled engines, engine profiles and the engine compatibility set." },
+  { slug = "narrator-models", title = "Narrator models", source = "docs/evaluation/narrator-models.md", summary = "The local language models compared for explanation wording, and the one chosen." },
+  { slug = "maia", title = "Maia opponents", source = "docs/maia.md", summary = "Play human-like Maia opponents with weights you provide." },
+  { slug = "lesson-packs", title = "Lesson packs", source = "docs/lesson-packs.md", summary = "The format of community lesson packs." },
+]
+
+[[section]]
+title = "How it works"
+pages = [
+  { slug = "system-overview", title = "System overview", source = "docs/system-overview.md", summary = "What works today, the architecture boundaries and the evidence behind them." },
+  { slug = "system-design", title = "System design", source = "docs/system-design.md", summary = "Runtime, components, the learning loop, privacy and engine capacity." },
+  { slug = "narrator-pipeline", title = "Narrator pipeline", source = "docs/narrator-pipeline.md", summary = "How engine lines become a checked explanation, with or without a model." },
+]

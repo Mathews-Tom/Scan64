@@ -1,0 +1,829 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>User guide · Scan64 documentation</title>
+<meta name="description" content="Every screen: play, review, training, puzzles, the Analysis Board, settings and your data.">
+<link rel="icon" href="../logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to content</a>
+<header class="docs-bar"><a class="docs-home" href="index.html"><img src="../logo.svg" width="28" height="28" alt="">Scan64 documentation</a>
+<nav aria-label="Site"><a class="docs-pages" href="#pages">Pages</a>
+<a href="../">Scan64 home</a>
+<a href="https://github.com/Mathews-Tom/Scan64">Source on GitHub</a></nav>
+</header>
+<div class="docs-layout">
+<nav id="pages" class="docs-nav" aria-label="Documentation"><h2>Use Scan64</h2><ul><li><a href="about.html">About Scan64</a></li><li><a href="getting-started.html">Get started</a></li><li><a href="user-guide.html" aria-current="page">User guide</a></li><li><a href="configuration.html">Configuration</a></li></ul><h2>Engines and models</h2><ul><li><a href="engines.html">Analysis engines</a></li><li><a href="narrator-models.html">Narrator models</a></li><li><a href="maia.html">Maia opponents</a></li><li><a href="lesson-packs.html">Lesson packs</a></li></ul><h2>How it works</h2><ul><li><a href="system-overview.html">System overview</a></li><li><a href="system-design.html">System design</a></li><li><a href="narrator-pipeline.html">Narrator pipeline</a></li></ul></nav>
+<main id="content" class="docs-content">
+<h1 id="using-scan64">Using Scan64</h1>
+<p>Scan64 is a local-first chess practice and learning application. It records games you play or import, analyses them with Stockfish, turns diagnosed positions into owned lessons, and updates your profile from server-graded practice and supported tactical evidence. Lesson hint usage is app-reported; a recorded unhinted answer does not prove independent solving.</p>
+<h2 id="contents">Contents</h2>
+<ul>
+<li><a href="#start-the-application">Start the application</a></li>
+<li><a href="#updates">Updates</a></li>
+<li><a href="#choose-a-starting-point">Choose a starting point</a> and <a href="#read-your-strength-record">read your strength record</a></li>
+<li><a href="#keyboard-touch-and-screen-readers">Keyboard, touch and screen readers</a></li>
+<li><a href="#play-a-game">Play a game</a> and <a href="#hints-during-play">use hints</a></li>
+<li><a href="#import-and-analyse-a-pgn">Import and analyse a PGN</a> and <a href="#move-by-move-game-review">review every move</a></li>
+<li><a href="#practise-a-repertoire">Practise a repertoire</a> and <a href="#progress-beforeafter-pattern-recurrence">save a coach packet</a></li>
+<li><a href="#train-from-diagnosed-positions">Train from diagnosed positions</a> and <a href="#the-pattern-with-its-evidence">inspect patterns</a></li>
+<li><a href="#daily-goals-and-tracked-pattern-evidence">Daily goals and tracked pattern evidence</a></li>
+<li><a href="#use-coach-mode">Use coach mode</a>, <a href="#optional-local-explanation-wording">optional local wording</a> and <a href="#transfer-measurement">transfer measurement</a></li>
+<li><a href="#import-a-puzzle-catalog">Import a puzzle catalog</a> and <a href="#practise-imported-puzzles">practise puzzles</a></li>
+<li><a href="#data-and-privacy">Data and privacy</a> and <a href="#manual-acceptance-walkthrough">manual acceptance</a></li>
+</ul>
+<h2 id="start-the-application">Start the application</h2>
+<p>Follow the <a href="https://github.com/Mathews-Tom/Scan64/blob/main/README.md#get-started">root quickstart</a> for source, Docker or the desktop app. From <strong>v0.7.0</strong> on, the desktop installers are attached to each release on <a href="https://github.com/Mathews-Tom/Scan64/releases/latest">GitHub Releases</a>. Desktop CI artifacts are temporary test builds only, not release downloads; a successful pull-request run does not make its artifacts trusted. Scan64 0.6.1 and earlier shipped a different macOS app that opened a browser. It cannot update itself to the unified desktop app: delete it, install the current desktop release by hand, and optionally remove its data with <code>rm -rf ~/Library/Application\ Support/Scan64</code>.</p>
+<h3 id="install-on-your-os">Install on your OS</h3>
+<ul>
+<li><strong>macOS Apple silicon (arm64):</strong> open the <code>.dmg</code>, drag <strong>Scan64</strong> into <strong>Applications</strong>, eject the image and open Scan64 from Applications. The build is ad-hoc signed, not Developer ID signed or notarized. On first launch, allow it once with <strong>System Settings → Privacy &amp; Security → Open Anyway</strong>; never disable Gatekeeper globally.</li>
+<li><strong>Windows x64:</strong> run the <code>-setup.exe</code> installer and launch Scan64 from the Start menu. Installation is per-user and does not require administrator rights. The installer is unsigned; if SmartScreen blocks a download you verified, choose <strong>More info → Run anyway</strong>. Smart App Control offers no per-app exception.</li>
+<li><strong>Linux x64, AppImage:</strong> make the downloaded file executable with <code>chmod +x /path/to/Scan64.AppImage</code>, then run <code>/path/to/Scan64.AppImage</code>, substituting the actual filename. AppImage needs FUSE support from your distribution. If that is unavailable, use the Debian package.</li>
+<li><strong>Linux x64, Debian/Ubuntu:</strong> install with <code>sudo apt install /path/to/scan64.deb</code>, substituting the downloaded package's actual absolute path, then launch Scan64 from your application menu. Package installation needs administrator rights.</li>
+</ul>
+<p>Before bypassing any warning, follow <a href="https://github.com/Mathews-Tom/Scan64/blob/main/README.md#open-an-unsigned-installer-safely">Open an unsigned installer safely</a>: download from the releases page, check the SHA-256 digest, and use only the per-app steps it describes. Desktop installers bundle Python and three engines: a fresh install analyses with Caissa 2.0 and plays the bot levels with Arasan 26.1, and an install updated from before keeps Stockfish (<a href="engines.html#which-engines-an-install-uses">which engines an install uses</a>). Until #396's fit of Caissa's score scale lands, a fresh install's win percentages and mistake detection use a provisional scale: Caissa's centipawns are read as Stockfish's, and the two measurements so far disagree on how far apart they are (<a href="engines.html#bundled-engines">provisional score scale</a>). No developer tools or separate engine installation are needed. The updater verifies separate signatures for the macOS <code>.app.tar.gz</code>, Windows <code>-setup.exe</code> and Linux <code>.AppImage</code> bundles. A <code>.sig</code> is not a platform code-signing certificate.</p>
+<h3 id="desktop-first-run-and-data">Desktop first run and data</h3>
+<p>The desktop app opens one window containing Scan64, not a browser tab. Closing it stops its server and engines; on macOS, Dock Quit or ⌘Q also quits. A second launch focuses the existing window. Games survive relaunch in <code>scan64.db</code> under the OS app-data directory:</p>
+<ul>
+<li>macOS: <code>~/Library/Application Support/org.scan64.desktop</code></li>
+<li>Windows: <code>%APPDATA%\org.scan64.desktop</code></li>
+<li>Linux: <code>${XDG_DATA_HOME:-~/.local/share}/org.scan64.desktop</code> (normally <code>~/.local/share/org.scan64.desktop</code>)</li>
+</ul>
+<p>Downloads and <code>logs/server.log</code> live under the same directory. Keep the app's local storage to retain your player token. The shell uses a fixed origin, so a different server port does not sign you out. Data from the older desktop app is not migrated.</p>
+<p>Puzzles and <strong>Settings → Puzzle library</strong> offer <strong>Download puzzles</strong> and <strong>Choose a file…</strong>. Progress and Cancel stay available while navigating. Puzzle downloads always require a click.</p>
+<p>The desktop window cannot shrink below 960 logical pixels wide. Navigation stays on the left, including when zooming; bottom navigation is reserved for narrow browser windows. The chevron button under the Scan64 logo toggles the sidebar: <strong>Expand sidebar</strong> reveals button labels and <strong>Collapse sidebar</strong> returns to icons; hovering shows which one it does. In compact windows, labels open over the content without shrinking the board; Escape, the backdrop, or a navigation selection closes the drawer. Wide windows remember your expanded/collapsed preference.</p>
+<p>An empty puzzle library shows setup across the main content area instead of reserving space for a board. During practice, the board and current-puzzle controls share a bounded workspace; results and hints stay beside the board. Daily progress and solve streaks share a summary row, with detailed selection and rating explanations available through expandable sections. Import and update activity icons in the compact sidebar open the corresponding Settings panel.</p>
+<h3 id="board-appearance">Board appearance</h3>
+<p>Open <strong>Settings → Chessboard</strong> to choose Staunton (cburnett, the default), Merida, Chessnut, Spatial, Firi, California, Maestro, Staunty, mpchess or Sophia pieces, and a board. Flat colours: Brown and cream (the default), Green and buff, Classic brown, Classic green, Walnut, Sand, Slate, Sage or Graphite. Wood: Walnut and maple, Rosewood and boxwood, Mahogany and maple, or Ebony and boxwood. Stone: White and black marble, or Grey and blue granite. Piece and palette choices persist independently of <strong>Appearance → System / Light / Dark</strong>. California, Maestro and Staunty are licensed for non-commercial use only; Settings links to the separate artwork licences and attribution.</p>
+<p>The traditional palettes follow FIDE's equipment standard for tournament boards. The current <a href="https://handbook.fide.com/chapter/ChessEquipmentWithoutElectronicComponenets032026">FIDE Handbook C.02</a> (from 1 March 2026) gives white, cream, ivory or buff light squares and brown or walnut-tone dark squares: Brown and cream and Classic brown. Earlier editions also named green dark squares with buff or off-white light squares (<a href="https://www.fide.com/docs/regulations/ARB%20Manual%202020.pdf">FIDE Arbiters' Manual 2020</a>, "Chess boards"): Green and buff and Classic green. Brown and cream and Green and buff use darker squares than their classic versions for stronger contrast.</p>
+<p>The wood and stone boards use photographed veneer and stone with a matte finish. They use colour maps only, with no gloss, specular highlight or glare. Every square takes its own crop and orientation of the source, so the grain and veining do not repeat. FIDE gives no numeric contrast for light and dark squares, so Scan64 measures the mean <a href="https://www.w3.org/TR/WCAG22/#dfn-relative-luminance">WCAG relative-luminance</a> ratio of the light squares to the dark squares and requires at least the default Brown and cream palette (3.10:1). The ratio is measured on the encoded texture and checked again on the rendered board in Chromium.</p>
+<table>
+<thead>
+<tr>
+<th>Board</th>
+<th>Group</th>
+<th>Light/dark luminance ratio</th>
+<th>AVIF</th>
+<th>WebP</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Walnut and maple</td>
+<td>Wood</td>
+<td>5.26:1</td>
+<td>175 KB</td>
+<td>228 KB</td>
+</tr>
+<tr>
+<td>Rosewood and boxwood</td>
+<td>Wood</td>
+<td>7.80:1</td>
+<td>306 KB</td>
+<td>437 KB</td>
+</tr>
+<tr>
+<td>Mahogany and maple</td>
+<td>Wood</td>
+<td>6.30:1</td>
+<td>299 KB</td>
+<td>395 KB</td>
+</tr>
+<tr>
+<td>Ebony and boxwood</td>
+<td>Wood</td>
+<td>9.68:1</td>
+<td>179 KB</td>
+<td>231 KB</td>
+</tr>
+<tr>
+<td>White and black marble</td>
+<td>Stone</td>
+<td>11.62:1</td>
+<td>520 KB</td>
+<td>532 KB</td>
+</tr>
+<tr>
+<td>Grey and blue granite</td>
+<td>Stone</td>
+<td>6.32:1</td>
+<td>471 KB</td>
+<td>660 KB</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Budget.</strong> Each board is one 2000 × 2000 px image, sharp at one texel per device pixel for a 1000 px board on a 2x screen. A board downloads at most 700 KB: AVIF where the browser supports <code>type()</code> in <code>image-set()</code> (Chromium, including WebView2 in the Windows desktop app, Firefox, and Safari 17 or later), otherwise WebP. Older Safari (14–16), and the macOS desktop app on a Mac whose newest Safari is 16 or older, gets the WebP texture. Decoded, the selected texture uses 16 MB of image memory (2000 × 2000 × 4 bytes); only the selected board loads. From navigation to the second frame after the texture decodes, the Analysis board must paint within 1.5 s. On 2026-11-26, the production web bundle that the desktop app ships (<code>pnpm build</code>, served by <code>vite preview</code>, Chromium through Playwright on Windows 11) painted each textured board in 435–509 ms over three runs, except Rosewood and boxwood at 460–943 ms. Until a texture has loaded, and in a browser offline before its first use, the board shows flat squares in the texture's mean colours. Rebuild the textures with <code>uv run scripts/build-board-textures.py</code>; the build fails if a board exceeds the budget or falls below the contrast minimum. Sources and licences (CC0) are listed in <code>THIRD_PARTY_NOTICES.md</code>.</p>
+<p>Settings lists the piece sets in two groups: <strong>Staunton pattern</strong> and <strong>Other designs</strong>. FIDE Handbook C.02 (section 6.1, from 1 March 2026) requires Staunton-style tournament pieces, a light set and a dark set, and a matte finish that does not shine excessively. Its height and base proportions apply to physical pieces; flat board graphics do not reproduce them. Every set in the Staunton group draws the standard Staunton forms: a cross-topped king, a crowned queen, a mitred bishop, a horse-head knight, a crenellated rook and a ball-headed pawn. A saved piece set keeps working after an update; an unknown saved value falls back to Staunton (cburnett).</p>
+<table>
+<thead>
+<tr>
+<th>Piece set</th>
+<th>Staunton pattern</th>
+<th>Licence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Staunton (cburnett), default</td>
+<td>Yes</td>
+<td>GPL-2.0-or-later</td>
+</tr>
+<tr>
+<td>Merida</td>
+<td>Yes</td>
+<td>GPL-2.0-or-later</td>
+</tr>
+<tr>
+<td>Chessnut</td>
+<td>Yes</td>
+<td>Apache-2.0</td>
+</tr>
+<tr>
+<td>California</td>
+<td>Yes</td>
+<td>CC BY-NC-SA 4.0 (non-commercial)</td>
+</tr>
+<tr>
+<td>Maestro</td>
+<td>Yes</td>
+<td>CC BY-NC-SA 4.0 (non-commercial)</td>
+</tr>
+<tr>
+<td>Staunty</td>
+<td>Yes</td>
+<td>CC BY-NC-SA 4.0 (non-commercial)</td>
+</tr>
+<tr>
+<td>mpchess</td>
+<td>Yes</td>
+<td>GPL-3.0-or-later</td>
+</tr>
+<tr>
+<td>Sophia (GNOME Chess)</td>
+<td>Yes</td>
+<td>W3C Software Notice and License</td>
+</tr>
+<tr>
+<td>Spatial</td>
+<td>No</td>
+<td>MIT</td>
+</tr>
+<tr>
+<td>Firi</td>
+<td>No</td>
+<td>CC BY 4.0</td>
+</tr>
+</tbody>
+</table>
+<h3 id="board-controls">Board controls</h3>
+<ul>
+<li><strong>Premove (Play only):</strong> while the bot thinks, drag your next move. It is queued locally, then checked against the bot's reply and submitted only if legal. An illegal premove is discarded. Use <strong>Cancel premove</strong>, Escape inside the board controls, or right-click the board to cancel. Promotion choices appear when the premove becomes legal. Premoves are disabled during coach interruptions, hint previews, offline play or queued-move synchronization, and in puzzles and lessons.</li>
+<li><strong>Your annotations:</strong> right-drag on any board for a purple arrow; right-click a square for a purple circle. Click the board to clear your drawings. These unnumbered marks stay on your device and are separate from numbered coach/hint arrows; clearing them does not remove server annotations.</li>
+<li><strong>Flip board:</strong> Play, Review, Analysis and Puzzles each have a <strong>Flip board</strong> button. It reverses the pieces and coordinates for that board without changing the position, your playing colour or legal moves. <strong>Read board position</strong> reports the same position and viewing side.</li>
+<li><strong>Move sounds:</strong> <strong>Settings → Chessboard → Move sounds</strong> is on by default. Moves, captures, checks and game endings use locally synthesised sounds, with no audio files or downloads. Sound starts after a keyboard or pointer interaction. Turn it off to silence the app; the setting survives restarts.</li>
+</ul>
+<h3 id="reset-learning-progress">Reset learning progress</h3>
+<p>Open <strong>Settings → Reset learning progress</strong> to start fresh without deleting your account, saved games and analyses, imported libraries or settings. Reset clears puzzle and lesson results, learning ratings and strength estimates, streaks, mastery, achievements and review schedules, including active learning sessions. Configured goals are kept. The confirmation screen lists the boundary and requires the exact phrase <strong>RESET PROGRESS</strong> before <strong>Permanently reset learning progress</strong> becomes available.</p>
+<p>Reset cannot be undone. After success, choose <strong>Continue and reload</strong> to load fresh state; reload other open Scan64 tabs too.</p>
+<p>Historical games remain reviewable. Reanalysing or finishing a game created before the reset does not restore its old strength, mastery or review schedules. New learning attempts can still use preserved content.</p>
+<h3 id="updates">Updates</h3>
+<p>Updates work in the desktop app from 0.7.0 on. Browser and container installs do not update themselves.</p>
+<p>Open <strong>Settings → Updates</strong> for the installed version, last check time, <strong>Check for updates</strong>, and release notes. <strong>Check for Updates…</strong> is also in the Scan64 application menu on macOS and the Help menu on Windows/Linux. The app checks ten seconds after launch and every 24 hours while it stays open.</p>
+<p><strong>Download updates automatically</strong> is on by default and persists across launches. A signed update downloads in the background; the sidebar shows its version and percentage, then <strong>Restart to update</strong>. Turn the switch off to see <strong>Version X is available</strong> and download only when you press <strong>Download</strong>. Neither setting installs or restarts the app by itself: you must explicitly press <strong>Restart to update</strong>, which stops the local server before installation and relaunch.</p>
+<p>Update progress is pushed directly from the native updater to the panel and sidebar; changing screens does not stop an update or create another progress poll.</p>
+<p>If checking, downloading or installation fails, the Updates panel explains the failure and offers <strong>Retry</strong>. Linux <code>.deb</code> installs cannot self-update; use the release download link to install the newer package. A read-only installation or macOS App Translocation also shows an explanation and a download link. On macOS, move the app to a writable Applications folder and launch it there.</p>
+<p>The app contacts <strong>GitHub Releases</strong> (<code>github.com/Mathews-Tom/Scan64</code>, with GitHub's release-asset download hosts) to check for and download updates. These requests disclose normal network metadata such as your IP address; they do not upload your games or database. Updates must pass signature verification against the app's compiled-in public key.</p>
+<p>Before a newer desktop version can run database migrations, the server creates a consistent SQLite copy in the data directory's <code>backups/</code> folder, retaining the newest three. First launch records the version without a backup. If a required backup fails, startup stops rather than migrating unprotected data. There is no automatic application-bundle rollback: reinstall an earlier trusted release if a new app cannot start, and keep the database backups safe.</p>
+<h3 id="browser-and-source-operation">Browser and source operation</h3>
+<p>The development-only <code>scripts/run.sh</code> instead uses the API on port 8001 and Vite on 5173.</p>
+<p>The one-port source command is <code>uv run scan64-cli serve</code> after building the web client. It serves the UI, API and API reference at <code>http://127.0.0.1:8001</code>; use <code>--port PORT</code> to choose another port and <code>--no-browser</code> to suppress browser launch. Docker serves the same application on container port 8001 and keeps its database in <code>/data/scan64.db</code>; retain the <code>/data</code> volume. Source operation defaults to <code>database.db</code> in the working directory unless <code>SCAN64_DATABASE_URL</code> is set. Browser identity is tied to the exact browser origin, so changing hostname or port does not carry the stored token across.</p>
+<p>On your first visit, enter a display name and select <strong>Start learning</strong>. Scan64 creates a player identity once; its bearer token stays in that browser's local storage. Use a separate browser profile for a separate player. Returning visits keep the stored identity.</p>
+<p><strong>Today</strong> offers Play, Train and Review actions, your latest game, the week's activity, weakest skills by name, and recurring patterns. The navigation groups game history and <strong>Import games</strong> under <strong>Review</strong>, daily lessons under <strong>Train</strong>, and Opening Explorer and Famous Games under <strong>Library</strong>, which also links to Import games. <strong>Profile</strong> shows named skills and evidence; <strong>Coach</strong> opens the existing linked-student dashboard. The shell follows your system's light or dark colour scheme.</p>
+<p>Screen code loads when you first visit that screen. A loading status keeps navigation available, and a failed screen download offers <strong>Reload screen</strong>. Browser installs cache visited screen code for offline reuse rather than downloading every screen at startup; an uncached screen needs a connection. Cached code does not make live server operations available offline.</p>
+<h2 id="choose-a-starting-point">Choose a starting point</h2>
+<p>New registrations see <strong>Your starting point</strong> in Today and Profile. Existing players
+are not automatically enrolled: choose <strong>Set up my starting point</strong> to opt in.
+Declare Beginner, Developing, Club, Advanced or Not sure, then select <strong>Save level
+and show suggestion</strong>. The server immediately suggests bot level <strong>2, 3, 5, 6 or 1</strong>
+respectively (<code>declared-level-v1</code>); puzzles are not required to obtain it. These are
+overridable starting choices, not measured strength, placement results or human Elo.</p>
+<p><strong>Skip introduction</strong> and <strong>Continue later</strong> keep your identity and any recorded
+progress. Returning or reloading uses the same stored browser identity and server
+record; no second registration is needed. A later declaration does not reset the
+introduction's original start time or erase a manual bot choice.</p>
+<p>After declaring, <strong>Start/resume daily puzzles</strong> opens the existing Puzzles screen:
+resume the active run or use its Daily <strong>Start</strong> action. The introduction counts the
+first five daily-slot-bound runs started after the server's introduction start time,
+not a separate placement set. A run already active before opting in does not count;
+a previously reserved daily slot can count if its run starts after opting in. Each qualifying run closes once, whether solved (with or without hints),
+failed or abandoned. The displayed count comes from server evidence, carries into later days,
+and does not estimate playing strength. A short or empty daily catalog never blocks
+<strong>Play now</strong>; practise another day rather than rerolling or manufacturing slots.</p>
+<p>Play preselects your saved last manual bot choice, otherwise your declared-level
+suggestion, otherwise level 1. Only explicitly changing <strong>Bot level</strong> saves a manual
+choice. Suggestions never overwrite it and results never adjust the level
+automatically. Analysis Board and Famous Games keep their level-1 defaults.</p>
+<h2 id="read-your-strength-record">Read your strength record</h2>
+<p>Profile separates your declared experience, starting bot suggestion, puzzle Elo
+event history and Stockfish results. Coach shows the same separate values for
+explicitly linked students, including provisional puzzle status; it does not show
+the internal profile rating as a measured player rating.</p>
+<p>The <strong>puzzle</strong> scale starts at <strong>1200</strong>, uses <strong>K=32</strong>, and is provisional until
+<strong>20 rated puzzles</strong>. Events show before/after values and the recorded score. This
+is not chess/FIDE/site Elo, a bot-level conversion, theme mastery or a demonstrated
+improvement outcome. New skill states still use the provisional <strong>(3, 2)</strong> seed:
+it is a prior, not observed ability. Measured skill evidence is preserved, as is the
+internal <strong>1500</strong> profile rating; onboarding changes none of those values.</p>
+<p>Bot result samples are separated by <strong>Stockfish level, server-stamped policy version and exact time control</strong>, not mixed into puzzle Elo. Untimed results retain their own history; 5+0 and 3+2 never share a cohort. Each cohort shows eligible wins/draws/losses, latest-five and previous-five samples and their trend; fewer than five games in either window means insufficient data. Ordering uses game creation time and id, not analysis completion. Legacy tracked results use the separately disclosed <code>v1(unstamped)</code> policy; Maia is excluded. Seed, colour and arbitrary client config keys do not define new cohorts.</p>
+<p>Only owned, tracked, completed games with terminal results, a standard start, no
+coach mode and <strong>no recorded in-app hints</strong> qualify. Imports, unknown assistance,
+unfinished/unknown results and custom starts do not; resignations do. Analysis
+credit status is not required. These filters do <strong>not</strong> certify absence of takebacks
+or external help, and the windows describe results against that bot policy—not
+human playing strength or causal improvement. Archives preserve onboarding and
+existing history without replaying ratings; old archives without onboarding remain
+unplaced and opt-in.</p>
+<h2 id="keyboard-touch-and-screen-readers">Keyboard, touch and screen readers</h2>
+<ul>
+<li>Use <strong>Skip to content</strong> to reach the main study area. Tab/Shift+Tab move between native controls; Enter/Space activate buttons. Navigation and browser Back/Forward move focus to the new study area and update the page title. Focus outlines follow the system light/dark theme.</li>
+<li>Boards have a readable position alternative listing square coordinates, piece colour/type, side to move, check/result and legal choices. It reflects the same position as the graphic, including selected review and preview positions; it does not disclose unrevealed hints, puzzle solutions or engine recommendations.</li>
+<li>Use the board's labelled move field for strict UCI (<code>e2e4</code>, <code>e1g1</code>, <code>e7e8n</code>) or canonical English SAN (<code>e4</code>, <code>Nf3</code>, <code>O-O</code>). UCI is trimmed and lowercased; SAN is trimmed but case-sensitive and must match the generated legal notation, including disambiguation, capture, check or mate suffixes. Ambiguous <code>Nd2</code> is rejected when <code>Nbd2</code> is required. Non-English SAN piece letters are not supported.</li>
+<li>Submit a legal move with Enter or the submit button. Illegal/ambiguous input announces an error without spending a server attempt. Promotion without a UCI piece suffix opens explicit queen/rook/bishop/knight choices; cancel without playing, then correct the entry. Input stays unavailable during opponent turns, pending requests, promotion and read-only replay/line previews. Pointer drag and source/destination taps remain available.</li>
+<li>Hints announce their revealed step. Candidate previews are study-only: return to the game position before moving. <strong>Close hints</strong> or Escape inside the hint panel clears the preview and restores the Hint control. Lesson hints and server feedback are announced separately from graphical annotations; arrows/highlights have coordinate-based text equivalents.</li>
+<li>In Review, use move buttons, replay controls or keyboard graph points (Enter/Space; Left/Right changes ply). The move list is the full-size touch/keyboard equivalent of the graph's small points; labelled bands and key moments do not rely on colour. <strong>Retry this moment</strong> opens a named region; <strong>Close retry</strong>, <strong>Finish Review</strong>, or Escape inside it returns focus to the opener (or review heading if attempts exhausted). Imported lesson review similarly returns to its Review button. Famous Game study keeps its board read-only; use its separate prediction field for UCI/SAN.</li>
+<li>These controls cover Play, Review/owned analysis, free Analysis, Daily Training, Puzzles, Opening Explorer and Famous Games. Today, Library, Import, Profile, Coach and onboarding use the same navigation, labels, focus and responsive shell. At narrow widths/zoom controls and text reflow rather than requiring horizontal scrolling in the document or main area; the two-dimensional board fits its container. Reduced-motion preference disables decorative animation/transitions.</li>
+</ul>
+<p><strong>Acceptance limits:</strong> WCAG 2.2 AA is the target across shipped routes, not a certification. The human macOS Safari/VoiceOver position, move, promotion, hint, review and puzzle pass is <strong>pending owner observation</strong>. Keyboard/role-name and emulated touch/reflow checks do not substitute for that pass or establish support for every screen reader, real iPhone or browser. Record actual OS/Safari/VoiceOver versions and results before treating assistive-technology acceptance as complete; no unavailable AT results are claimed.</p>
+<h2 id="play-a-game">Play a game</h2>
+<ol>
+<li>Open <strong>Play</strong>.</li>
+<li>Leave <strong>Display name (optional)</strong> empty or enter a name; your stored identity is used, so no registration or ID is needed.</li>
+<li>Keep the preselected <strong>Bot level</strong>, or explicitly change it to save your manual preference, and choose <strong>Play as</strong> (White, Black or Random). As Black, the opponent makes the opening move before you play.</li>
+<li>Select <strong>Coach Mode</strong> only for opt-in, post-move interruptions; start the game and use the labelled move field, source/destination taps or drag-and-drop. The SAN move list includes both sides' moves.</li>
+<li>If a pawn reaches the last rank, choose <strong>queen</strong>, <strong>rook</strong>, <strong>bishop</strong> or <strong>knight</strong>; that exact promotion is played. Play, Daily Training and critical-moment lessons share this board.</li>
+<li>Reload or return to <strong>Play</strong> to resume with your chosen colour and orientation from the server's latest state, including after browser Back or Forward. Untimed offline moves stay queued until the connection returns; timed moves require a live server response and are never queued. Moving, resigning and taking back stay disabled until the canonical game is loaded; if that refresh fails, use <strong>Retry game refresh</strong> before continuing. <strong>Take back</strong> undoes your last move and the bot's reply; it is unavailable in timed games, coach mode, after completion, while offline moves are queued, or before you have played a move pair. The bot's opening move is never removed.</li>
+<li>Select <strong>Resign</strong>, or finish by checkmate, draw or timed flag-fall. The server decides the result. Once a game has moves, <strong>Review game</strong> links to its analysis, which Scan64 queues automatically on completion. Resigning before the first move in an untimed game creates no empty game and has no review link.</li>
+</ol>
+<p>A tracked-pattern link can open a different unfinished game without replacing the
+browser's previously stored game. Return to <strong>Play</strong> without a <code>session</code> query to
+resume that stored game. Ended or missing session links are consumed automatically
+and fall back to the stored game when one exists.</p>
+<p>Play offers eight server-defined levels from <code>GET /v1/bots</code>; Analysis Board's play-from-here and Famous Games' continue action default to level 1. The API takes <code>opponent_config: {"bot_level": "1"}</code> for Stockfish and optional <code>player_color</code> (<code>white</code>, <code>black</code> or <code>random</code>). Omitted colour uses the position's side to move. All eight levels use the same session-seeded MultiPV candidate policy with decreasing error budgets. They are calibrated relative to each other, <strong>not Elo-anchored</strong>, and show no Elo figure. This describes the Stockfish ladder; a fresh desktop or Docker install plays the levels with Arasan at a fixed <code>UCI_Elo</code> per level (<a href="engines.html#which-engines-an-install-uses">engines</a>). Stockfish's native reduced-strength move generator has no seed control, so it is not used for these levels. Maia's rating-based <code>strength</code> is unchanged. Stored older Stockfish sessions still resume using their original native skill setting.</p>
+<p>A live opponent move and a background analysis use separate Stockfish pools. Analysis beyond the per-player daily admission quota remains queued; it is not silently discarded.</p>
+<p>Run <code>uv run scan64-cli bots calibrate</code> to play 20 fixed-seed, node-limited games per adjacent level pair, with each opening from both colours. Live play and calibration share the default budget of 1,000 nodes per move. The command independently repeats every game and compares the full move records, then prints the Stockfish version and each higher level's score against the level below; it fails if a repeat differs or any score is below 60%. Repeat the command with the same Stockfish version for identical results. Calibration is a relative engine test, not a human-rating estimate.</p>
+<h3 id="timed-play">Timed play</h3>
+<p>Choose <strong>Untimed</strong> (the default), <strong>1+0</strong>, <strong>3+2</strong>, <strong>5+0</strong> or <strong>10+5</strong> before starting. The first number is each side's initial minutes; the second is the seconds added after that side makes a legal move. Both White and Black clocks are visible, and only the active side runs. Bot turns consume actual thinking time with a bounded visible delay; the bot's existing playing policy is unchanged.</p>
+<p>The server owns balances, increments and flag-fall. A clock reaching zero on screen does not declare the result: the app refreshes the authoritative state. The opponent wins on a flag unless it lacks mating material, in which case the result is a draw. Flag draws use an insufficient-material check, not general position-aware dead-position detection. Reloading, navigating, closing the browser or restarting the server does not reset or pause a deadline. Hints, Candidates, blunder-guard checks and coach interruptions do not pause clocks. A failed connection can leave an already accepted human move awaiting the bot; refresh/resume uses the retained position and clock instead of replaying the move. Timed takebacks are unavailable.</p>
+<p>At zero, the single deadline refresh waits for the server's clock transaction to commit; it does not poll for clock status. If that wait exceeds 15 seconds, the board shows a refresh error and offers a retry. Time continues to run while waiting.</p>
+<p>Supported archives preserve and validate clock state; importing an active game retains its original deadline, so time spent outside the app still counts. Timed exports declare their timed session IDs alongside the clock rows; an incomplete declared clock set is rejected, while historical static clock settings remain untimed. Resetting learning progress preserves the game's clock without restarting it; deleting the player removes the clock. Before downgrading a database with retained timed games, use the reviewed pre-migration backup: the downgrade refuses to discard clock state. The desktop backup policy above still applies; source/CLI operators must retain their own pre-migration copy.</p>
+<p><strong>API compatibility:</strong> new <code>clock_config</code> requests use numeric integer <code>initial_seconds</code> (1–86,400) and <code>increment_seconds</code> (0–60), not string values or the old static <code>time_remaining_ms</code> key. Timed move and opponent-resume commands carry <code>expected_clock_version</code> matching the returned <code>clock.version</code>; protected moves also retain their assistance-generation check. Move and opponent-resume commands return their own committed move/status/clock transition; retrieve the full current session with <code>GET /v1/play-sessions/{id}</code>. Optional <code>after_clock_version</code> waits once, up to five seconds, for an active timed clock version to change; it returns the authoritative snapshot without driving the opponent or changing clock state. Historical archives without an authoritative clock row remain untimed.</p>
+<h3 id="candidates-and-blunder-guard">Candidates and blunder guard</h3>
+<p>Select one to three legal moves in <strong>Candidates</strong>, then <strong>Grade candidates</strong>. The board does not move while Scan64 evaluates your proposals. Choose a graded move explicitly to play it.</p>
+<p><strong>Blunder guard</strong> is unchecked until you enable it. It checks each proposed move before playing it; a blunder warning requires <strong>Play anyway</strong> or <strong>Cancel</strong>. Other scored verdicts play your original proposal, never an engine replacement. Busy or failed checks do not play a move.</p>
+<p>Both features require a connection. Their protected moves never enter the offline queue. A changed position or expired verdict requires a fresh check. Candidates and guard verdicts count as full engine assistance before results appear, including after cancellation, reload or takeback; the session shows the recorded assistance modes. Assisted positions earn no good-move credit, and assisted games do not count toward bot strength. This records in-app assistance, not whether external help was used.</p>
+<p>Your accepted move is saved before Scan64 waits for its bot reply. Do not replay an accepted human move or reuse an expired grade.</p>
+<ul>
+<li><strong>Untimed games:</strong> if the bot fails or a protected completion becomes uncertain, use <strong>Retry game refresh</strong> to load the saved position, then <strong>Resume bot turn</strong> if the bot still has to move. Reloading an active game also restores this recovery control.</li>
+<li><strong>Timed games:</strong> Scan64 automatically refreshes the saved position and attempts the pending opponent turn. If that attempt fails while the opponent still has to move, choose <strong>Retry opponent move</strong>. If another opponent command is already running, Scan64 waits once, up to five seconds, for its clock version to change; if it is still pending, use <strong>Retry game refresh</strong>. Failed game refreshes also offer <strong>Retry game refresh</strong>. These controls recover the saved turn and clock without replaying your human move; clocks keep running.</li>
+</ul>
+<p>Queued moves are matched against the saved starting position and full move history before synchronization. A human move already saved is not sent again. Entries with an unknown or mismatched source position are retained and keep only their own session paused; other sessions can synchronize.</p>
+<p>For older queued moves without a recorded source position, choose <strong>Discard legacy queued moves…</strong> and review the warning. <strong>Keep queued moves</strong> cancels without deleting anything. <strong>Discard and refresh</strong> permanently removes only the confirmed older local moves from that game; saved games, other games' queued moves and entries with a recorded source are kept. Play remains locked until the saved game has refreshed successfully.</p>
+<h3 id="hints-during-play">Hints during play</h3>
+<p>Select <strong>Hint</strong> beside the game board for a three-step ladder: first a highlighted square and a question; press again for the idea and the piece to consider; press a third time for up to three numbered sound moves and their arrows. Candidates label engine-line-backed reasons <strong>Tactical</strong> and local move facts <strong>Principle</strong>; <strong>engine preference</strong> means neither applies. Principles describe development, castling, centre occupation or added control, rook files, king escape squares against back-rank mate, or passed-pawn advances. They describe what a move does, not why it is best or a promise of winning. Only moves inside the engine tolerance receive reasons. The first two responses do not disclose moves or their destination squares.</p>
+<p>Use <strong>Preview candidate</strong>, <strong>Next step</strong>, <strong>Previous step</strong>, or <strong>Full line</strong> to explore without submitting any moves. Select <strong>Return to game position</strong> before continuing play, or <strong>Close hints</strong> to clear the arrows. New game moves invalidate old hints. Hints require a connection and are unavailable while a move is pending, offline moves await synchronization, or a coach interruption is open.</p>
+<p>Live hints are recorded on the server before they are revealed. Any hint step excludes good-move credit for that canonical position, including after reload, takeback or revisiting it with different move counters. Closing the panel does not erase assistance. If the position changes while a hint is being prepared, request a new hint; the stale hint is not disclosed. Standalone FEN study hints remain available without claiming live-game assistance history.</p>
+<p>Run <code>uv run python -m scan64.learning.evaluation.hint_coverage</code> to report tactical, principle-only and fallback shares of candidate moves over M48's 40 recorded real games, without launching an engine. Each reached position uses its deepest available recording (deep source, focused reply, or fast search); at most three tolerance-qualified candidates count per position. Tactical takes precedence when a candidate also has a principle. These shares measure explanatory coverage, not correctness or learning outcomes, and have no pass threshold.</p>
+<h2 id="import-and-analyse-a-pgn">Import and analyse a PGN</h2>
+<ol>
+<li>Open <strong>Review → Import games</strong> (or <strong>Library → Import games</strong>).</li>
+<li>Paste a game, choose <strong>Your side</strong> (White or Black), and import it as the active player. A matching PGN player id or display name pre-selects your side. Lessons and profile observations use only your moves; older games without a stored side cannot be analysed.</li>
+<li>Open <strong>Review</strong>, select the imported game, then select <strong>Analyse game</strong> when it has not already been analysed.</li>
+<li>The import screen starts the analysis itself and shows its progress, then the learning opportunities it found. In <strong>Review</strong>, a game still being analysed says so; select <strong>Refresh review</strong> to see the result.</li>
+<li>Replay every move on the analysis board, including unflagged moves and the final position. Select a move, a graph point or a key-moment marker to keep the board and move list linked. Analysis keeps at most five lessons at distinct source positions, ranked by win-probability loss and diagnostic confidence, with a penalty for skills already represented by kept lessons. A deeper source search can discard a flagged move when the move actually played is sound; lower-ranked mistakes then fill the available slots without a skill penalty for discarded candidates. Only kept lessons have review schedules; evidence and profile observations still include all diagnosed owner opportunities.</li>
+</ol>
+<p>PGN analysis progress arrives through a live authenticated stream, not repeated status requests. Leaving Import stops its listener without cancelling the server's saved analysis job; use Review to return to the saved game. Too many concurrent progress streams or a disconnected stream reports an error rather than silently polling. Deleting the player closes their open analysis streams.</p>
+<p>For a deterministic manual diagnosis walkthrough, import this game:</p>
+<pre><code class="language-pgn">[Event &quot;Manual diagnostic test&quot;]
+[White &quot;Manual Tester&quot;]
+[Black &quot;Opponent&quot;]
+[Result &quot;0-1&quot;]
+
+1. e4 e5 2. Qh5 Nc6 3. Qxe5+ Nxe5 0-1
+</code></pre>
+<p>The analysis identifies the hanging queen as <code>board_awareness.hanging_piece</code>. Lesson answers depend on the engine analysis, not a hard-coded move.</p>
+<h3 id="good-move-credit">Good move credit</h3>
+<p>Review lists credited moves with a plain-language proof and a button selecting their ply on the board. Each owner move also shows credit or its exclusion reason. <strong>Profile → Strengths and weaknesses</strong> reflects the credited skill after analysis; reopen Profile to load its latest state.</p>
+<p>Credit is deliberately conservative: only a newly tracked, completed game's scored sound owner move that exactly matches the stored first engine line can qualify. Supported tactics are profitable captures (not while in check, not mere recaptures restoring material, with a known preceding move) and checks whose legal line proves material gain or a positive mate score. Capture takes precedence when both apply. Each player/game/canonical source/skill earns at most one +1 success update; repeated positions cannot farm credit. A player earns at most <strong>two credits per skill per game</strong>. When more qualify, proven mate comes first; otherwise higher proven net capture gain or checking-line material gain comes first, then the earliest ply. Other qualifying moves show <strong>“per-game credit cap reached”</strong>. Archives exceeding two credits for one player/game/skill are rejected rather than silently trimmed. Same-source lessons, attempts and failed observations exclude positive credit rather than changing existing failure or practice semantics.</p>
+<p>“No in-app hint” means only that Scan64 recorded no hint at that source; external assistance cannot be established. Imported games, old archives and unknown assistance history do not establish eligibility. Coach mode, custom-FEN starts (“started from a studied position”), hinted sources and analysis performed before the game ended receive no positive credit. Review reads and review-only backfill never award it later. Other lesson practice and hinted half-credit are unchanged.</p>
+<p>Not every good move earns credit. Unsupported, untrusted, retired or incomplete proofs earn none. Low-budget engine lines are coarse evidence, not measured improvement, a playing-strength rating or an independently validated positive-tactic precision claim.</p>
+<h3 id="back-up-before-upgrading-or-rolling-back">Back up before upgrading or rolling back</h3>
+<p>Before a database migration, save both a <strong>player export archive</strong> using the player data export API and a <strong>database-file copy</strong>. Stop Scan64 before copying SQLite so the backup is consistent; keep the copy outside the live data directory. The player archive preserves owned progress and credit/hint provenance, while the database copy also preserves shared data. Keep the matching application version and verify the recovery path on a disposable copy before touching your working database.</p>
+<p>For the positive-move credit migration, the copy-tested downgrade keeps already awarded skill alpha. Export the positive-credit ledger before downgrading; do not guess a subtraction from decayed skill values. Returning to a pre-upgrade database instead means that copy has none of the later progress, including unrelated games and practice. Older player archives restore assistance history as unknown, not independently played.</p>
+<p>For the 0.12.0 changes, a schema downgrade refuses to discard saved repertoire data or active local wording consent. Roll back with a copy of the matching pre-upgrade database and application rather than deleting live data to force a downgrade. Keep the newer database and player export separately to preserve later progress. Account exports do not carry local wording consent.</p>
+<h3 id="measure-diagnosis-precision-offline">Measure diagnosis precision offline</h3>
+<p>Run <code>uv run python -m scan64.learning.evaluation.real_games</code> from the repository root. It prints precision, prediction support (TP + FP), true/false positives and missed reference labels for every skill code, without launching Stockfish. <code>--check</code>, also run by <code>scripts/check.sh</code>, rejects regressions of the frozen trusted-code allowlist: precision must be at least 0.80 with support of at least 10.</p>
+<p>Game analysis and coach interruptions now show exactly one measured primary cause, with no secondary codes. Only the frozen trusted codes generate these lessons, explanations and diagnosis-derived profile updates. Untrusted detections remain stored evidence; existing skill rows are not deleted. Legacy game lessons without the current M48 fast-proof marker are hidden even when their code is trusted. Patterns, weekly summaries and opening error rates use the same visibility policy. Hidden rows remain stored but reserve neither lesson slots nor source positions. A hanging-piece lesson must replay a legal fast reply that wins its named piece in the target-local exchange, with whole-line profit only a secondary check. Calculation signals remain explicitly unvalidated hypotheses, not claims about where a human stopped thinking. Curated Opening Explorer, transfer positions and famous games use author-assigned teaching codes, not detector diagnoses, so their content is unchanged.</p>
+<p>The committed <code>tests/fixtures/m48/real_games.pgn</code> contains the first 40 qualifying games from the January 2013 Lichess CC0 archive: both ratings 600–1600 and at least 20 plies. <code>recorded.json</code> records the source URL, published source checksum, selection rule, engine identity and fixed node limits. Reference labels use only the first principal variation from separate <strong>1,000,000-node, MultiPV-4</strong> source and reply searches. The hardened detectors use <strong>10,000-node</strong> signals instead. The oracle module does not import evidence composition or detector predicates. For a capture, only consecutive captures on its target square establish the named piece's exchange-local gain; profit elsewhere later in the line cannot justify calling an evenly traded piece hanging. Whole-line material gain is only a secondary check. Each detector is arbitrated separately for measurement, so competitors cannot conceal false positives. This remains an engine-derived operational reference, not independent coach review or proof of rating gains. Calculation is operationalised as material lost only later in a line; development as an engine move developing a home minor while at least three remain home in the first ten moves. These labels do not reveal where a person stopped thinking or prove that an opening choice caused a loss.</p>
+<p>To reproduce recordings, download the compressed source named in provenance and run <code>uv run python scripts/record_diagnosis_reference.py SOURCE.pgn.zst</code> with Stockfish and <code>zstd</code> on PATH. The recorder verifies the published archive SHA256 before streaming decompression. <code>--augment-before</code> preserves existing output and records only missing deep source positions.</p>
+<p>M78 adds a separate, preregistered fresh sample: the next 80 qualifying games in source order, not a selection of mate examples. The original 40 games are development evidence for this change, not its new trust test. <strong>Allowed checkmate</strong> (<code>threat_processing.allowed_mate</code>) requires a legal engine mating line in at most three moves after the mistake and a 1,000,000-node source search that does not find an already forced mate against the mover. This source-depth confirmation is the exception to the older fast-only detector policy above. The trust threshold remains precision ≥0.80 and support ≥10; the fresh sample alone decides promotion, and insufficient support does not trigger more games in this PR. See <a href="https://github.com/Mathews-Tom/Scan64/blob/main/docs/evaluation/allowed-mate.md">the implementation and limits</a> and <a href="https://github.com/Mathews-Tom/Scan64/blob/main/docs/evaluation/real-game-diagnosis.md">the measurement report</a>.</p>
+<p>M79 re-tests <strong>Missed capture</strong> on a third, separate corpus: qualifying ordinals
+121–200 from that same archive, with unchanged filters and engine budgets.
+The earlier 120 games are development data for this code. Only the new 80 decide
+whether it remains trusted, using precision ≥0.80 and support ≥10; other codes
+retain their earlier gates. Neither detector evidence nor the new reference may
+call a capture "missed" when its proposed move is the move actually played.
+The source-depth/reference-label limitations and committed preregistration are
+documented in <a href="https://github.com/Mathews-Tom/Scan64/blob/main/docs/evaluation/real-game-diagnosis.md">real-game diagnosis</a>.
+<code>--m79-fresh80</code> records this separate corpus and refuses to overwrite it.
+Historical habit credits and pattern awards restore using the bounded history of
+trust at award, not today's allowlist. Current pattern/training eligibility still
+uses current trust; withdrawal does not delete or rewrite earned evidence.
+The preregistered M79 result is <strong>78 TP / 15 FP, precision 0.839, support 93</strong>
+(29 missed reference labels), so <strong>Missed capture remains trusted</strong>. Its puzzle
+practice mapping, pattern and habit eligibility remain active; no other code's
+trust decision changes. This is engine-derived agreement, not coach validation.</p>
+<h2 id="train-from-diagnosed-positions">Train from diagnosed positions</h2>
+<p>Open <strong>Train</strong> after one or more owned games have generated eligible lessons. <strong>Find a move</strong> keeps the standard Daily Training board interaction.</p>
+<ul>
+<li>A lesson is served only with durable player-owned opportunity and study-session context.</li>
+<li>Move answers are checked on the server against all sound moves found by the lesson's source-position MultiPV search (up to eight lines). A move is sound when its win-probability loss against the best is at most 0.08, using the Lichess centipawn logistic curve and decisive probabilities for mates. A sound alternative to the first engine choice shows <strong>Correct</strong> and records a success.</li>
+<li>An <strong>Allowed checkmate</strong> lesson additionally rejects any engine-scored forced-mate loss, even if its probability is within 0.08 of the best. The objective is to find a sound move that prevents mate, not merely delay an already lost mate.</li>
+<li>A verified attempt advances only its matching review schedule and active skill state.</li>
+<li>Lessons have three attempts. A first wrong answer draws the nudge and a second draws the idea. <strong>Next hint</strong> reveals the next step at any time without spending an attempt, so you can see the moves before your final try. Hint usage is recorded with each answer; a hinted success keeps half credit. A third wrong answer ends the lesson with its explanation and drawings. Critical-moment review uses the same ladder, including for older lessons upgraded on read from their existing source-position analysis (at most one bounded engine fallback per read).</li>
+<li>Opening Explorer missions are recorded separately and do not change this profile path.</li>
+<li>An empty training screen means Scan64 has no eligible owned lesson for the active player.</li>
+</ul>
+<p>Select <strong>Safe or blunder</strong> to choose between the move you actually played and a distinct engine-verified sound move from the same diagnosed position. Answer with one of the two move buttons; the board is read-only. Feedback, hints, skill updates and the review schedule use the existing lesson-attempt path and its shared lifetime three-attempt limit, including attempts used in another training mode. Only positions whose saved analysis proves the played move loses more than the sound-move tolerance are eligible; missing scores or an incomplete sound-set bound cannot establish a blunder. Already-exhausted, retired, unsupported or ambiguous positions are not offered; no eligible positions shows an explanatory empty state. Creating a drill reads saved evidence without starting an engine search.</p>
+<p>Open <strong>Profile</strong> to inspect active mastery, evidence, and recurring diagnoses after completing an attempt.</p>
+<h3 id="fsrs-review-scheduling">FSRS review scheduling</h3>
+<p>Eligible lesson, daily-puzzle and conversion-sparring reviews use FSRS 6.3.3 with timing fuzz disabled. A verified failure is <strong>Again</strong>; a successful answer with recorded hints is <strong>Hard</strong>. An unassisted success is <strong>Easy</strong> only when hints are recorded as zero and solve time is recorded within 30 seconds for lessons/transfer tests or 60 seconds for puzzles; other successes are <strong>Good</strong>. Missing historical hints or time remain unknown, not zero, and cannot earn Easy. Lesson and transfer hints/time are app-reported; puzzle hints/time are server-recorded. Results remain server-verified. Fixed transfer-test timing, award rules and review-mode eligibility do not change.</p>
+<p>Upgrading an existing database or restoring a pre-0.11 player archive preserves every schedule's exact due date, last-review time and retirement state without inventing past grades. Current archives retain FSRS state and review observations; progress reset and account deletion clear them only for the selected player. A schema downgrade is refused after FSRS reviews have been recorded to prevent data loss; retain the pre-migration database backup and exported player data for recovery.</p>
+<h3 id="the-pattern-with-its-evidence">The pattern with its evidence</h3>
+<p>Today and Profile show the same ranked recurring diagnoses as the weekly summary. A pattern needs retained trusted lessons in at least three distinct owned games with completed analysis and a known playing colour; an unfinished (<code>*</code>) result still counts for presence. Opponent moves, invalid lessons, retired lesson schedules and retired skills do not count. Reads do not run an engine or update learning records; later invalidation or retirement removes supporting evidence on the next read.</p>
+<p>“Highest observed loss among scored retained moments” means the sum of stored A8 win-probability losses, not all mistakes in your games or a causal explanation of your play. Scored patterns rank before unscored patterns; ties use distinct-game support then diagnosis code. Coverage shows scored occurrences out of all supporting retained occurrences separately from game support. Missing scores are unavailable, never zero. The A3 retention cap (at most five lessons per game) biases this sample: these are descriptive recurring diagnoses, not statistically validated habits, population comparisons, or psychological causes.</p>
+<p>Each supporting link opens your owned Review at that move. The pattern supplies its diagnosis template; only Review's existing top-three key moments supply a detailed explanation or retry there. Other supporting moves remain inspectable without expanding that limit. Linked coaches can see the pattern, observed cost and coverage, but receive no student Review or practice actions.</p>
+<p>Pattern practice tries available same-code <strong>Your mistakes</strong> retries, then a mapped <strong>Theme</strong> puzzle run as unrated related practice, not diagnosis or mastery evidence. When related supply is unavailable or exhausted, the plain Daily link says <strong>may be unrelated</strong>. It does not select or reorder today's slots, regenerate the set, or extend retry budgets. Failure observations, practice results and capped positive game-move credit remain distinct.</p>
+<h3 id="progress-beforeafter-pattern-recurrence">Progress: before/after pattern recurrence</h3>
+<p>On <strong>Profile</strong>, the <strong>Progress: before/after patterns</strong> section compares saved online
+games around your first completed, server-verified lesson or mapped puzzle attempt
+for each currently trusted pattern. Incorrect completed attempts count as training;
+starts, abandoned puzzles and client-reported success do not. Resetting learning
+removes earlier training anchors, not saved games. New training can compare those
+saved games again. This report does not change habit awards, ratings or mastery.</p>
+<p>Games need a validated, game-specific Lichess or Chess.com Site/Link, a matching
+stored PGN mainline and precise <strong>UTCDate + UTCTime</strong> headers. Date-only or local
+times are excluded, never replaced with import time. An old game imported after
+training still belongs before it. In-app play sessions and duplicate online game
+identities are excluded. Periods use the PGN start time; a game starting exactly
+at training is excluded as an ambiguous boundary.</p>
+<p>Each side needs <strong>three finished, fully analysed games</strong>, each with <strong>at least
+20 of your moves</strong>. The report joins uncapped saved candidate evidence to the
+actual move reviews, source/reached positions and saved analyses, and counts one
+trusted primary diagnosis per game/ply/code. Opponent moves and the five-retained-
+lesson cap do not enter these counts. Candidates use the existing &gt;150cp fast-pass
+threshold; absence outside that threshold is not measured. Unsupported, missing or
+incompletely joined candidate evidence excludes that game for that pattern, not a
+zero-occurrence denominator. A fully scored game with no threshold candidates can
+contribute zero occurrences.</p>
+<p>Qualifying comparisons show occurrences per <strong>100 owner moves</strong>, raw occurrence,
+game and move counts, and <strong>95% Wilson intervals</strong> on the same scale. Wilson assumes
+independent moves, while moves within games are correlated. This is descriptive
+association, <strong>not evidence that training caused a change</strong>, permanent mastery or
+improved chess strength. Mapped puzzle themes are related recognition practice.
+Otherwise the section says <strong>Not enough games</strong>, gives available counts and
+exclusion coverage, and leaves rates unavailable rather than zero. Its retry
+button reloads only this section; other Profile panels remain usable.</p>
+<p><strong>Download coach packet</strong> explicitly saves one local <code>scan64-coach-packet.zip</code> for
+a human coach. In the desktop app, choose a new <code>.zip</code> filename in the save dialog;
+existing files are not overwritten. The packet contains only <code>summary.md</code> and
+<code>evidence.pgn</code>, not a personal archive. The summary preserves this report's
+coverage, denominators, raw counts, insufficient-sample status, Wilson intervals
+and descriptive caveat. The PGN
+contains the exact trusted primary occurrences included in each pattern's
+before/after samples, including sparse samples; excluded games and patterns
+without a verified training anchor add no positions. A zero-occurrence sample
+needs no PGN entry. No analysis or remote upload is started.</p>
+<p>Open the PGN with a chess viewer supporting <strong>FEN / SetUp</strong> positions. Each entry
+starts at its full source position and shows only the recorded owner move,
+annotated with the trusted pattern, not generated advice. The summary's <strong>E</strong>
+references locate PGN entries; <strong>G</strong> references identify games within this packet,
+with source ply indices to distinguish positions. Original names, online links,
+game metadata and credentials are omitted. Sharing the ZIP deliberately exposes
+those chess positions, training times and pattern statistics. Save it only where
+you intend to share it. A failed download can be retried without leaving Profile.</p>
+<h2 id="daily-goals-and-tracked-pattern-evidence">Daily goals and tracked pattern evidence</h2>
+<p>Today and Profile show a <strong>daily qualifying-solve goal</strong>, default <strong>three</strong>, on the
+server's UTC calendar. <strong>Qualifying solves per day</strong> accepts a positive whole number;
+<strong>Save next-day goal</strong> schedules every edit for the next UTC day. Today's goal and
+past day goals do not change. Supply shows unplayed daily slots, eligible lesson
+retries and whether extra puzzle modes are available. This is not a promise that
+every retry will qualify: a prior attempt or repeated source can exclude it. Short
+or exhausted supply never silently lowers the goal, grants a solve or buys a streak.
+The panel refreshes at the server's UTC reset and when returning to a visible tab.
+Use <strong>Refresh habit record</strong> after practice to fetch current server evidence.</p>
+<p>A puzzle counts only after a terminal, server-unhinted success with its matching
+persisted attempt. A legal alternative checkmate on the final solution move counts
+too; earlier solution moves must still match. A lesson counts only when it is your
+visible, trusted,
+non-retired <code>persisted_opportunity</code>, the server grades the opportunity's <strong>first
+recorded attempt</strong> as successful, and that attempt reports zero hints. An earlier
+wrong or hinted attempt disqualifies a later retry for this goal, even if the retry
+is correct. Lesson hint usage is <strong>app-reported</strong>; lesson answers and hint data are
+available to the app. This is not server-proven independent lesson solving and
+cannot establish absence of external assistance. Existing hinted skill-credit
+rules are unchanged.</p>
+<p>The same puzzle or canonical source position (EPD, without move counters) counts
+at most once across modes in a UTC day. Replaying an already credited result does
+not create another credit. Wrong answers, starts, time spent, hint requests,
+foreign or exhausted sources, ungraded attempts, transfer practice and opening
+attempts do not qualify. A puzzle reserved yesterday but finished today counts
+on the <strong>server completion day's UTC date</strong>, not the slot date, browser date or PGN
+date. This habit record grants <strong>no mastery, puzzle-rating or other rating bonus</strong>.</p>
+<p>The calendar-day streak is separate from Puzzles' consecutive <strong>solve streak</strong>.
+Today stays <strong>in progress until the displayed UTC reset boundary</strong>, including after
+reaching its goal. A missed day breaks the calendar streak only after that day
+ends. Stored day goals, qualifying source keys and point-in-time trust-at-award
+snapshots make
+historical met days immutable. Later source withdrawal or retirement is annotated
+in the day history, but does not un-meet a day or break its historical streak.
+Ownership deletion is the exception: it removes that player's snapshots.
+Later review backfills do not rewrite a snapshot's original grading loss or create
+new historical credit.</p>
+<p>Habit evidence uses versioned policy <strong><code>habit-v1</code></strong> with a persisted effective timestamp (cutover). Results before cutover receive no retroactive credit. Player archives preserve policy/version/cutover, scheduled goals, daily source/trust snapshots, targets, practice/window references, invalidity reasons and awards. Each award keeps exactly five ordered game/analysis-job references with their server timestamps, plus any separate analysis barrier that released the award. Restore validates that saved evidence against the archive; it does not reconstruct a new window from today's game ordering. Lesson and pattern evidence may describe the position reached after the played move; restore checks its exact connection to the owned source move and stored analyses without rewriting the evidence or replaying rewards. Missing or inconsistent award evidence is rejected. Restore rejects repeated game, position, engine-analysis, analysis-job, lesson-opportunity, lesson-attempt and evidence IDs before writing, even without positive-move credits. Restore uses the archived cutover, not the destination's migration time, and never replays rewards or recalculates Elo. Keep both a player archive and a stopped-server database copy before migration or rollback; retain legitimate learning and rating history rather than trying to subtract habit rewards.</p>
+<h3 id="track-a-pattern-without-claiming-a-cure">Track a pattern without claiming a cure</h3>
+<p>On a qualifying recurring-pattern card, choose <strong>Track practice target</strong>. The server
+saves the pattern and tracking start; a different top-ranked pattern never switches
+that target. Previously tracked patterns remain visible with their saved support,
+coverage and position links. Tracking begins with <strong>three qualifying,
+first-recorded-attempt, same-code lesson successes at distinct source EPDs across
+at least two games</strong>, all after tracking starts. App-reported zero hints remain a
+limitation. Theme runs, Beta priors and related puzzle activity cannot substitute;
+too few eligible retries means <strong>insufficient evidence</strong>, not completion.</p>
+<p>After the third success, the window considers five subsequent games in server
+<code>Game.created_at</code>/id order. Only owned Scan64 play-session games with a known owner
+colour, terminal win/draw/loss result, completed analysis, every owner move scored,
+and at least <strong>20 owner moves</strong> qualify. Imported games and their self-reported PGN
+dates do not count. Any visible retained target diagnosis <strong>or uncapped non-retired
+ProfileObservation</strong> restarts the window; capped-out or verification-dropped
+diagnoses still reset it. An earlier owned active or nonterminal play session
+pauses the chronological scan, even before it reaches 20 owner moves; later
+completed games cannot silently replace it. The target identifies the unfinished
+game with <strong>Resume or resign this game</strong>. Finish or resign it, then let analysis
+complete; a completed game below 20 owner moves is excluded. The award
+is minted in the analysis-completion transaction that resolves the last required
+evidence, including an earlier pending game. If that game contains a recurrence,
+the window restarts after it and five already-analysed clean games can qualify in
+that same transaction. Incomplete or partially scored evidence never earns an
+award. A page read or refresh never mints it.</p>
+<p>The card says <strong>Pattern practice target met</strong>, separately from <strong>not observed in
+the last five eligible games</strong>. Inspect its practice count, game count, window
+coverage and saved evidence. The award's five-game evidence remains the same after
+export and restore. Absence is bounded by the chosen games and the
+<strong>&gt;150cp fast-pass diagnosis swing threshold</strong>; smaller or undetected errors can
+remain. It is not a permanent cure, cleared weakness, strength estimate, causal
+improvement result or mastery measurement.</p>
+<p>Reading Today/Profile only projects current evidence and invalidity; it does not
+persist invalidation, grade practice or mint awards. <strong>Refresh tracked evidence</strong>
+is an explicit authenticated write that saves any current invalidity reason; the
+next target write does so too. Withdrawn pattern evidence marks current status
+invalid, while the award remains labelled historical and met calendar days stay
+unchanged. These records belong to the player and are covered by owned
+export/restore/deletion; shared catalogs are not removed with a player.</p>
+<h2 id="use-coach-mode">Use coach mode</h2>
+<p>Coach mode is an explicit practice option, not an always-on analysis engine.</p>
+<ol>
+<li>Enable <strong>Coach Mode</strong> before starting a game.</li>
+<li>Make a clear tactical error, such as leaving a piece en prise.</li>
+<li>When the server completes an eligible diagnosis within interactive capacity, Scan64 returns an interruption with an owned lesson and study session.</li>
+<li>Complete the lesson on the board. The resulting attempt is verified and recorded exactly as for Daily Training.</li>
+</ol>
+<p>An arbitrary mistake does not guarantee an interruption. Ordinary play, independent calculation, and completed-game review do not use the coach interruption path.</p>
+<h3 id="optional-local-explanation-wording">Optional local explanation wording</h3>
+<p>In <strong>Settings → Local explanation wording</strong>, choose <strong>Detect local Ollama</strong>, select an installed local model, and confirm before enabling it. Scan64 does not download models or connect to a cloud provider from this setting. Detection lists the models at <code>127.0.0.1:11434</code> without sending chess evidence.</p>
+<p>Without a local model, or without a GPU that can run one, Scan64 uses its built-in template explanations. Nothing else changes.</p>
+<h4 id="the-recommended-narrator-model">The recommended narrator model</h4>
+<p>The recommended model is <strong>gemma-4-E4B-it at Q3_K_M</strong> (<code>scan64-narrator-gemma4-e4b-q3km:latest</code> in Ollama), chosen by the <a href="narrator-models.html#decision">narrator benchmark</a>. It needs about 3 GB of GPU memory (2.96–3.13 GiB measured at Scan64's 4,096-token context on an RTX 5090). Scan64 budgets 4 GiB, so a GPU with 6 GB or more usually has room. It does not run on the CPU. The download is 3.8 GiB. Its weights are licensed Apache-2.0 under the <a href="https://ai.google.dev/gemma/docs/gemma_4_license">Gemma 4 licence</a>; Scan64 does not ship them.</p>
+<p>Install it once, with <a href="https://ollama.com/download">Ollama</a> installed and running. From a source checkout:</p>
+<pre><code class="language-sh">uv run scan64-cli narrator install
+</code></pre>
+<p>The command checks that Ollama is installed and answers at <code>127.0.0.1:11434</code>, and that an NVIDIA GPU has 4 GiB free (it reads <code>nvidia-smi</code>). It then downloads the pinned file, checks its SHA-256, and registers it with <code>ollama create</code>. If a check fails, it says what to do and installs nothing. On a GPU that <code>nvidia-smi</code> can't read (Apple silicon, AMD), add <code>--skip-gpu-check</code> once you have checked that 4 GiB is free. <code>--dir</code> chooses the download folder (default <code>$SCAN64_DATA_DIR/narrator</code>, else <code>data/narrator</code>); <code>--keep-gguf</code> keeps the file after Ollama has copied it.</p>
+<p>Without a source checkout (the desktop app), do the same steps by hand:</p>
+<ol>
+<li>Download <code>gemma-4-E4B-it-Q3_K_M.gguf</code> from <a href="https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/bfc15c382204943c3a8fff0c750b94ae2364d7a3/gemma-4-E4B-it-Q3_K_M.gguf">https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/bfc15c382204943c3a8fff0c750b94ae2364d7a3/gemma-4-E4B-it-Q3_K_M.gguf</a>.</li>
+<li>Check that its SHA-256 is <code>0980898d0e7d9c75cea05141bf4010393312101ef6cf5b31f8197e0de18655f4</code>: <code>sha256sum</code> on Linux, <code>shasum -a 256</code> on macOS, <code>Get-FileHash</code> in Windows PowerShell. Delete the file if it differs.</li>
+<li>In the same folder, save the <a href="https://github.com/Mathews-Tom/Scan64/blob/main/benchmarks/narrator/modelfiles/gemma4-e4b-q3km.Modelfile">Modelfile</a> as <code>narrator.Modelfile</code>, with <code>@GGUF@</code> replaced by <code>./gemma-4-E4B-it-Q3_K_M.gguf</code>, <code>@NUM_CTX@</code> by <code>4096</code> and <code>@NUM_PREDICT@</code> by <code>2048</code>.</li>
+<li>Run <code>ollama create scan64-narrator-gemma4-e4b-q3km -f narrator.Modelfile</code> in that folder.</li>
+</ol>
+<p>Then choose <strong>Detect local Ollama</strong>. Settings preselects the recommended model when it is installed, unless you already enabled another model; your saved choice stays until you change it. The model words engine facts only: Scan64 turns its thinking mode off (<code>think: false</code>) on every request. The model was measured with Ollama 0.40.18. If <code>ollama create</code> fails on an older Ollama, update Ollama and try again.</p>
+<p>When enabled, Scan64 sends evidence for new analysis and Coach explanations to the selected local service. Ollama is a separate process and can log or forward that evidence. Enable this setting only if you trust the service. Scan64 checks generated claims against their evidence references and verified lines, and checks every move, square, piece, evaluation and material statement in the wording against the engine evidence and the board; one unsupported statement rejects the whole generation. Missing, slow or rejected results use the built-in wording. Coach mode keeps its short response budget, so a cold or slow model falls back without delaying the move beyond that budget.</p>
+<p>Before you enable local wording, you can choose a <strong>Narrator voice</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Voice</th>
+<th>Tone</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Coach (default)</td>
+<td>calm and encouraging</td>
+</tr>
+<tr>
+<td>Terse</td>
+<td>few words, no filler</td>
+</tr>
+<tr>
+<td>Playful</td>
+<td>light and cheerful</td>
+</tr>
+</tbody>
+</table>
+<p>The voice changes only the tone of the words around the engine facts. Every move, evaluation and other chess fact still comes from the engine, and the same checks apply to every voice. To change the voice, detect local Ollama again, choose the voice, and enable local wording again. An operator sets the voice with <code>voice</code> in the <code>[llm]</code> table of the configuration file.</p>
+<p>Disabling prevents new evidence requests from being dispatched; requests already dispatched cannot be recalled, and saved explanations do not change. The choice belongs to the current player on this installation. Resetting learning keeps it, exporting/restoring an account does not transfer it, and deleting the account removes it. In an operator-run installation with explicit explanation configuration, the operator's choice takes precedence.</p>
+<h2 id="import-a-puzzle-catalog">Import a puzzle catalog</h2>
+<p>An operator must import puzzles before players can practise them. Nothing downloads at startup.
+Use the application's database environment (<code>SCAN64_DATABASE_URL</code>) for these commands:</p>
+<pre><code class="language-sh">uv run scan64-cli puzzles import /path/to/lichess_db_puzzle.csv.zst --json
+# Or explicitly download the complete database, then import it:
+uv run scan64-cli puzzles import --download --json
+# In an already running local Docker container:
+docker exec &lt;container&gt; scan64-cli puzzles import --download --json
+</code></pre>
+<p>In the desktop app, choose <strong>Download puzzles</strong> in Puzzles or <strong>Settings → Puzzle library</strong>.
+It downloads the complete Lichess CC0 database (roughly 310 MB, changing over time)
+and retains up to 50,000 puzzles with the default filters below. The four phases
+are <strong>Download → Read → Import → Save</strong>, with byte/row counts, percentage when a
+total is known, and download speed/time remaining. A server without a length
+shows bytes and speed rather than a made-up percentage.</p>
+<p><strong>Choose a file…</strong> instead opens a native picker for a local <code>.csv.zst</code> file;
+keep it compressed. One job runs at a time. The sidebar shows its status when
+you leave the screen. Cancel, quit or failure leaves the catalog unchanged and
+removes temporary downloads. Success deletes the downloaded file and offers
+<strong>Start puzzles</strong>. A selected local file is never deleted. There are no app filter
+controls. Browser/container users keep using the CLI commands above; the
+desktop import endpoints are not exposed there.</p>
+<p>Import progress is pushed from the server and remains visible in the sidebar across navigation. A disconnected stream or too many concurrent listeners does not stop the import. While an import is running or cancelling, select <strong>Reconnect to import progress</strong> after a stream error to see the latest state without starting another import or sending another cancellation. Reloading also reads the current job state.</p>
+<p><code>--download</code> saves the <strong>entire</strong> compressed Lichess CC0 database before importing any rows. Its size changes over time; this is not a small filtered download. Allow space for
+the complete file and a temporary replacement when downloading again. Interrupted downloads
+do not replace a previously saved file. The default destination is
+<code>lichess_db_puzzle.csv.zst</code> beside the SQLite database (or <code>./data</code> for other databases);
+<code>SCAN64_DATA_DIR</code> or <code>--data-dir /path</code> overrides that directory. <code>--output filename.csv.zst</code>
+changes the name (an absolute path overrides the directory), and <code>--url URL</code> changes the
+download source. Download-only options cannot be combined with a local input path.</p>
+<p>Progress goes to stderr, so <code>--json</code> output on stdout stays one JSON document. On a terminal one line per phase updates in place: connecting, downloading (MB done of the total, percent, speed and time left; only MB and speed when the server sends no length), reading a local file, and importing (puzzles kept of the limit and rows read). When stderr is piped or redirected, plain lines appear at most once every five seconds. <code>--quiet</code> turns progress off. Ctrl-C stops the command and removes the partial download.</p>
+<p>Import streams CSV by header through the pinned BSD-licensed <code>zstandard</code> library; it does not
+load the whole dataset into memory. Defaults select the first <strong>50,000 qualifying unique
+puzzles in file order</strong>: rating <strong>600–1800 inclusive</strong>, rating deviation <strong>≤100</strong>,
+popularity <strong>≥80</strong>, and plays <strong>≥100</strong>. Explicit overrides are <code>--limit</code>, <code>--min-rating</code>,
+<code>--max-rating</code>, <code>--max-rating-deviation</code>, <code>--min-popularity</code>, and <code>--min-plays</code>.
+An underfilled import reports its actual count and never relaxes these filters.</p>
+<p>The text summary (or <code>--json</code>) includes filters, rows read, accepted/inserted/existing counts,
+<code>metadata_changed</code>, and skipped counts by reason. It also records the complete compressed
+file's own SHA256, byte size, local path, source URL and HTTP ETag/Last-Modified when supplied.
+For a local file the unavailable URL/HTTP fields are explicitly null. The operator-computed
+checksum supports reproducibility; it is <strong>not upstream authentication</strong>.</p>
+<p>Reimport the saved file with the same filters to leave the catalog unchanged: qualifying
+already-present puzzles count toward the cap, so reruns do not append another 50,000.
+Duplicate ids do not consume the cap. Identity is PuzzleId plus the original FEN and complete
+UCI Moves (including the opponent's setup); changed FEN/Moves are skipped as conflicts.
+Changed rating/themes and other metadata are refreshed and counted as <code>metadata_changed</code>,
+without replacing the immutable lesson, original provenance, import order or player runs.
+The first UCI move is applied as setup; the remaining legal continuation becomes a
+source-verified external lesson, not an engine diagnosis or a theme-mastery update.</p>
+<h2 id="practise-imported-puzzles">Practise imported puzzles</h2>
+<p>Open <strong>Puzzles</strong> after the operator imports a catalog into the running application's
+database using the commands above. First-time players use the same display-name
+onboarding as other screens. An empty or exhausted catalog shows the server's message
+and an explicit local import command; the screen never downloads a catalog.</p>
+<p>The board starts after the opponent's setup move, with your solving side facing you.
+Play the complete source continuation, including choosing the exact promotion piece; a legal alternative checkmate is also accepted on the final solution move.
+After each accepted move the server plays the next opponent move automatically. A legal move outside the source continuation stays on the board, with marked squares and <strong>Try again</strong> to return to the puzzle position. A different source move is not necessarily a bad chess move. There are <strong>three wrong submissions total per scored run</strong>, not three per turn; only the server changes this count.</p>
+<p><strong>Show hint</strong> reveals the next of three levels without spending a wrong attempt.
+Previously requested hints remain visible for that turn, including after reload.
+The third hint may disclose the source move and remaining line. Hints reset on the
+next solving turn. These hints come from the imported puzzle, not the live game's
+engine-hint endpoint.</p>
+<p><strong>Explain this move</strong> analyzes the attempted move and offers legal step-through replies with board annotations. The engine can identify a mistake, a playable alternative or an inconclusive result. During an active scored round, requesting the full explanation counts as assistance, like the final hint. Engine unavailability is reported explicitly rather than replaced with an invented explanation.</p>
+<p>Reloading or returning to Puzzles resumes the active server-owned run, including across UTC midnight; no solution line or progress is saved in browser storage. Solved rounds show <strong>Puzzle solved</strong> beside the final board. After solving or using all three scored attempts, choose <strong>Review solution</strong>, <strong>Retry unscored</strong> for unlimited local retries, or <strong>Next puzzle</strong>. Review and unscored retries do not change the recorded rating, streak or mastery result.
+<strong>Abandon puzzle</strong> ends the run without a content attempt. For Daily it closes
+the slot and loses rating when it is a rated first exposure; other modes are unrated.</p>
+<p>If another tab changes the run, the screen loads the conflict response's current
+state without replaying your action. Other request failures do not spend attempts
+locally: choose <strong>Retry</strong> to reload canonical state before acting again. Puzzle
+mutations require a connection; they are not queued for offline submission.</p>
+<h3 id="daily-selection-and-separate-puzzle-rating">Daily selection and separate puzzle rating</h3>
+<p>Today shows your separate Scan64 puzzle rating, provisional status, daily progress
+and overdue review count without starting a run. Puzzles shows the server's reason
+and selection range. A stable set contains at most <strong>10 puzzles per UTC day</strong>,
+targeting <strong>4 due reviews, 5 related to weaknesses and 1 exploration</strong>. Available
+candidates can change the actual mix or leave a short set; the server reports it.
+New puzzles start within ±200 of your puzzle rating, explicitly widening to ±400
+and then the catalog when necessary. Refresh, Start and Next cannot regenerate
+the set, skip an active run or duplicate slots. Complete days reset at UTC midnight;
+an existing active run always resumes before current-day practice.</p>
+<p>The rating starts at <strong>1200</strong>, with <strong>K=32</strong>, and remains provisional until <strong>20
+rated puzzles</strong>. For player rating R and the item's rating snapshotted when the
+daily set is created: <code>E = 1 / (1 + 10^((item_rating - R) / 400))</code>, then
+<code>R' = R + 32 * (S - E)</code>. Precision is stored; only display is rounded.
+First exposure is committed when its daily-slot run starts. Completing it without
+any requested hints gives S=1; hinted completion, failure or abandonment gives
+S=0. Wrong moves are allowed within the three-submission limit. Hints do not spend
+wrong attempts, but prevent an independent rated win even after changing turns.
+Due reviews, repeated puzzles and pre-existing legacy runs are unrated; historical
+practice is not replayed into the rating.</p>
+<p>Daily failed or assisted completions schedule spaced reviews. Independently solving a
+Daily review retires it; independent first solves do not enter the review queue.
+Abandonment, legacy runs and mode runs do not schedule reviews. Theme relationships are
+versioned heuristics (<code>puzzle-theme-heuristic-v1</code>), not diagnoses or mastery;
+the reverse hangingPiece relationship is not measured prevention of hanging pieces.
+Unknown themes can still appear in reviews or exploration.</p>
+<p>Imported Lichess CC0 puzzles are <strong>source verified</strong>: their continuation is legal,
+not engine recognition of move quality. The <code>puzzle-elo-v1</code> practice rating is
+not chess/FIDE strength or evidence of improvement and never changes playing
+strength priors or theme mastery.</p>
+<h3 id="theme-your-mistakes-and-solve-streak">Theme, Your mistakes and Solve streak</h3>
+<p>Opening Puzzles resumes an active run, but never starts a new rated Daily puzzle
+automatically. Choose a mode beside <strong>Daily</strong>, then <strong>Start</strong>. Finish or abandon
+any active puzzle before switching; reload resumes it first. <strong>Theme</strong> uses the
+catalog's actual source tags.
+Theme and <strong>Solve streak</strong> choose unseen, never-attempted puzzles nearest your current
+puzzle rating, widening from ±200 to ±400 and then the catalog, without difficulty
+escalation. The app reports when eligible supply is exhausted. Starting either mode
+first reserves today's Daily set and excludes its unclosed puzzles; it never rerolls
+Daily membership.</p>
+<p>These mode runs are <strong>unrated</strong> and never create, update or retire spaced reviews.
+Solves and failures still record ordinary content attempts. A puzzle used in a mode
+permanently stops being a rated first exposure or an unseen weakness/exploration
+candidate. This consumes future Daily supply and can cause earlier widening or a
+shorter Daily set. Today's reservations protect only today's unclosed slots.</p>
+<p><strong>Solve streak</strong> is untimed. Only finished runs started in that mode count: an
+unhinted solve adds one, while a hinted solve, failure or abandonment resets it.
+Wrong submissions within the three-attempt run budget are allowed. Daily and Theme
+neither add nor reset. Current/best and the last reset reason are derived from saved
+finished runs, so reloads and repeated submissions cannot mint streak progress.</p>
+<p><strong>Your mistakes</strong> lists eligible owned, trusted, non-retired game lessons in pages,
+with source game/ply and remaining lifetime attempts. Excluded lessons appear only
+as reason counts, never hidden diagnosis text. <strong>Start mistake at ply N</strong> rechecks eligibility
+and stored analysis and opens the existing lesson retry. It reuses the lifetime
+attempt budget, hints and assisted-credit rules; it does not copy a catalog puzzle.
+Lesson hints remain app-reported assistance, not externally verifiable proof that
+no help was used.</p>
+<p>Operators must back up player rating, daily membership, mode/theme bindings, progress
+and the historical rating-event ledger together before migrations, restore or deletion. Use the
+reviewed deletion dry-run, rollback and audit workflow; retain a recoverable backup
+before destructive changes. Restore preserves awards rather than reapplying them.
+A rollback must restore a matching database/schema backup, not silently recompute
+historical awards under new policy or refreshed catalog ratings.</p>
+<h2 id="review-games-and-content">Review games and content</h2>
+<ul>
+<li><strong>Review</strong> (Your Games) lists player-owned played and imported games. Every game has an analysis deep link.</li>
+<li><strong>Review → Analysis Board</strong> distinguishes a game that has not been analysed, an analysis in progress or failed, and an analysed game with per-move review. A move can have a review score without a trusted lesson.</li>
+<li><strong>Library → Opening Explorer</strong> supplies opening-family missions and your <a href="#practise-a-repertoire">saved repertoires</a>.</li>
+<li><strong>Library → Famous Games</strong> provides guided historical-game study. Recording a prediction requires the studying player's bearer token; another player cannot submit attempts or change that player's skills.</li>
+<li><strong>Library → Community lesson packs</strong> installs a local JSON file and verifies lessons before play. See <a href="lesson-packs.html">the format, provenance and verification guide</a>. Pack play never changes progress, schedules, skills or diagnosis. Exported player archives exclude packs: keep the original file to reinstall and verify after restore.</li>
+<li><strong>Coach</strong> opens the Coach workspace (its pattern ledger) with linked-student information for coach identities with relationships.</li>
+</ul>
+<h3 id="practise-a-repertoire">Practise a repertoire</h3>
+<p>In <strong>Library → Opening Explorer → My repertoires</strong>, paste a standard-chess <strong>Repertoire PGN</strong> or choose a PGN file, then select <strong>Import repertoire</strong>. Select a saved repertoire to browse its variations. Choose <strong>Practise this position</strong> or <strong>Practise next due</strong> and answer for the side to move. Coverage counts decisions reviewed at least once; due includes unreviewed decisions. Playing a saved continuation advances its review schedule; a legal move outside the saved continuations schedules it for review again.</p>
+<p>With a repertoire selected, choose <strong>Compare imported games</strong> to rank first departures from its saved lines. The report identifies whose move departed. Open a linked drill to practise the saved decision immediately before the departure.</p>
+<h3 id="free-analysis-and-variations">Free analysis and variations</h3>
+<p>Open <strong>Review → Analysis Board</strong> without selecting an owned game to study a position freely. Enter moves on the board or with <strong>Move (UCI or SAN)</strong>. The engine evaluates the current selected position and shows up to three legal continuations. Scores are always from White's perspective: positive favours White, negative favours Black, and <strong>M</strong> indicates mate. Select any move in an engine line to play the entire prefix through that move, not just its final move.</p>
+<p>Use <strong>First</strong>, <strong>Previous</strong>, <strong>Next</strong>, <strong>Last</strong>, the board move list or <strong>Variations</strong> to revisit positions. Making a different move keeps the old continuation as a sibling variation; making the same move revisits its existing node. The first continuation remains the main line. <strong>Download PGN</strong> exports the whole tree, including recursive variations and a custom starting FEN when needed. <strong>Copy FEN</strong> and <strong>Play from here</strong> use the selected position.</p>
+<p><strong>Load FEN</strong> validates the candidate on the server before replacing the tree; the existing board stays usable in the meantime. A valid position starts a new tree, even if its engine evaluation is busy. An invalid FEN, authorization error or network failure leaves the tree intact. Moving or selecting another position cancels a pending load. Analysis runs in a bounded server search, and the board stays usable while it is evaluating. If the engine is busy or unavailable, select <strong>Retry</strong> manually; there is no automatic retry loop. Ended positions have no legal continuation. Free analysis does not record live-game hint assistance or award learning progress. Owned-game review and puzzle replay remain read-only.</p>
+<h4 id="position-health">Position health</h4>
+<p>The <strong>Position health</strong> panel shows how the selected position stands on eight evaluation factors, one meter each for both sides, with an overall meter above them. It is on by default; turn it off under <strong>Settings → Chessboard → Position health panel</strong>, and the choice persists. On the Analysis Board the columns are White and Black. In game review they are You and Opponent, for the side you played (White and Black when your side is unknown).</p>
+<p>Every meter compares the two sides: it reads this side's value of its factor minus the opponent's, so a factor both sides hold equally (for example material after even exchanges) reads the same for both.</p>
+<table>
+<thead>
+<tr>
+<th>Meter</th>
+<th>What it compares</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>overall</td>
+<td>the factor evaluation's total without the side-to-move bonus: every factor below plus material imbalance and endgame scaling, weighed as Stockfish's classical evaluation weighs them</td>
+</tr>
+<tr>
+<td>king safety</td>
+<td>pawn shelter, pawn storm and the attack on each king</td>
+</tr>
+<tr>
+<td>material</td>
+<td>piece values and piece placement on their squares</td>
+</tr>
+<tr>
+<td>threats</td>
+<td>threats each side's pieces make against the other's</td>
+</tr>
+<tr>
+<td>piece placement</td>
+<td>outposts, rooks on open files, trapped rooks, bishops and pawns on the same colour, king protectors</td>
+</tr>
+<tr>
+<td>mobility</td>
+<td>squares each piece can safely reach</td>
+</tr>
+<tr>
+<td>pawn structure</td>
+<td>isolated, doubled, backward and connected pawns</td>
+</tr>
+<tr>
+<td>passed pawns</td>
+<td>passed pawns, their rank, file and blockade</td>
+</tr>
+<tr>
+<td>space</td>
+<td>safe squares behind the pawn chain in the centre (middlegame only)</td>
+</tr>
+</tbody>
+</table>
+<p><img alt="Position health panel, light theme" src="media/position-health-light-1280.png"> <img alt="Position health panel, dark theme" src="media/position-health-dark-1280.png"></p>
+<p>Each meter shows its health three ways: how many of its 12 segments are lit, a word (<strong>good</strong>, <strong>fair</strong> or <strong>low</strong>) and a colour from green to amber to red. A ▲ or ▼ marks a meter that rose or fell by at least 0.05 since the previous position. Screen readers read each meter as, for example, "You king safety: low, falling". While the next position loads, the last reading stays on screen, and "Updating" appears beside the heading if the reply takes longer than 200 ms. When the game is over (checkmate, stalemate, insufficient material or the 75-move rule) the panel says so instead of showing meters: the factors score the pieces left, not the result. A draw that is only claimable (fifty moves, threefold repetition) leaves the meters on, and so does a game that ended by fivefold repetition: repetition is not visible from a single position. <strong>Show details</strong> lists each meter's largest nonzero terms, this side's value minus the opponent's, in pawns; for the overall meter, the factors. A meter with no nonzero term says so.</p>
+<p>The panel uses Scan64's factor module, a port of the Stockfish Evaluation Guide (Stockfish's classical, hand-written evaluation). It runs no engine search and calls no language model, so it reads the same whichever engine is configured and with no model set up, and it can differ from the engine's score above it. A position is evaluated in about 3 ms.</p>
+<p>Each meter maps its value, in pawns from that side's view, to a health between 0 and 1, linear from the value at which it reads empty to the value at which it reads full. Those bounds are fitted on recorded positions (<code>HEALTH_SCALE</code> in <code>src/scan64/explanations/factor_facts.py</code>; method and table in <code>docs/evaluation/factor-calibration.md</code>, section "Health scale"). A health of at least 2/3 reads <strong>good</strong>, below 1/3 <strong>low</strong>. Level positions do not read full on every meter: in the starting position several meters read <strong>fair</strong>, because a side reads full only when it is ahead on that factor. The API is <code>POST /v1/analysis/position/health</code> with <code>fen</code>, <code>learner</code> (<code>white</code> or <code>black</code>) and optional <code>previous_fen</code> for the trend.</p>
+<h4 id="explain-the-engine-lines">Explain the engine lines</h4>
+<p>Below the engine lines, select <strong>Explain lines</strong> to have the current position's top three engine lines explained. The explanation lists, for each line, its full principal variation, the engine's score for the side to move and the depth it reached, what the line wins or loses in material, its checks, whether it ends in checkmate or stalemate, and what its first move attacks; it then compares each line with line 1 (for example "Line 2 (1.Nf3) scores 0.06 pawns less than line 1 for the side to move"). The engine and the board library decide every one of these facts. The lines shown are replaced by exactly the lines explained.</p>
+<p>Each claim names its line. Hover over or focus a claim to highlight the moves of that line it cites; select the claim to keep the highlight, and select it again to clear it. Moving or selecting another position discards the explanation.</p>
+<p>Without a model, Scan64 writes the explanation from a fixed template. If local explanation wording is enabled (see <strong>Optional local explanation wording</strong>) or an operator configured a model, the model words the same facts, and its wording is shown only when every claim passes the same checks as lesson explanations and is linked to a line; otherwise the template is shown. The panel states which wording you see. A model explanation can take tens of seconds; the board stays usable while it runs. Moving to another position discards the running explanation, and the new position shows no explanation until you select <strong>Explain lines</strong> again. Scan64 runs one model explanation at a time for each player: selecting <strong>Explain lines</strong> again stops the model's work on the previous request, and that request, for example in another tab, returns an error saying a newer request replaced it. The explanation uses the same bounded search as the engine lines, so a busy engine returns an error and <strong>Explain lines</strong> can be selected again.</p>
+<p>The API is <code>POST /v1/analysis/position/explanation</code> with <code>player_id</code>, <code>fen</code> and optional <code>multipv</code> (1 up to the hint MultiPV, default 3), <code>nodes</code> (up to the hint node budget) and <code>depth</code>; a larger budget is rejected with 422, an ended position with 409. Explanations cover standard chess only: a request with any other <code>variant</code> is rejected with 422.</p>
+<h3 id="chess-variants-on-the-analysis-board">Chess variants on the Analysis Board</h3>
+<p>Pick a <strong>Variant</strong> above the Analysis Board (crazyhouse, three-check, atomic, antichess, king of the hill, horde or racing kings) and select <strong>Open … board</strong>. The Standard board keeps its moves while a variant board is open; a variant board starts from the variant's start position each time it is opened. The server applies the variant's rules: the board offers only its legal moves, shows whose move it is, check, and how the game ended. Crazyhouse shows each side's <strong>Pieces in hand</strong>: select a piece, then a square, to drop it, or type the drop as UCI (<code>N@f3</code>). Three-check shows how many checks each side still needs. Enter moves on the board or with <strong>Move (UCI)</strong>; a move from an earlier position replaces the moves after it. While the next position loads, the board takes no move. <strong>Read board position</strong> lists every occupied square and <strong>Legal moves and notation help</strong> lists the legal moves in UCI, drops included, so the board can be used without seeing it.</p>
+<p>Engine lines need an engine that plays the variant, such as Fairy-Stockfish (see <code>docs/engines.md</code>, "Chess variants"). With another engine the board still works and the engine panel names the problem. Explanations, diagnosis, lessons, puzzles and bot play cover standard chess only. An imported variant game is saved to Your Games, labelled with its variant and "not analysed".</p>
+<h3 id="move-by-move-game-review">Move-by-move game review</h3>
+<p>The board, every-ply move list, White-perspective probability graph and key-moment markers share one selection. <strong>Initial position</strong>, <strong>First</strong>, <strong>Previous</strong>, <strong>Next</strong> and <strong>Last</strong> include the starting and final positions, even when they have no lesson. <strong>Play from here</strong> starts a new game from the selected position; <strong>Copy FEN</strong> and <strong>Download PGN</strong> export the selected position or replay. The graph always shows White's win probability, even when you played Black. Missing scores appear as gaps and hollow points, not 50% or zero loss.</p>
+<p>Scan64 scores only your stored owner-colour moves. Let <code>p_before</code> and <code>p_after</code> be the fast-pass win probabilities for the side to move before and after your move. The side to move switches, so your loss is:</p>
+<p><code>L = clamp(p_before - (1 - p_after), 0, 1)</code></p>
+<p>The Scan64 bands are <strong>Sound</strong> for <code>L ≤ 0.08</code>, <strong>Inaccuracy</strong> for <code>0.08 &lt; L ≤ 0.15</code>, <strong>Mistake</strong> for <code>0.15 &lt; L ≤ 0.30</code>, and <strong>Blunder</strong> above <code>0.30</code>. Missing either score makes an owner move <strong>Unscored</strong>, not sound. Opponent moves are labelled separately and never enter your accuracy.</p>
+<p><strong>Scan64 accuracy</strong> is <code>100 * (1 - mean(L))</code> over scored owner moves only. It is unavailable when no owner move is scored. Read it beside <strong>Coverage</strong> (scored owner moves / all owner moves) and the Sound, Inaccuracy, Mistake, Blunder and Unscored counts; these counts cover your moves, not your opponent's. Older games with unknown owner colour remain explicit: no inferred colour, owner bands, accuracy or learning attribution.</p>
+<p>These are coarse <strong>10,000-node fast-pass</strong> estimates, not Elo estimates, Lichess accuracy, or a validated measure of improvement. Deeper lesson searches do not replace the fast-pass accuracy inputs. Exact checkmate and automatic draw outcomes can appear at the final position; a resignation or claimable draw does not replace the engine score with an exact result.</p>
+<p>For an older completed analysis without move-review rows, select <strong>Backfill review scores</strong> explicitly. Merely opening the review never searches the engine. Backfill runs one same-budget review-only pass and writes only review rows and position/analysis provenance: no extra learning writes to evidence, diagnoses, observations, lessons or skill state. The subsequent review read may reverify lessons from stored analysis and create an owned retry study session, without an engine search or new lessons.</p>
+<p>Up to three key moments explain one trusted cause each, rather than diagnosing every scored error. <strong>Retry this moment</strong> restores the position before that move and uses the same lesson attempt endpoint and three-step hint ladder as Daily Training. The displayed attempts used/remaining are lifetime counts shared with training; reopening a retry does not reset them. Hinted success keeps half credit. Exhausted moments show the explanation and accepted moves, with no further retry.</p>
+<p><strong>Key good moments</strong> separately highlights up to three owner moves with a pure,
+legally replayed stored tactical proof, ranked mate first, then material gain and
+ply. Imported games qualify. Selecting a highlight loads the actual position
+after that move; the existing mistake lessons and retries remain unchanged.
+Highlights are display-only: no engine search, skill award, assistance claim or
+credit-cap change is made.</p>
+<p>A confirmed move allowing mate is never relabelled as a hanging piece, missed direct material threat or missed capture. If <strong>Allowed checkmate</strong> has not cleared its measured trust gate, that move remains scored but the trusted diagnosis pipeline abstains. If it is trusted and selected, its explanation shows the legally replayed engine mating line and its lesson starts before the mistake. Ignoring an avoidable existing mate threat qualifies; playing on when mate was already forced does not.</p>
+<h3 id="convert-the-win">Convert the win</h3>
+<p>Select a winning position in an owned game's review, choose a conversion bot level and select <strong>Convert the win</strong>. Eligibility uses that exact position's stored analysis: at least +300 centipawns from your colour's perspective or a winning mate score, with a legal principal-variation move. A good-moment highlight alone does not qualify. Terminal, unscored and foreign positions cannot start conversion practice. Your original game stays unchanged; the new game preserves the selected FEN, side to move and your owner colour.</p>
+<p>Completion displays the server-recorded win, draw or loss and the next FSRS review date. A verified win records <strong>Good</strong>; a draw, loss or resignation records <strong>Again</strong>. Sparring does not collect solve time or hints, so those inputs remain unknown and cannot earn Easy. Retry the same source against the selected bot until converted. Each attempt records a fresh bot seed, although forced replies can remain identical. Restored attempts and observations remain historical and do not replay a review; a new verified completion schedules its own result. These custom-position games do not earn ordinary full-game strength credit.</p>
+<p>The review retains the latest result and review date after restart and can resume an unfinished attempt. Imported attempts are explicitly historical, including unfinished attempts that are played to completion after restoration: they never become verified outcomes, create review observations or change the review schedule. Start a new conversion from the source for a verified result. Ordinary continuation from an active conversion creates a separate game, leaving that conversion's board, side and player colour unchanged. Resetting progress clears conversion attempts and schedules while retaining the saved source games, reviews and play sessions; finishing a pre-reset session does not recreate deleted learning.</p>
+<h3 id="profile-game-insights">Profile game insights</h3>
+<p>Profile pools the same probability losses across your moves, rather than averaging
+game percentages. Overall, phase, colour and curated opening-family figures each
+show scored / eligible owner-move coverage. Unclassified openings are explicit;
+unknown owner colours are excluded. No scored moves means <strong>Unavailable</strong>, not 0%.
+Phase uses the position before the move: the first ten full moves are opening;
+after that combined non-pawn, non-king material ≤26 means endgame (Q=9, R=5,
+B=N=3), otherwise middlegame.</p>
+<p>Time-pressure share is owner moves with a recorded post-move clock ≤30 seconds /
+owner moves with a valid clock. Its separate clock coverage is valid-clock /
+eligible owner moves in supported real-time TimeControl games (each stage under
+24 hours; correspondence, unknown and unlimited controls are excluded).
+Stored PGN clocks count only when its initial position and complete mainline
+match the game. Clockless or mismatched data is unavailable, never fabricated
+zero pressure. Profile reads launch no engines and write no learning records.</p>
+<h2 id="transfer-measurement">Transfer measurement</h2>
+<p>When an active skill reaches the implemented mastery threshold, Scan64 can assign a separate transfer exercise from its production transfer catalog. A later training session presents it as a required lesson, and its result appears in the player transfer report.</p>
+<p>This measures the product's transfer signal. It does not prove Scan64 improves over-the-board chess performance; that requires real learner studies.</p>
+<h2 id="data-and-privacy">Data and privacy</h2>
+<p>Puzzle downloads contact Lichess only after <strong>Download puzzles</strong> is selected. The host receives normal connection information such as your IP address; Scan64 does not send games, player tokens or progress. The desktop app checks GitHub Releases for updates ten seconds after launch and every 24 hours; that request carries only normal connection information. Browser and container installs never check for updates.</p>
+<p>In <strong>Review → Import games</strong> (also <strong>Library → Import games</strong>, or the button on an empty Review screen), choose <strong>Lichess</strong> or <strong>Chess.com</strong>, enter the public username and a whole-number count from 1 to 50, then select <strong>Import online games</strong>. Scan64 reports new, duplicate and skipped games; <strong>Review</strong> opens each new owned game with analysis already queued. Up to four games are analysed at a time, and the rest wait their turn while the app stays usable; repeated analysis requests for one game wait without delaying other games. Repeating an import does not add duplicate games. PGN paste and its manual side selection remain available below.</p>
+<p>Online game import contacts only <code>https://lichess.org/api/games/user/{username}</code> or <code>https://api.chess.com/pub/player/{username}/games/…</code>, server-side and <strong>only on explicit online form submission</strong>. Opening Import, typing, changing the source or fetching the local player profile does not contact these hosts. The local API receives your selected source, public username and requested count; the selected host receives that username and public-game requests (with the count used to bound retrieval), plus normal connection information such as your IP address. Your Scan64 player token, progress and local games are not sent upstream. Only standard public games are imported: no OAuth, private games or background sync.</p>
+<p>The desktop app does not use system proxies or custom certificate authorities; its server clears those environment settings and verifies TLS using the supported default trust configuration. Networks requiring a system proxy or custom CA may therefore prevent online imports.</p>
+<p><a href="#optional-local-explanation-wording">Optional local wording</a> is off by default. Detecting Ollama sends no chess evidence. Enabling it lets the selected local service receive evidence for new explanations. The service runs separately and can log or forward what it receives.</p>
+<p><strong>Settings → Send feedback</strong> drafts a GitHub issue; Scan64 itself sends nothing.</p>
+<ul>
+<li><strong>Drafting:</strong> choose a type, enter a summary and optional details, and read the exact preview. The optional version line names your operating system family and whether you use the desktop app or a browser; in the desktop app it also names the Scan64 version. Untick it to leave it out.</li>
+<li><strong>Opening:</strong> <strong>Open GitHub issue</strong> opens <code>https://github.com/Mathews-Tom/Scan64/issues/new</code> in your system browser with that text prefilled. The form accepts plain text only: a summary of up to 100 characters and details of up to 1,500. Text in non-Latin scripts takes more room in the link, so very long details may need shortening. Opening the form sends the drafted text to GitHub inside the link; nothing is published until you submit the form there.</li>
+<li><strong>Submitting:</strong> this needs a GitHub account and makes the issue public. No games, player data, logs or tokens are attached; only what you type and the optional version line.</li>
+</ul>
+<p>All player-reachable game, play-session, position, analysis-job, and lesson-attempt paths are bearer-token owner-authorized. Missing, malformed, ownerless, and non-owned resources use the same not-found response.</p>
+<p>The API supports player-scoped export, import, and deletion. Treat deletion as destructive. Use a disposable player and database before testing it.</p>
+<p>The generated API reference at <code>http://127.0.0.1:8001/docs</code> documents browser/source request and response schemas; <code>/openapi.json</code> is the machine-readable contract. Substitute your chosen browser-server port. The desktop server additionally requires its private per-launch shell token, which must not be copied into logs or shared.</p>
+<h2 id="manual-acceptance-walkthrough">Manual acceptance walkthrough</h2>
+<ol>
+<li>Start Scan64 with a disposable database.</li>
+<li>Create a player and play <code>e2</code> to <code>e4</code>; confirm the opponent reply arrives.</li>
+<li>Navigate to <strong>Review</strong> and back; confirm the active session resumes.</li>
+<li>Resign; confirm the game becomes visible in history and completes analysis.</li>
+<li>Import the hanging-queen PGN above, analyse it, and confirm a diagnosis marker and engine evaluations appear.</li>
+<li>Complete its Daily Training lesson with an accepted move; confirm <strong>Correct</strong>, recorded success, and updated profile mastery.</li>
+<li>Start a coach-mode game, make a diagnosed tactical error, complete the interruption, and confirm the profile updates.</li>
+<li>Run the full local gate:</li>
+</ol>
+<pre><code class="language-sh">scripts/check.sh
+</code></pre>
+</main>
+</div>
+<footer class="docs-footer"><p>Generated from the Markdown files in the
+<a href="https://github.com/Mathews-Tom/Scan64/tree/main/docs">docs folder</a>. Scan64 is licensed under the
+<a href="https://github.com/Mathews-Tom/Scan64/blob/main/LICENSE">GNU GPL v3.0</a>.</p></footer>
+</body>
+</html>

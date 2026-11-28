@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson packs · Scan64 documentation</title>
+<meta name="description" content="The format of community lesson packs.">
+<link rel="icon" href="../logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to content</a>
+<header class="docs-bar"><a class="docs-home" href="index.html"><img src="../logo.svg" width="28" height="28" alt="">Scan64 documentation</a>
+<nav aria-label="Site"><a class="docs-pages" href="#pages">Pages</a>
+<a href="../">Scan64 home</a>
+<a href="https://github.com/Mathews-Tom/Scan64">Source on GitHub</a></nav>
+</header>
+<div class="docs-layout">
+<nav id="pages" class="docs-nav" aria-label="Documentation"><h2>Use Scan64</h2><ul><li><a href="about.html">About Scan64</a></li><li><a href="getting-started.html">Get started</a></li><li><a href="user-guide.html">User guide</a></li><li><a href="configuration.html">Configuration</a></li></ul><h2>Engines and models</h2><ul><li><a href="engines.html">Analysis engines</a></li><li><a href="narrator-models.html">Narrator models</a></li><li><a href="maia.html">Maia opponents</a></li><li><a href="lesson-packs.html" aria-current="page">Lesson packs</a></li></ul><h2>How it works</h2><ul><li><a href="system-overview.html">System overview</a></li><li><a href="system-design.html">System design</a></li><li><a href="narrator-pipeline.html">Narrator pipeline</a></li></ul></nav>
+<main id="content" class="docs-content">
+<h1 id="community-lesson-packs">Community lesson packs</h1>
+<p>In <strong>Library → Community lesson packs</strong>, choose a local JSON file. Scan64 uploads the original bytes to your local server, checks the schema and verifies each lesson with the shipped engine. There is no remote catalogue, registry, download URL, author signature or executable content. Pack text is displayed as plain text, never HTML. Only the importing player can access or uninstall a pack.</p>
+<p>Pending and verifying packs refresh automatically. Title, author, licence, content version, short SHA-256 and installation date identify the imported file; hover over the short hash for its full value. Provenance is an author's declaration, not an endorsement. Rejected lessons show their first failing ply (1 = the first move of the line) and reason and cannot be opened. <strong>Retry</strong> is available for failed or unavailable verification, for example after restoring a usable engine. Unavailable packs hide their lessons. Verification must finish before a lesson can open.</p>
+<p>Open a verified lesson, read its objective and play on the board or use its keyboard move form (UCI or exact English SAN). Moves and replies are checked by the server against the verified pack continuation. <strong>Show hint</strong> asks the server for hints without changing position. The explanation appears after completion. These are community lessons, not positions from your own games. Playing them records no attempts, review schedules, skill changes, recurrence or diagnosis evidence.</p>
+<p><strong>Uninstall</strong> requires confirmation and removes the pack and its lessons. Deleting the player's data also removes their packs. Player archive exports <strong>exclude community packs</strong>: keep the original JSON and reinstall it after restoring an archive; all lessons are verified again. To replace any installed pack version with the same id, uninstall first.</p>
+<p>Each player can have at most <strong>20 installed packs</strong>. Uninstall a pack before installing
+another at that limit. A 21st installation is rejected without changing installed packs.</p>
+<h2 id="json-format">JSON format</h2>
+<p>See <a href="https://github.com/Mathews-Tom/Scan64/blob/main/docs/lesson-packs-example.json">the small example file</a>. It intentionally contains one sound mate-in-one and one legal but unsound stalemate continuation, so the latter should be rejected.</p>
+<p>The top-level object has these exact fields:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>format</code></td>
+<td>Literal <code>"scan64-lesson-pack"</code></td>
+</tr>
+<tr>
+<td><code>format_version</code></td>
+<td>Integer <code>1</code>, the schema version</td>
+</tr>
+<tr>
+<td><code>id</code></td>
+<td>Unique slug identifying the pack</td>
+</tr>
+<tr>
+<td><code>title</code>, <code>author</code>, <code>licence</code></td>
+<td>Plain-text provenance; use an explicit licence identifier</td>
+</tr>
+<tr>
+<td><code>version</code></td>
+<td>String identifying the author's content version, separate from <code>format_version</code></td>
+</tr>
+<tr>
+<td><code>description</code>, <code>source</code></td>
+<td>Optional plain-text strings, not fetched URLs</td>
+</tr>
+<tr>
+<td><code>lessons</code></td>
+<td>Array of lesson objects</td>
+</tr>
+</tbody>
+</table>
+<p>Each lesson requires <code>id</code> (a unique slug), <code>title</code>, standard-chess <code>fen</code>, <code>solution</code> (an array of UCI move strings, including promotion suffix when needed), <code>objective</code>, <code>hints</code> (string array), <code>explanation</code>, and <code>themes</code> (string array). Slugs use lowercase letters/digits separated by hyphens. Unknown fields, type coercion and duplicate ids are rejected.</p>
+<p>Limits: 512 KiB for the original file, 50 lessons, at most 5 plies per solution (an odd number, ending on the solver's move), 3 hints per lesson, and 2,000 characters per string. Control characters are forbidden; newline is allowed only in long-form text. Use ordinary strings rather than markup. Invalid FEN rejects the entire file; illegal solution lines reject the affected lesson. At every solver ply the pack move must be among the shipped verifier's sound moves, not merely legal. A file rejected during schema validation changes nothing.</p>
+<p>Starting FENs must not already be automatically terminal (including checkmate,
+stalemate, insufficient material or the automatic 75-move draw). The FEN halfmove
+clock plus the number of solution plies must be <strong>strictly below 100</strong>. This is a
+conservative limit: pawn moves and captures in the solution do not relax it.
+Violating either starting-position rule rejects the entire file during schema
+validation, leaving installed packs unchanged.</p>
+</main>
+</div>
+<footer class="docs-footer"><p>Generated from the Markdown files in the
+<a href="https://github.com/Mathews-Tom/Scan64/tree/main/docs">docs folder</a>. Scan64 is licensed under the
+<a href="https://github.com/Mathews-Tom/Scan64/blob/main/LICENSE">GNU GPL v3.0</a>.</p></footer>
+</body>
+</html>

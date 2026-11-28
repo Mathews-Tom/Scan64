@@ -1,0 +1,1928 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Narrator models · Scan64 documentation</title>
+<meta name="description" content="The local language models compared for explanation wording, and the one chosen.">
+<link rel="icon" href="../logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to content</a>
+<header class="docs-bar"><a class="docs-home" href="index.html"><img src="../logo.svg" width="28" height="28" alt="">Scan64 documentation</a>
+<nav aria-label="Site"><a class="docs-pages" href="#pages">Pages</a>
+<a href="../">Scan64 home</a>
+<a href="https://github.com/Mathews-Tom/Scan64">Source on GitHub</a></nav>
+</header>
+<div class="docs-layout">
+<nav id="pages" class="docs-nav" aria-label="Documentation"><h2>Use Scan64</h2><ul><li><a href="about.html">About Scan64</a></li><li><a href="getting-started.html">Get started</a></li><li><a href="user-guide.html">User guide</a></li><li><a href="configuration.html">Configuration</a></li></ul><h2>Engines and models</h2><ul><li><a href="engines.html">Analysis engines</a></li><li><a href="narrator-models.html" aria-current="page">Narrator models</a></li><li><a href="maia.html">Maia opponents</a></li><li><a href="lesson-packs.html">Lesson packs</a></li></ul><h2>How it works</h2><ul><li><a href="system-overview.html">System overview</a></li><li><a href="system-design.html">System design</a></li><li><a href="narrator-pipeline.html">Narrator pipeline</a></li></ul></nav>
+<main id="content" class="docs-content">
+<h1 id="narrator-model-evaluation-369-389">Narrator model evaluation (#369, #389)</h1>
+<p>Question: which open LLM words Scan64 engine evidence best as the narrator? The engine judges. The model only words engine, board and factor facts. The validator decides whether its claims replace the template explanation.</p>
+<p>Decision (2026-11-27, factor pipeline): use <strong><code>gemma4-e4b-q3km</code></strong>, gemma-4-E4B-it at Q3_K_M (<code>unsloth/gemma-4-E4B-it-GGUF</code>, pinned revision, Apache-2.0), at <code>num_ctx</code> 4096. It needs 2.96–3.13 GiB of GPU memory, so it is also the choice for GPUs under 10 GiB. It is the smallest model near the quality bar; it misses the coverage bar by 2.5 points in the default voice. See <a href="#decision">Decision</a>. This replaces the interim choice of <code>gemma4-12b</code> with the <code>praxis-4b</code> fallback (slot run <code>runs_20261127_161413</code>), which had replaced the 2026-11-26 <code>praxis-4b</code> choice measured on the pre-#367 prompt only (on the #367 prompt <code>praxis-4b</code> passes grounding in 4.0% of calls; see <a href="#interim-slot-run-superseded">Interim slot run</a>).</p>
+<p>All numbers below are measured. Raw records and summaries are in <code>benchmarks/narrator/results/</code>.</p>
+<h2 id="shortlist-9-models-and-2-quantizations">Shortlist (9 models and 2 quantizations)</h2>
+<table>
+<thead>
+<tr>
+<th>Model (benchmark name)</th>
+<th>Role</th>
+<th>Licence</th>
+<th>Params (B)</th>
+<th>Source</th>
+<th>Base model</th>
+<th>GPU memory at <code>num_ctx</code> 4096 (GiB)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>praxis-2b</code></td>
+<td>chess</td>
+<td>Apache-2.0</td>
+<td>2.27</td>
+<td>GGUF <code>praxis-chess/praxis-chess-reasoner-qwen3.5-2b-GGUF</code></td>
+<td>Qwen3.5-2B + LoRA (engine evidence graphs)</td>
+<td>2.05</td>
+</tr>
+<tr>
+<td><code>second-2b</code></td>
+<td>chess</td>
+<td>Apache-2.0</td>
+<td>1.88</td>
+<td>GGUF <code>mradermacher/Second-1.0-2B-GGUF</code></td>
+<td>Qwen3.5-2B, SFT + DAPO on rule-checked Stockfish-fact explanations</td>
+<td>1.88</td>
+</tr>
+<tr>
+<td><code>qwen3.5-2b</code></td>
+<td>baseline</td>
+<td>Apache-2.0</td>
+<td>2.27</td>
+<td>Ollama <code>qwen3.5:2b</code></td>
+<td>Qwen3.5-2B</td>
+<td>3.42</td>
+</tr>
+<tr>
+<td><code>praxis-4b</code></td>
+<td>chess</td>
+<td>Apache-2.0</td>
+<td>4.2</td>
+<td>GGUF <code>praxis-chess/praxis-chess-reasoner-qwen3.5-4b-GGUF</code></td>
+<td>Qwen3.5-4B + LoRA (engine evidence graphs)</td>
+<td>3.35</td>
+</tr>
+<tr>
+<td><code>qwen3.5-4b</code></td>
+<td>baseline</td>
+<td>Apache-2.0</td>
+<td>4.7</td>
+<td>Ollama <code>qwen3.5:4b</code></td>
+<td>Qwen3.5-4B</td>
+<td>4.14</td>
+</tr>
+<tr>
+<td><code>gemma4-e4b</code></td>
+<td>baseline</td>
+<td>Apache-2.0</td>
+<td>8.0 (4.5 effective)</td>
+<td>Ollama <code>gemma4:e4b</code> (Q4_K_M, vision projector, MTP draft model)</td>
+<td>google/gemma-4-E4B-it</td>
+<td>4.96</td>
+</tr>
+<tr>
+<td><code>gemma4-e4b-q4ks</code></td>
+<td>baseline</td>
+<td>Apache-2.0</td>
+<td>8.0 (4.5 effective)</td>
+<td>GGUF <code>unsloth/gemma-4-E4B-it-GGUF</code> <code>gemma-4-E4B-it-Q4_K_S.gguf</code>, text only</td>
+<td>google/gemma-4-E4B-it</td>
+<td>3.53</td>
+</tr>
+<tr>
+<td><code>gemma4-e4b-q3km</code></td>
+<td>baseline</td>
+<td>Apache-2.0</td>
+<td>8.0 (4.5 effective)</td>
+<td>GGUF <code>unsloth/gemma-4-E4B-it-GGUF</code> <code>gemma-4-E4B-it-Q3_K_M.gguf</code>, text only</td>
+<td>google/gemma-4-E4B-it</td>
+<td>2.96</td>
+</tr>
+<tr>
+<td><code>qwen3.5-9b</code></td>
+<td>baseline</td>
+<td>Apache-2.0</td>
+<td>9.65</td>
+<td>Ollama <code>qwen3.5:9b</code></td>
+<td>Qwen3.5-9B</td>
+<td>6.67</td>
+</tr>
+<tr>
+<td><code>granite4.2-8b</code></td>
+<td>baseline</td>
+<td>Apache-2.0</td>
+<td>8.79</td>
+<td>Ollama <code>granite4.2:8b</code></td>
+<td>ibm-granite/granite-4.2-8b</td>
+<td>6.08</td>
+</tr>
+<tr>
+<td><code>gemma4-12b</code></td>
+<td>baseline</td>
+<td>Apache-2.0</td>
+<td>11.95</td>
+<td>Ollama <code>gemma4:12b</code></td>
+<td>google/gemma-4-12b-it</td>
+<td>8.91</td>
+</tr>
+</tbody>
+</table>
+<p>Every GGUF is pinned by repository revision and sha256 in <code>benchmarks/narrator/narrator.toml</code>. Library models are pinned by the <code>ollama_digest</code> in each runs file. GPU memory is the measured rise in <code>nvidia-smi</code> memory when the model loads (weights, KV cache and buffers), from <code>runs_20261127_213350</code>. Ollama's <code>size_vram</code> under-reports the gemma4 models.</p>
+<p>The two quantizations use the chat format and sampling of the library model <code>gemma4:e4b</code> (<code>RENDERER gemma4</code>, <code>PARSER gemma4</code>, temperature 1, top_k 64, top_p 0.95). They load no vision projector and no MTP draft model.</p>
+<p>Dropped from the first shortlist: <code>chessgpt-base</code>, <code>qwen3-4b-chess-explain</code>, <code>chesslm-qwen3-8b</code>, <code>qwen3-8b</code> (see <a href="#earlier-runs-pre-367-pipeline-only">Earlier runs</a>). <code>Caissa-Chess-M1</code> was dropped because it is a chain-of-thought reasoning model; the narrator must not reason.</p>
+<h2 id="quality-bar">Quality bar</h2>
+<p>The bar was stated before the factor run. Rule (Sydney, 2026-11-27): choose the <strong>smallest</strong> model that meets the bar, not the top scorer. "A small model working fairly is better than a large one working nicely."</p>
+<table>
+<thead>
+<tr>
+<th>Criterion</th>
+<th>Bar</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Delivered coverage (default voice <code>coach</code>, Caissa evidence)</td>
+<td>≥ 60%</td>
+</tr>
+<tr>
+<td>Grounding pass</td>
+<td>≥ 70%</td>
+</tr>
+<tr>
+<td>Calls that thought</td>
+<td>0</td>
+</tr>
+<tr>
+<td>Latency p95 on the RTX 5090</td>
+<td>≤ 3 s</td>
+</tr>
+<tr>
+<td>GPU memory at the chosen <code>num_ctx</code></td>
+<td>≤ 4 GiB (a 6 GB card with room for the desktop)</td>
+</tr>
+</tbody>
+</table>
+<p>Procedure: rank the models that pass by GPU memory, smallest first, and choose the first. If no model passes within 4 GiB, the smallest passing model is the 8 GB-tier choice. The best-scoring model is named only as a comparison. GPU memory is measured with the compact prompt (#408) at <code>num_ctx</code> 4096, because the longest prompt plus 2,048 output tokens fits 4096 (see <a href="#prompt-size-and-num_ctx">Prompt size</a>).</p>
+<h2 id="method">Method</h2>
+<ul>
+<li>Commands, repository root, Ollama 0.40.18 on 127.0.0.1:11435:</li>
+<li>main run: <code>uv run python -m benchmarks.narrator.run_benchmark benchmarks/narrator/narrator.toml --positions-file benchmarks/narrator/positions-caissa.json --num-ctx 4096</code>;</li>
+<li>engine comparison: the same with <code>--positions-file benchmarks/narrator/positions.json --models ...</code>;</li>
+<li>voices: the same with <code>--voice terse</code> or <code>--voice playful --models ...</code>.</li>
+<li>Positions: <code>positions-caissa.json</code>, the 32 of the 50 benchmark positions that Caissa 2.0 diagnoses with a trusted code (#396; same games and learner moves). Each model runs 3 times per position (96 calls per model). The engine comparison uses <code>positions.json</code>, the 50 positions from recorded Stockfish 19 searches (150 calls per model).</li>
+<li>Pipeline: the production <code>scan64.explanations.assembly:resolve_explanation</code> with an <code>OllamaExplanationAdapter</code> from <code>create_llm_provider</code>. It has fact slots (#386), factor facts and factor slots (#408), the fact-driven vocabulary rule (#408), the slot-list-only compact prompt (#408), fitted factor thresholds (#410) and line evaluations (#367).</li>
+<li>Request: <code>think = false</code> and <code>stream = true</code> in every <code>/api/chat</code> body. <code>num_ctx</code> 4096 in every request, <code>num_predict</code> 2048. Client timeout 120 s.</li>
+<li>Hardware: NVIDIA GeForce RTX 5090 32 GB. No other Ollama server held a model during any call.</li>
+<li>Every runs header: <code>assembly.py</code> sha256 <code>79c006f90a10</code>, runner sha256 <code>3649f46a330a</code>, <code>dirty: false</code>. The header commits (<code>29f0424</code>, <code>ecfc8de</code>, <code>937353f</code>) differ only in committed result files.</li>
+<li>Later runs: the header's <code>pipeline</code> also records <code>config_file</code> and <code>config_sha256</code>, the SHA-256 of the config file (<code>narrator.toml</code> or the file given on the command line), and <code>--resume</code> refuses a run whose config file has changed. It also records <code>narrator_sha256</code>, one SHA-256 over every file of the narrator package <code>src/scan64/explanations</code> (assembly, slots, facts, factor_facts, validator, board_lines, voice, the factor port and the templates; <code>narrator_modules</code> lists each file's SHA-256), and <code>--resume</code> refuses a run whose narrator package has changed. <code>module_sha256</code> covers <code>assembly.py</code> only. The runs below predate both fields.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Runs file</th>
+<th>Positions</th>
+<th>Voice</th>
+<th>Models</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>runs_20261127_213350</code></td>
+<td>Caissa (32)</td>
+<td>coach</td>
+<td>9 + 2 quantizations</td>
+</tr>
+<tr>
+<td><code>runs_20261127_220133</code></td>
+<td>Caissa (32)</td>
+<td>coach</td>
+<td>repeat of the 4 gemma variants</td>
+</tr>
+<tr>
+<td><code>runs_20261127_221105</code></td>
+<td>Stockfish 19 (50)</td>
+<td>coach</td>
+<td>top 3 of the 9 + <code>gemma4-e4b-q3km</code></td>
+</tr>
+<tr>
+<td><code>runs_20261127_222432</code></td>
+<td>Caissa (32)</td>
+<td>terse</td>
+<td>the same 4</td>
+</tr>
+<tr>
+<td><code>runs_20261127_223247</code></td>
+<td>Caissa (32)</td>
+<td>playful</td>
+<td>the same 4</td>
+</tr>
+</tbody>
+</table>
+<p><code>gemma4-e4b-q3km</code> is in the last three runs as the candidate nearest the bar, next to the top 3 of the 9 by delivered coverage.</p>
+<h3 id="metrics">Metrics</h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Grounding pass</td>
+<td>Share of calls where the pipeline accepts the model output instead of the template.</td>
+</tr>
+<tr>
+<td>Coverage (accepted)</td>
+<td>Share of three key engine facts (played move, key move, result) that an accepted answer states. On the slot path it counts only the slots the answer uses (<code>slot_coverage</code>).</td>
+</tr>
+<tr>
+<td>Delivered coverage</td>
+<td>Coverage over all calls; a fallback counts as 0. This is what a learner gets.</td>
+</tr>
+<tr>
+<td>Full coverage</td>
+<td>Share of all calls accepted with all three key facts.</td>
+</tr>
+<tr>
+<td>Names a factor (accepted / where available)</td>
+<td>Share of accepted answers that use at least one listed <code>{factor:...}</code> slot, a measured factor change (#410). The second value counts only positions whose slot list has a factor slot: 20 of the 32 Caissa positions, 33 of the 50 Stockfish positions. Runs recorded before the factor slots show <code>—</code>.</td>
+</tr>
+<tr>
+<td>False chess statements / expl.</td>
+<td>Claims rejected for a chess reason, per explanation. On the slot path this includes <code>chess_token_outside_slot</code> and, since #431, <code>unsupported_claim</code> and <code>negated_claim</code>.</td>
+</tr>
+<tr>
+<td>Latency p50 / p95</td>
+<td>Wall time of the provider call.</td>
+</tr>
+<tr>
+<td>First token p50</td>
+<td>Time to the first streamed token.</td>
+</tr>
+<tr>
+<td>Hit output cap</td>
+<td>Share of calls that stop at <code>num_predict</code> (<code>done_reason = length</code>).</td>
+</tr>
+<tr>
+<td>Calls that thought</td>
+<td>Calls with thinking text or a <code>&lt;think&gt;</code> tag in the answer. Must be 0.</td>
+</tr>
+<tr>
+<td>Prompt tokens median / max</td>
+<td><code>prompt_eval_count</code> per call.</td>
+</tr>
+<tr>
+<td>GPU memory</td>
+<td>Measured load rise in <code>nvidia-smi</code>; null without <code>nvidia-smi</code>.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="results">Results</h2>
+<h3 id="factor-pipeline-coach-voice-caissa-evidence">Factor pipeline, coach voice, Caissa evidence</h3>
+<p><code>summary_20261127_213350.{md,json}</code>, 96 calls per model. Calls that thought: 0 for every model.</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Grounding pass</th>
+<th>Coverage (accepted)</th>
+<th>Delivered coverage</th>
+<th>Full coverage</th>
+<th>Names a factor (accepted / where available)</th>
+<th>False chess statements / expl.</th>
+<th>Latency p50 / p95 (s)</th>
+<th>First token p50 (s)</th>
+<th>Hit output cap</th>
+<th>Calls that thought</th>
+<th>Prompt tokens median / max</th>
+<th>GPU memory (GiB)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gemma4-12b</td>
+<td>74.0%</td>
+<td>84.0%</td>
+<td>62.2%</td>
+<td>41.7%</td>
+<td>59.2% / 100.0%</td>
+<td>0.19</td>
+<td>1.70 / 3.12</td>
+<td>0.39</td>
+<td>0.0%</td>
+<td>0</td>
+<td>1258 / 1565</td>
+<td>8.91</td>
+</tr>
+<tr>
+<td>gemma4-e4b-q3km</td>
+<td>91.7%</td>
+<td>63.6%</td>
+<td>58.3%</td>
+<td>29.2%</td>
+<td>52.3% / 80.7%</td>
+<td>0.06</td>
+<td>0.61 / 1.33</td>
+<td>0.07</td>
+<td>0.0%</td>
+<td>0</td>
+<td>1254 / 1561</td>
+<td>2.96</td>
+</tr>
+<tr>
+<td>gemma4-e4b-q4ks</td>
+<td>79.2%</td>
+<td>68.9%</td>
+<td>54.5%</td>
+<td>26.0%</td>
+<td>47.4% / 73.5%</td>
+<td>0.23</td>
+<td>1.15 / 2.15</td>
+<td>0.07</td>
+<td>0.0%</td>
+<td>0</td>
+<td>1254 / 1561</td>
+<td>3.53</td>
+</tr>
+<tr>
+<td>gemma4-e4b</td>
+<td>80.2%</td>
+<td>65.8%</td>
+<td>52.8%</td>
+<td>26.0%</td>
+<td>42.9% / 73.3%</td>
+<td>0.25</td>
+<td>0.70 / 1.26</td>
+<td>0.07</td>
+<td>0.0%</td>
+<td>0</td>
+<td>1254 / 1561</td>
+<td>4.96</td>
+</tr>
+<tr>
+<td>praxis-4b</td>
+<td>50.0%</td>
+<td>68.8%</td>
+<td>34.4%</td>
+<td>18.8%</td>
+<td>100.0% / 100.0%</td>
+<td>0.50</td>
+<td>0.64 / 7.06</td>
+<td>0.09</td>
+<td>18.8%</td>
+<td>0</td>
+<td>1223 / 1527</td>
+<td>3.35</td>
+</tr>
+<tr>
+<td>qwen3.5-9b</td>
+<td>53.1%</td>
+<td>48.4%</td>
+<td>25.7%</td>
+<td>13.5%</td>
+<td>45.1% / 67.6%</td>
+<td>0.77</td>
+<td>1.28 / 2.78</td>
+<td>0.09</td>
+<td>0.0%</td>
+<td>0</td>
+<td>1223 / 1527</td>
+<td>6.67</td>
+</tr>
+<tr>
+<td>qwen3.5-4b</td>
+<td>52.1%</td>
+<td>37.3%</td>
+<td>19.4%</td>
+<td>9.4%</td>
+<td>28.0% / 46.7%</td>
+<td>0.69</td>
+<td>0.74 / 1.75</td>
+<td>0.10</td>
+<td>0.0%</td>
+<td>0</td>
+<td>1223 / 1527</td>
+<td>4.14</td>
+</tr>
+<tr>
+<td>granite4.2-8b</td>
+<td>44.8%</td>
+<td>38.8%</td>
+<td>17.4%</td>
+<td>8.3%</td>
+<td>25.6% / 45.8%</td>
+<td>0.93</td>
+<td>1.50 / 2.66</td>
+<td>0.12</td>
+<td>0.0%</td>
+<td>0</td>
+<td>1243 / 1565</td>
+<td>6.08</td>
+</tr>
+<tr>
+<td>second-2b</td>
+<td>4.2%</td>
+<td>41.7%</td>
+<td>1.7%</td>
+<td>0.0%</td>
+<td>25.0% / 50.0%</td>
+<td>0.90</td>
+<td>0.61 / 1.27</td>
+<td>0.06</td>
+<td>2.1%</td>
+<td>0</td>
+<td>1223 / 1527</td>
+<td>1.88</td>
+</tr>
+<tr>
+<td>qwen3.5-2b</td>
+<td>2.1%</td>
+<td>33.3%</td>
+<td>0.7%</td>
+<td>0.0%</td>
+<td>50.0% / 50.0%</td>
+<td>1.80</td>
+<td>1.14 / 2.23</td>
+<td>0.05</td>
+<td>0.0%</td>
+<td>0</td>
+<td>1223 / 1527</td>
+<td>3.42</td>
+</tr>
+<tr>
+<td>praxis-2b</td>
+<td>0.0%</td>
+<td>—</td>
+<td>0.0%</td>
+<td>0.0%</td>
+<td>— / —</td>
+<td>2.33</td>
+<td>0.69 / 4.47</td>
+<td>0.06</td>
+<td>25.0%</td>
+<td>0</td>
+<td>1223 / 1527</td>
+<td>2.05</td>
+</tr>
+</tbody>
+</table>
+<h3 id="against-the-bar">Against the bar</h3>
+<p>The 7 other models fail the bar by far: delivered coverage 0–34% and grounding pass 0–53% (table above). The four gemma variants are near it, so they ran twice (<code>runs_20261127_220133</code> is the repeat). Pooled over 192 calls each:</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Delivered coverage (run 1 / run 2 / pooled)</th>
+<th>Grounding pass (pooled)</th>
+<th>Calls that thought</th>
+<th>p95 pooled (s)</th>
+<th>GPU memory (GiB)</th>
+<th>Quality bar</th>
+<th>Within 4 GiB</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gemma4-e4b-q3km</td>
+<td>58.3% / 56.6% / <strong>57.5%</strong></td>
+<td>93.8%</td>
+<td>0</td>
+<td>1.31</td>
+<td>2.96–3.13</td>
+<td>fail: coverage</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>gemma4-e4b-q4ks</td>
+<td>54.5% / 51.4% / <strong>53.0%</strong></td>
+<td>78.1%</td>
+<td>0</td>
+<td>2.16</td>
+<td>3.53–3.53</td>
+<td>fail: coverage</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>gemma4-e4b</td>
+<td>52.8% / 60.4% / <strong>56.6%</strong></td>
+<td>83.9%</td>
+<td>0</td>
+<td>1.16</td>
+<td>4.96–5.14</td>
+<td>fail: coverage</td>
+<td>no</td>
+</tr>
+<tr>
+<td>gemma4-12b</td>
+<td>62.2% / 60.1% / <strong>61.1%</strong></td>
+<td>72.4%</td>
+<td>0</td>
+<td>3.10</td>
+<td>8.91–8.91</td>
+<td>fail: p95</td>
+<td>no</td>
+</tr>
+</tbody>
+</table>
+<p>No model meets the full bar. Two runs of one model differ by up to 7.6 points in delivered coverage (<code>gemma4-e4b</code>), so the 2.5-point gap of <code>gemma4-e4b-q3km</code> is within run-to-run noise. <code>gemma4-12b</code>, the best-scoring model, misses p95 by 0.10 s and needs 8.91 GiB.</p>
+<h3 id="prompt-size-and-num_ctx">Prompt size and num_ctx</h3>
+<table>
+<thead>
+<tr>
+<th>Pipeline (runs file)</th>
+<th>Prompt tokens median</th>
+<th>Prompt tokens max</th>
+<th>Max + 2,048 output</th>
+<th>Smallest window that fits</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Free prose, #367 (<code>runs_20261126_230005</code>)</td>
+<td>4,052</td>
+<td>6,531</td>
+<td>8,579</td>
+<td>12288</td>
+</tr>
+<tr>
+<td>Interim slots, #386 (<code>runs_20261127_161413</code>)</td>
+<td>6,164</td>
+<td>9,869</td>
+<td>11,917</td>
+<td>12288</td>
+</tr>
+<tr>
+<td>Factor pipeline, compact prompt, #408 (<code>runs_20261127_213350</code>)</td>
+<td>1,227</td>
+<td>1,565</td>
+<td>3,613</td>
+<td><strong>4096</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Per model (factor run), median / max prompt tokens: 1,223 / 1,527 for the Qwen3.5-based models (both praxis, second-2b, qwen3.5); 1,243 / 1,565 for <code>granite4.2-8b</code>; 1,254 / 1,561 for the gemma4-e4b variants; 1,258 / 1,565 for <code>gemma4-12b</code>. On the Stockfish positions the maximum is 1,476. GPU memory at 4096 for every model is in the shortlist table. No call failed for the context: every provider error is an output-cap hit (<code>done_reason = length</code>).</p>
+<p>Recommendation: lower the local default <code>num_ctx</code> from 12288 to <strong>4096</strong> (<code>SCAN64_LOCAL_LLM_CONTEXT_TOKENS</code>, <code>DEFAULT_OLLAMA_CONTEXT_TOKENS</code>). The longest lesson prompt plus 2,048 output tokens is 3,613 tokens. The longest Analysis Board prompt (MultiPV 4) is 1,608 tokens (<a href="narrator-pipeline.html">narrator pipeline</a>, prompt size), so it needs 3,656.</p>
+<h3 id="quantization-variants-of-gemma4-e4b">Quantization variants of gemma4-e4b</h3>
+<p>Same runs, pooled over the two coach runs on Caissa evidence (192 calls each):</p>
+<table>
+<thead>
+<tr>
+<th>Variant</th>
+<th>File (GiB)</th>
+<th>GPU memory at 4096 (GiB)</th>
+<th>Grounding pass</th>
+<th>Delivered coverage</th>
+<th>False chess statements / expl. (run 1)</th>
+<th>Latency p50 / p95 (s) (run 1)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>gemma4-e4b</code> library Q4_K_M (+ projector, MTP draft)</td>
+<td>6.13</td>
+<td>4.96–5.14</td>
+<td>83.9%</td>
+<td>56.6%</td>
+<td>0.25</td>
+<td>0.70 / 1.26</td>
+</tr>
+<tr>
+<td><code>gemma4-e4b-q4ks</code> Q4_K_S, text only</td>
+<td>4.51</td>
+<td>3.53</td>
+<td>78.1%</td>
+<td>53.0%</td>
+<td>0.23</td>
+<td>1.15 / 2.15</td>
+</tr>
+<tr>
+<td><code>gemma4-e4b-q3km</code> Q3_K_M, text only</td>
+<td>3.78</td>
+<td>2.96–3.13</td>
+<td><strong>93.8%</strong></td>
+<td><strong>57.5%</strong></td>
+<td><strong>0.06</strong></td>
+<td>0.61 / 1.33</td>
+</tr>
+</tbody>
+</table>
+<p>Q3_K_M loses no measured quality against Q4_K_M: its grounding pass is higher and its delivered coverage is equal within noise. It saves about 2 GiB. The library model is faster per token through its MTP draft model; Q4_K_S has no draft model and is the slowest of the three.</p>
+<h3 id="factor-metric-410">Factor metric (#410)</h3>
+<p>"Names a factor" counts accepted answers that use a listed <code>{factor:...}</code> slot. Where the position has a factor slot, <code>gemma4-12b</code> names one in 97–100% of accepted answers, the gemma4-e4b variants in 73–96%, <code>praxis-4b</code> in 100%. Over all accepted answers the share is 43–63% for the gemma variants, because 12 of the 32 Caissa positions have no measured factor change. No factor slot is invented: a factor slot that the position does not have fails as <code>unknown_slot</code>.</p>
+<h3 id="three-pipelines-side-by-side">Three pipelines side by side</h3>
+<p>Free prose (#367, <code>runs_20261126_230005</code>, Stockfish evidence, 150 calls), interim slots (#386, <code>runs_20261127_161413</code>, Stockfish evidence, 150 calls) and the factor pipeline (<code>runs_20261127_213350</code>, Caissa evidence, 96 calls). The evidence engine differs in the last column; the next section shows its effect.</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Grounding pass: prose / slots / factors</th>
+<th>Delivered coverage: prose / slots / factors</th>
+<th>Full coverage: prose / slots / factors</th>
+<th>False chess statements / expl.: prose / slots / factors</th>
+<th>Latency p95 (s): prose / slots / factors</th>
+<th>GPU memory (GiB): 12288 / 12288 / 4096</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gemma4-12b</td>
+<td>78.7% / 46.0% / <strong>74.0%</strong></td>
+<td>72.7% / 41.3% / <strong>62.2%</strong></td>
+<td>60.7% / 34.7% / 41.7%</td>
+<td>0.17 / 0.57 / 0.19</td>
+<td>2.42 / 2.52 / 3.12</td>
+<td>9.43 / 9.43 / 8.91</td>
+</tr>
+<tr>
+<td>gemma4-e4b-q3km</td>
+<td>— / — / <strong>91.7%</strong></td>
+<td>— / — / <strong>58.3%</strong></td>
+<td>— / — / 29.2%</td>
+<td>— / — / 0.06</td>
+<td>— / — / 1.33</td>
+<td>— / — / 2.96</td>
+</tr>
+<tr>
+<td>gemma4-e4b-q4ks</td>
+<td>— / — / <strong>79.2%</strong></td>
+<td>— / — / <strong>54.5%</strong></td>
+<td>— / — / 26.0%</td>
+<td>— / — / 0.23</td>
+<td>— / — / 2.15</td>
+<td>— / — / 3.53</td>
+</tr>
+<tr>
+<td>gemma4-e4b</td>
+<td>84.0% / 45.3% / <strong>80.2%</strong></td>
+<td>51.1% / 33.8% / <strong>52.8%</strong></td>
+<td>20.0% / 21.3% / 26.0%</td>
+<td>0.06 / 0.68 / 0.25</td>
+<td>0.80 / 1.12 / 1.26</td>
+<td>5.28 / 5.28 / 4.96</td>
+</tr>
+<tr>
+<td>praxis-4b</td>
+<td>4.0% / 44.0% / <strong>50.0%</strong></td>
+<td>2.7% / 36.7% / <strong>34.4%</strong></td>
+<td>0.0% / 24.0% / 18.8%</td>
+<td>0.00 / 0.92 / 0.50</td>
+<td>7.76 / 1.72 / 7.06</td>
+<td>3.70 / 3.67 / 3.35</td>
+</tr>
+<tr>
+<td>qwen3.5-9b</td>
+<td>44.0% / 12.7% / <strong>53.1%</strong></td>
+<td>34.9% / 9.8% / <strong>25.7%</strong></td>
+<td>23.3% / 6.7% / 13.5%</td>
+<td>0.90 / 1.69 / 0.77</td>
+<td>2.92 / 4.37 / 2.78</td>
+<td>7.05 / 7.01 / 6.67</td>
+</tr>
+<tr>
+<td>qwen3.5-4b</td>
+<td>47.3% / 34.7% / <strong>52.1%</strong></td>
+<td>37.1% / 23.6% / <strong>19.4%</strong></td>
+<td>24.0% / 14.0% / 9.4%</td>
+<td>0.53 / 1.05 / 0.69</td>
+<td>2.32 / 2.24 / 1.75</td>
+<td>4.49 / 4.49 / 4.14</td>
+</tr>
+<tr>
+<td>granite4.2-8b</td>
+<td>60.0% / 25.3% / <strong>44.8%</strong></td>
+<td>55.1% / 14.7% / <strong>17.4%</strong></td>
+<td>46.7% / 7.3% / 8.3%</td>
+<td>0.46 / 1.42 / 0.93</td>
+<td>2.05 / 2.99 / 2.66</td>
+<td>7.46 / 7.48 / 6.08</td>
+</tr>
+<tr>
+<td>second-2b</td>
+<td>34.0% / 0.0% / <strong>4.2%</strong></td>
+<td>22.2% / 0.0% / <strong>1.7%</strong></td>
+<td>7.3% / 0.0% / 0.0%</td>
+<td>0.33 / 1.53 / 0.90</td>
+<td>0.81 / 1.22 / 1.27</td>
+<td>2.05 / 2.06 / 1.88</td>
+</tr>
+<tr>
+<td>qwen3.5-2b</td>
+<td>12.7% / 2.0% / <strong>2.1%</strong></td>
+<td>8.2% / 1.6% / <strong>0.7%</strong></td>
+<td>4.0% / 1.3% / 0.0%</td>
+<td>1.91 / 2.94 / 1.80</td>
+<td>2.80 / 4.51 / 2.23</td>
+<td>3.58 / 3.58 / 3.42</td>
+</tr>
+<tr>
+<td>praxis-2b</td>
+<td>0.0% / 0.0% / <strong>0.0%</strong></td>
+<td>0.0% / 0.0% / <strong>0.0%</strong></td>
+<td>0.0% / 0.0% / 0.0%</td>
+<td>0.50 / 3.12 / 2.33</td>
+<td>4.73 / 4.63 / 4.47</td>
+<td>2.05 / 2.05 / 2.05</td>
+</tr>
+</tbody>
+</table>
+<p>The factor pipeline recovers most of the loss of the interim slot run. <code>gemma4-12b</code> goes from 41.3% to 62.2% delivered coverage, <code>gemma4-e4b</code> from 33.8% to 52.8%. False chess statements fall to the free-prose level. The vocabulary rule (#408) allows the words of the mistake class and of the passed factors, so true statements such as "missed a direct threat" no longer fail. The small Qwen3.5 models and both praxis models stay low.</p>
+<h3 id="caissa-against-stockfish-evidence-396">Caissa against Stockfish evidence (#396)</h3>
+<p>Same pipeline, commit and settings; <code>positions-caissa.json</code> (Caissa 2.0, 32 positions) against <code>positions.json</code> (recorded Stockfish 19 searches, 50 positions).</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Evidence</th>
+<th>Positions</th>
+<th>Grounding pass</th>
+<th>Delivered coverage</th>
+<th>Full coverage</th>
+<th>Names a factor (accepted / where available)</th>
+<th>False chess statements / expl.</th>
+<th>Latency p95 (s)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gemma4-12b</td>
+<td>Caissa 2.0</td>
+<td>32</td>
+<td>74.0%</td>
+<td>62.2%</td>
+<td>41.7%</td>
+<td>59.2% / 100.0%</td>
+<td>0.19</td>
+<td>3.12</td>
+</tr>
+<tr>
+<td>gemma4-12b</td>
+<td>Stockfish 19 (recorded)</td>
+<td>50</td>
+<td>70.7%</td>
+<td>62.4%</td>
+<td>48.7%</td>
+<td>63.2% / 100.0%</td>
+<td>0.18</td>
+<td>2.65</td>
+</tr>
+<tr>
+<td>gemma4-e4b</td>
+<td>Caissa 2.0</td>
+<td>32</td>
+<td>80.2%</td>
+<td>52.8%</td>
+<td>26.0%</td>
+<td>42.9% / 73.3%</td>
+<td>0.25</td>
+<td>1.26</td>
+</tr>
+<tr>
+<td>gemma4-e4b</td>
+<td>Stockfish 19 (recorded)</td>
+<td>50</td>
+<td>88.0%</td>
+<td>62.9%</td>
+<td>33.3%</td>
+<td>56.1% / 83.1%</td>
+<td>0.11</td>
+<td>1.15</td>
+</tr>
+<tr>
+<td>gemma4-e4b-q3km</td>
+<td>Caissa 2.0</td>
+<td>32</td>
+<td>91.7%</td>
+<td>58.3%</td>
+<td>29.2%</td>
+<td>52.3% / 80.7%</td>
+<td>0.06</td>
+<td>1.33</td>
+</tr>
+<tr>
+<td>gemma4-e4b-q3km</td>
+<td>Stockfish 19 (recorded)</td>
+<td>50</td>
+<td>96.7%</td>
+<td>66.4%</td>
+<td>37.3%</td>
+<td>56.6% / 84.5%</td>
+<td>0.03</td>
+<td>0.82</td>
+</tr>
+<tr>
+<td>praxis-4b</td>
+<td>Caissa 2.0</td>
+<td>32</td>
+<td>50.0%</td>
+<td>34.4%</td>
+<td>18.8%</td>
+<td>100.0% / 100.0%</td>
+<td>0.50</td>
+<td>7.06</td>
+</tr>
+<tr>
+<td>praxis-4b</td>
+<td>Stockfish 19 (recorded)</td>
+<td>50</td>
+<td>38.0%</td>
+<td>26.0%</td>
+<td>14.0%</td>
+<td>94.7% / 100.0%</td>
+<td>0.76</td>
+<td>7.04</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>The narrator words Caissa evidence about as well as Stockfish evidence for <code>gemma4-12b</code> (62.2% against 62.4%).</li>
+<li>The gemma4-e4b variants lose 8–10 points of delivered coverage on Caissa evidence. The position sets differ: Caissa diagnoses 32 of 50 positions, with fewer missed_check and missed_direct_threat positions (#396). A same-position comparison needs Caissa diagnoses for the same 32 positions on both sides.</li>
+<li>Prompts are shorter on Stockfish evidence (max 1,476 against 1,561 tokens).</li>
+<li>On Stockfish evidence <code>gemma4-e4b-q3km</code> passes the bar: 66.4% delivered coverage, 96.7% grounding pass, p95 0.82 s.</li>
+</ul>
+<h3 id="voices-387-caissa-evidence">Voices (#387), Caissa evidence</h3>
+<p><code>coach</code> is <code>runs_20261127_213350</code>; <code>terse</code> is <code>runs_20261127_222432</code>; <code>playful</code> is <code>runs_20261127_223247</code>. 96 calls per row.</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Voice</th>
+<th>Grounding pass</th>
+<th>Delivered coverage</th>
+<th>Full coverage</th>
+<th>Names a factor (accepted)</th>
+<th>False chess statements / expl.</th>
+<th>Latency p50 / p95 (s)</th>
+<th>Output tokens (mean)</th>
+<th>Calls that thought</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gemma4-12b</td>
+<td>coach</td>
+<td>74.0%</td>
+<td>62.2%</td>
+<td>41.7%</td>
+<td>59.2%</td>
+<td>0.19</td>
+<td>1.70 / 3.12</td>
+<td>448</td>
+<td>0</td>
+</tr>
+<tr>
+<td>gemma4-12b</td>
+<td>terse</td>
+<td>72.9%</td>
+<td>64.2%</td>
+<td>49.0%</td>
+<td>57.1%</td>
+<td>0.16</td>
+<td>1.58 / 2.45</td>
+<td>378</td>
+<td>0</td>
+</tr>
+<tr>
+<td>gemma4-12b</td>
+<td>playful</td>
+<td>58.3%</td>
+<td>49.0%</td>
+<td>33.3%</td>
+<td>51.8%</td>
+<td>0.22</td>
+<td>1.75 / 3.24</td>
+<td>464</td>
+<td>0</td>
+</tr>
+<tr>
+<td>gemma4-e4b</td>
+<td>coach</td>
+<td>80.2%</td>
+<td>52.8%</td>
+<td>26.0%</td>
+<td>42.9%</td>
+<td>0.25</td>
+<td>0.70 / 1.26</td>
+<td>247</td>
+<td>0</td>
+</tr>
+<tr>
+<td>gemma4-e4b</td>
+<td>terse</td>
+<td>90.6%</td>
+<td>60.8%</td>
+<td>32.3%</td>
+<td>55.2%</td>
+<td>0.07</td>
+<td>0.43 / 0.93</td>
+<td>181</td>
+<td>0</td>
+</tr>
+<tr>
+<td>gemma4-e4b</td>
+<td>playful</td>
+<td>65.6%</td>
+<td>41.7%</td>
+<td>18.8%</td>
+<td>49.2%</td>
+<td>0.42</td>
+<td>0.82 / 1.30</td>
+<td>283</td>
+<td>0</td>
+</tr>
+<tr>
+<td>gemma4-e4b-q3km</td>
+<td>coach</td>
+<td>91.7%</td>
+<td>58.3%</td>
+<td>29.2%</td>
+<td>52.3%</td>
+<td>0.06</td>
+<td>0.61 / 1.33</td>
+<td>114</td>
+<td>0</td>
+</tr>
+<tr>
+<td>gemma4-e4b-q3km</td>
+<td>terse</td>
+<td>97.9%</td>
+<td>61.8%</td>
+<td>33.3%</td>
+<td>57.4%</td>
+<td>0.02</td>
+<td>0.59 / 1.24</td>
+<td>109</td>
+<td>0</td>
+</tr>
+<tr>
+<td>gemma4-e4b-q3km</td>
+<td>playful</td>
+<td>93.8%</td>
+<td>58.3%</td>
+<td>32.3%</td>
+<td>51.1%</td>
+<td>0.06</td>
+<td>0.63 / 1.81</td>
+<td>139</td>
+<td>0</td>
+</tr>
+<tr>
+<td>praxis-4b</td>
+<td>coach</td>
+<td>50.0%</td>
+<td>34.4%</td>
+<td>18.8%</td>
+<td>100.0%</td>
+<td>0.50</td>
+<td>0.64 / 7.06</td>
+<td>494</td>
+<td>0</td>
+</tr>
+<tr>
+<td>praxis-4b</td>
+<td>terse</td>
+<td>53.1%</td>
+<td>35.4%</td>
+<td>18.8%</td>
+<td>88.2%</td>
+<td>0.63</td>
+<td>0.63 / 7.04</td>
+<td>439</td>
+<td>0</td>
+</tr>
+<tr>
+<td>praxis-4b</td>
+<td>playful</td>
+<td>56.2%</td>
+<td>34.4%</td>
+<td>12.5%</td>
+<td>77.8%</td>
+<td>0.59</td>
+<td>0.62 / 6.89</td>
+<td>437</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p>Mean delivered coverage over the three voices: <code>gemma4-e4b-q3km</code> 59.5%, <code>gemma4-12b</code> 58.5%, <code>gemma4-e4b</code> 51.8%, <code>praxis-4b</code> 34.7%. <code>gemma4-e4b-q3km</code> varies least between voices (58.3–61.8%) and passes the coverage bar in <code>terse</code>. <code>playful</code> costs <code>gemma4-12b</code> 13 points and <code>gemma4-e4b</code> 11 points.</p>
+<h3 id="why-factor-pipeline-answers-fall-back">Why factor-pipeline answers fall back</h3>
+<p>Fallback reasons, main run (calls out of 96):</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th><code>chess_token_outside_slot</code></th>
+<th><code>unknown_slot</code></th>
+<th><code>malformed_line_move</code></th>
+<th><code>unknown_evidence</code></th>
+<th><code>provider_error</code> (output cap)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gemma4-12b</td>
+<td>13</td>
+<td>11</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>gemma4-e4b-q3km</td>
+<td>5</td>
+<td>2</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>gemma4-e4b-q4ks</td>
+<td>18</td>
+<td>2</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>gemma4-e4b</td>
+<td>17</td>
+<td>2</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>praxis-4b</td>
+<td>0</td>
+<td>3</td>
+<td>27</td>
+<td>0</td>
+<td>18</td>
+</tr>
+<tr>
+<td>qwen3.5-4b</td>
+<td>37</td>
+<td>1</td>
+<td>8</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>second-2b</td>
+<td>36</td>
+<td>0</td>
+<td>12</td>
+<td>42</td>
+<td>2</td>
+</tr>
+<tr>
+<td>praxis-2b</td>
+<td>66</td>
+<td>0</td>
+<td>6</td>
+<td>0</td>
+<td>24</td>
+</tr>
+</tbody>
+</table>
+<p>Accepted answers lose coverage mostly on the key move. For a hanging piece the key move is the opponent's capture, but answers often name only the best move, for example "You played Rxd2, but h6 was stronger. That was a Hanging piece: after your move, threats fell by 0.75 pawns for you." (<code>gemma4-e4b-q3km</code>).</p>
+<h2 id="decision">Decision</h2>
+<p>2026-11-27: the narrator model is <strong><code>gemma4-e4b-q3km</code></strong> at <code>num_ctx</code> 4096, on every GPU with at least 4 GiB free. It is also the choice for GPUs under 10 GiB; no separate fallback is needed. Below about 3.5 GiB free, no measured model works and the template explanation stays.</p>
+<p>No model meets the full bar, so the choice is the smallest model nearest to it:</p>
+<table>
+<thead>
+<tr>
+<th>Criterion (bar)</th>
+<th><code>gemma4-e4b-q3km</code> (chosen)</th>
+<th><code>gemma4-12b</code> (best score, comparison only)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Delivered coverage, coach, Caissa (≥ 60%)</td>
+<td>57.5% pooled (58.3%, 56.6%): <strong>misses by 2.5 points</strong></td>
+<td>61.1% pooled: passes</td>
+</tr>
+<tr>
+<td>Grounding pass (≥ 70%)</td>
+<td>93.8%: passes</td>
+<td>72.4%: passes</td>
+</tr>
+<tr>
+<td>Calls that thought (0)</td>
+<td>0: passes</td>
+<td>0: passes</td>
+</tr>
+<tr>
+<td>Latency p95 on the 5090 (≤ 3 s)</td>
+<td>1.31 s: passes</td>
+<td>3.10 s: <strong>misses by 0.10 s</strong></td>
+</tr>
+<tr>
+<td>GPU memory at <code>num_ctx</code> 4096 (≤ 4 GiB)</td>
+<td>2.96–3.13 GiB: passes</td>
+<td>8.91 GiB: <strong>fails</strong></td>
+</tr>
+<tr>
+<td>Delivered coverage, voice mean</td>
+<td>59.5%</td>
+<td>58.5%</td>
+</tr>
+<tr>
+<td>Delivered coverage, Stockfish evidence</td>
+<td>66.4%</td>
+<td>62.4%</td>
+</tr>
+<tr>
+<td>False chess statements / expl., coach</td>
+<td>0.06</td>
+<td>0.19</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><code>gemma4-e4b-q3km</code> passes four of five criteria. Its coverage gap (2.5 points) is smaller than the run-to-run spread (up to 7.6 points). It passes the coverage bar in <code>terse</code> and on Stockfish evidence.</li>
+<li>It has the highest grounding pass and the fewest false chess statements of all 11 models.</li>
+<li><code>gemma4-12b</code> also fails the bar (p95 and memory), and it needs a GPU with more than 10 GiB free.</li>
+<li>No model passes the full bar within 4 GiB, and none passes outside it. So there is no 8 GB-tier choice that differs from the chosen model.</li>
+</ul>
+<p>The rule for a later change stays: rerun this benchmark when the prompt builder, the slot rules, the validator or a candidate changes. A smaller model replaces <code>gemma4-e4b-q3km</code> when it meets the bar. A larger model replaces it only when <code>gemma4-e4b-q3km</code> misses the bar and the larger model meets it.</p>
+<h2 id="follow-ups">Follow-ups</h2>
+<ul>
+<li>Coverage bar: answers miss the key move most often (the opponent's capture for a hanging piece). A prompt line or example that asks for the key-move slot can close the 2.5-point gap.</li>
+<li>~~<code>num_ctx</code> default: 4096 fits every lesson and Analysis Board prompt (above). Lower <code>DEFAULT_OLLAMA_CONTEXT_TOKENS</code> to 4096.~~ Done in #429.</li>
+<li>~~Bundling: the chosen model is a GGUF with a Modelfile, not a library tag. The app needs a setup step that downloads the pinned file and runs <code>ollama create</code>, or a published Ollama tag.~~ Done in #429: <code>scan64-cli narrator install</code>.</li>
+<li>Engine comparison on the same positions: Caissa diagnoses 32 of 50 positions. A comparison on the same 32 positions on both engines removes the position-set difference.</li>
+<li>~~<code>think = false</code> in production: the app adapters send no <code>think</code> field. The benchmark numbers assume it.~~ Done in #429: both Ollama paths send <code>think: false</code>.</li>
+<li><code>praxis-4b</code> loops to the output cap in 18 of 96 calls (p95 7.06 s) and writes malformed line moves in 27.</li>
+</ul>
+<h2 id="configuration">Configuration</h2>
+<p>The narrator model is chosen by configuration with no code change:</p>
+<ol>
+<li>Owner setting (desktop, local Ollama at <code>http://127.0.0.1:11434</code>). Settings stores <code>model</code> in <code>OwnerExplanationSettings</code> (<code>PUT /v1/players/{player_id}/explanation-settings</code>). The name must be listed by <code>/api/tags</code>.</li>
+<li>Operator file. <code>SCAN64_LLM_CONFIG</code> names a TOML file read by <code>LLMProviderConfig.from_toml</code>. It takes precedence over the owner setting.</li>
+</ol>
+<p>For the chosen model, <code>scan64-cli narrator install</code> (#429) does steps 1 to 3 after checking Ollama and 4 GiB of free GPU memory (<a href="user-guide.html#the-recommended-narrator-model">user guide</a>). By hand:</p>
+<ol>
+<li>Download <code>gemma-4-E4B-it-Q3_K_M.gguf</code> from <code>unsloth/gemma-4-E4B-it-GGUF</code> at revision <code>bfc15c382204943c3a8fff0c750b94ae2364d7a3</code>. Check its sha256 <code>0980898d0e7d9c75cea05141bf4010393312101ef6cf5b31f8197e0de18655f4</code>. <code>--setup --models gemma4-e4b-q3km</code> does both steps.</li>
+<li>Render <code>benchmarks/narrator/modelfiles/gemma4-e4b-q3km.Modelfile</code>: substitute <code>@GGUF@</code>, <code>@NUM_CTX@</code> (4096) and <code>@NUM_PREDICT@</code> (2048).</li>
+<li>Run <code>ollama create scan64-narrator-gemma4-e4b-q3km -f &lt;rendered Modelfile&gt;</code>.</li>
+<li>Pick <code>scan64-narrator-gemma4-e4b-q3km:latest</code> in Settings, or use the TOML below.</li>
+</ol>
+<pre><code class="language-toml"># file named by SCAN64_LLM_CONFIG
+[llm]
+provider = &quot;ollama&quot;
+model = &quot;scan64-narrator-gemma4-e4b-q3km:latest&quot;
+base_url = &quot;http://127.0.0.1:11434&quot;
+context_tokens = 4096
+</code></pre>
+<p>Since #429, 4096 is the default <code>SCAN64_LOCAL_LLM_CONTEXT_TOKENS</code> and <code>llm.context_tokens</code>, so neither needs setting.</p>
+<h2 id="limits">Limits</h2>
+<ul>
+<li>Sample size: 96 calls per model on the 32 Caissa positions (192 for the four gemma variants). Run-to-run spread is up to 7.6 points of delivered coverage, larger than the 2.0 points seen at 150 calls in the interim run.</li>
+<li>Position sets: the Caissa set has 32 positions, the Stockfish set 50, so the engine columns compare different positions.</li>
+<li>Coverage counts slots: a fact counts only when the answer uses a slot that states it. Free-prose coverage counts claim text. The two are close but not the same measure.</li>
+<li>Timeout: the app's local-Ollama timeout defaults to 180 s (<code>SCAN64_LOCAL_LLM_TIMEOUT_SECONDS</code>, up to 600 s). The benchmark client allowed 120 s; the largest p95 was 7.06 s.</li>
+<li>Thinking: every benchmark call sent <code>think = false</code>. Before #429 the app adapters sent no <code>think</code> field, so production calls of a thinking-capable model could differ from these numbers; since #429 both Ollama paths send <code>think: false</code>.</li>
+<li>One GPU class: all factor, slot and free-prose runs are on an RTX 5090. Latency on smaller GPUs is higher (see the RTX 4080 Laptop run below). CPU latency is measured only for <code>praxis-4b</code> and <code>qwen3.5-4b</code>, on the pre-#367 prompt.</li>
+<li>Provenance of the five runs above (<code>runs_20261127_213350</code>, <code>_220133</code>, <code>_221105</code>, <code>_222432</code>, <code>_223247</code>): their headers predate <code>config_sha256</code> and <code>narrator_sha256</code>, so they cannot be resumed and the header alone does not name the <code>narrator.toml</code> or the narrator modules that ran. Both follow from git, because every header has <code>dirty: false</code>: <code>benchmarks/narrator/narrator.toml</code> has not changed since <code>29f0424</code> (<code>git log -- benchmarks/narrator/narrator.toml</code>; sha256 <code>7f109df11a1a</code> at all three header commits), and <code>src/scan64/explanations</code> is identical at <code>29f0424</code>, <code>ecfc8de</code> and <code>937353f</code> (<code>narrator_sha256</code> as the runner now computes it: <code>792cd8a8b563</code>, 15 files).</li>
+<li>Model identity: in the five runs above, the warm-up record of the <code>gemma4-e4b-q3km</code> block records <code>ollama_digest</code> <code>ad97a99ee9b6546cc60b596070d6b4c2bee8e71f142b1123293d47dbb9dcbec6</code>, the Ollama model digest, not the GGUF SHA-256. On linux-5090, Ollama 0.40.18, <code>ollama create</code> from the benchmark's rendered Modelfile (<code>&lt;gguf_cache&gt;/modelfiles/gemma4-e4b-q3km.Modelfile</code>: the GGUF <code>0980898d…55f4</code>, <code>PARAMETER num_ctx 12288</code>) gives that digest again, so it names this GGUF. The benchmark requests set <code>num_ctx</code> 4096 in their options. The same Modelfile with <code>num_ctx 4096</code> gives <code>74b9b3a8b3e02db38ea0c1fb7e08ecf5b2af35a761095a42346608d126740a03</code>, the digest of the model <code>scan64-cli narrator install</code> creates.</li>
+<li>Positions: every benchmark position is a game move with a played move (50 in <code>positions.json</code>, 32 in <code>positions-caissa.json</code>). The Analysis Board path (<code>POST /v1/analysis/position/explanation</code>, the board-lines prompt) is not measured. In the #429 GPU smoke it fell back to the template on 16 of 16 requests, each with <code>chess_token_outside_slot</code>. In the 13 logged answers, 37 of 48 claims have a chess word outside a slot, <code>material</code> in 28 of them: the model states the outcome in plain words, instead of or as well as the <code>{outcome:…}</code> and <code>{balance:…}</code> slots. Game-move answers through the app were accepted (2 of 2).</li>
+<li>This measures narrator wording, not chess improvement for players.</li>
+</ul>
+<h2 id="interim-slot-run-superseded">Interim slot run (superseded)</h2>
+<p>The runs below were measured on the slot pipeline before the factor facts, the vocabulary rule and the compact prompt (#408), with <code>num_ctx</code> 12288 and Stockfish evidence. They are kept for comparison. Their decision (<code>gemma4-12b</code>, fallback <code>praxis-4b</code>) is replaced by the <a href="#decision">Decision</a> above.</p>
+<h3 id="slot-pipeline-386-coach-voice">Slot pipeline (#386), coach voice</h3>
+<p><code>summary_20261127_161413.{md,json}</code>, runs in <code>runs_20261127_161413.jsonl</code>. Commit <code>aba0e5d</code>, <code>assembly.py</code> sha256 <code>9fc28043b51e</code>, runner sha256 <code>8a0b6d8794b0</code>, <code>dirty: false</code>, voice <code>coach</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Grounding pass</th>
+<th>Coverage (accepted)</th>
+<th>Delivered coverage</th>
+<th>Full coverage</th>
+<th>False chess statements / expl.</th>
+<th>Latency p50 / p95 (s)</th>
+<th>First token p50 (s)</th>
+<th>Hit output cap</th>
+<th>Calls that thought</th>
+<th>GPU memory (GiB)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gemma4-12b</td>
+<td>46.0%</td>
+<td>89.9%</td>
+<td><strong>41.3%</strong></td>
+<td>34.7%</td>
+<td>0.57</td>
+<td>2.03 / 2.52</td>
+<td>1.04</td>
+<td>0.0%</td>
+<td>0</td>
+<td>9.43</td>
+</tr>
+<tr>
+<td>praxis-4b</td>
+<td>44.0%</td>
+<td>83.3%</td>
+<td>36.7%</td>
+<td>24.0%</td>
+<td>0.92</td>
+<td>0.82 / 1.72</td>
+<td>0.40</td>
+<td>0.0%</td>
+<td>0</td>
+<td>3.67</td>
+</tr>
+<tr>
+<td>gemma4-e4b</td>
+<td>45.3%</td>
+<td>74.5%</td>
+<td>33.8%</td>
+<td>21.3%</td>
+<td>0.68</td>
+<td>0.75 / 1.12</td>
+<td>0.29</td>
+<td>0.0%</td>
+<td>0</td>
+<td>5.28</td>
+</tr>
+<tr>
+<td>qwen3.5-4b</td>
+<td>34.7%</td>
+<td>67.9%</td>
+<td>23.6%</td>
+<td>14.0%</td>
+<td>1.05</td>
+<td>1.02 / 2.24</td>
+<td>0.40</td>
+<td>0.0%</td>
+<td>0</td>
+<td>4.49</td>
+</tr>
+<tr>
+<td>granite4.2-8b</td>
+<td>25.3%</td>
+<td>57.9%</td>
+<td>14.7%</td>
+<td>7.3%</td>
+<td>1.42</td>
+<td>1.99 / 2.99</td>
+<td>0.78</td>
+<td>0.0%</td>
+<td>0</td>
+<td>7.48</td>
+</tr>
+<tr>
+<td>qwen3.5-9b</td>
+<td>12.7%</td>
+<td>77.2%</td>
+<td>9.8%</td>
+<td>6.7%</td>
+<td>1.69</td>
+<td>1.82 / 4.37</td>
+<td>0.58</td>
+<td>0.0%</td>
+<td>0</td>
+<td>7.01</td>
+</tr>
+<tr>
+<td>qwen3.5-2b</td>
+<td>2.0%</td>
+<td>77.8%</td>
+<td>1.6%</td>
+<td>1.3%</td>
+<td>2.94</td>
+<td>1.18 / 4.51</td>
+<td>0.09</td>
+<td>4.0%</td>
+<td>0</td>
+<td>3.58</td>
+</tr>
+<tr>
+<td>second-2b</td>
+<td>0.0%</td>
+<td>—</td>
+<td>0.0%</td>
+<td>0.0%</td>
+<td>1.53</td>
+<td>0.61 / 1.22</td>
+<td>0.09</td>
+<td>0.0%</td>
+<td>0</td>
+<td>2.06</td>
+</tr>
+<tr>
+<td>praxis-2b</td>
+<td>0.0%</td>
+<td>—</td>
+<td>0.0%</td>
+<td>0.0%</td>
+<td>3.12</td>
+<td>0.98 / 4.63</td>
+<td>0.20</td>
+<td>20.0%</td>
+<td>0</td>
+<td>2.05</td>
+</tr>
+</tbody>
+</table>
+<p>Calls that thought: 0 for every model.</p>
+<h3 id="free-prose-pipeline-367-against-slots">Free-prose pipeline (#367) against slots</h3>
+<p><code>summary_20261126_230005.{md,json}</code> (commit <code>940d7ed</code>, <code>assembly.py</code> sha256 <code>534ac8bc1381</code>, same positions, hardware and request settings, no voice line). Both runs: 150 calls per model.</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Grounding pass, prose → slots</th>
+<th>Delivered coverage, prose → slots</th>
+<th>Full coverage, prose → slots</th>
+<th>False chess statements / expl., prose → slots</th>
+<th>Latency p50 (s), prose → slots</th>
+<th>Hit output cap, prose → slots</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gemma4-12b</td>
+<td>78.7% → 46.0%</td>
+<td>72.7% → 41.3%</td>
+<td>60.7% → 34.7%</td>
+<td>0.17 → 0.57</td>
+<td>1.68 → 2.03</td>
+<td>0.0% → 0.0%</td>
+</tr>
+<tr>
+<td>praxis-4b</td>
+<td>4.0% → 44.0%</td>
+<td>2.7% → 36.7%</td>
+<td>0.0% → 24.0%</td>
+<td>0.00 → 0.92</td>
+<td>7.35 → 0.82</td>
+<td>56.0% → 0.0%</td>
+</tr>
+<tr>
+<td>gemma4-e4b</td>
+<td>84.0% → 45.3%</td>
+<td>51.1% → 33.8%</td>
+<td>20.0% → 21.3%</td>
+<td>0.06 → 0.68</td>
+<td>0.55 → 0.75</td>
+<td>0.0% → 0.0%</td>
+</tr>
+<tr>
+<td>qwen3.5-4b</td>
+<td>47.3% → 34.7%</td>
+<td>37.1% → 23.6%</td>
+<td>24.0% → 14.0%</td>
+<td>0.53 → 1.05</td>
+<td>1.29 → 1.02</td>
+<td>0.0% → 0.0%</td>
+</tr>
+<tr>
+<td>granite4.2-8b</td>
+<td>60.0% → 25.3%</td>
+<td>55.1% → 14.7%</td>
+<td>46.7% → 7.3%</td>
+<td>0.46 → 1.42</td>
+<td>1.52 → 1.99</td>
+<td>0.0% → 0.0%</td>
+</tr>
+<tr>
+<td>qwen3.5-9b</td>
+<td>44.0% → 12.7%</td>
+<td>34.9% → 9.8%</td>
+<td>23.3% → 6.7%</td>
+<td>0.90 → 1.69</td>
+<td>1.64 → 1.82</td>
+<td>0.0% → 0.0%</td>
+</tr>
+<tr>
+<td>qwen3.5-2b</td>
+<td>12.7% → 2.0%</td>
+<td>8.2% → 1.6%</td>
+<td>4.0% → 1.3%</td>
+<td>1.91 → 2.94</td>
+<td>1.32 → 1.18</td>
+<td>0.0% → 4.0%</td>
+</tr>
+<tr>
+<td>second-2b</td>
+<td>34.0% → 0.0%</td>
+<td>22.2% → 0.0%</td>
+<td>7.3% → 0.0%</td>
+<td>0.33 → 1.53</td>
+<td>0.56 → 0.61</td>
+<td>0.0% → 0.0%</td>
+</tr>
+<tr>
+<td>praxis-2b</td>
+<td>0.0% → 0.0%</td>
+<td>0.0% → 0.0%</td>
+<td>0.0% → 0.0%</td>
+<td>0.50 → 3.12</td>
+<td>4.47 → 0.98</td>
+<td>80.0% → 20.0%</td>
+</tr>
+</tbody>
+</table>
+<p>The slot pipeline lowers delivered coverage for 8 of 9 models. Only <code>praxis-4b</code> gains: on free prose it hit the output cap in 56% of calls; with slots it writes short answers. The false-statement counts of the two pipelines measure different things: on the slot path a chess word in the prose is a false statement even when the fact is true.</p>
+<h3 id="why-slot-answers-fall-back">Why slot answers fall back</h3>
+<p>Fallback reasons, slot run (calls out of 150):</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th><code>chess_token_outside_slot</code></th>
+<th><code>unknown_slot</code></th>
+<th><code>malformed_line_move</code></th>
+<th>Other</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gemma4-12b</td>
+<td>79</td>
+<td>1</td>
+<td>0</td>
+<td>1</td>
+</tr>
+<tr>
+<td>praxis-4b</td>
+<td>12</td>
+<td>63</td>
+<td>9</td>
+<td>0</td>
+</tr>
+<tr>
+<td>gemma4-e4b</td>
+<td>73</td>
+<td>5</td>
+<td>1</td>
+<td>3</td>
+</tr>
+<tr>
+<td>qwen3.5-4b</td>
+<td>55</td>
+<td>4</td>
+<td>37</td>
+<td>2</td>
+</tr>
+<tr>
+<td>granite4.2-8b</td>
+<td>105</td>
+<td>0</td>
+<td>0</td>
+<td>7</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>CHESS_PROSE</code> rule rejects common chess verbs and nouns outside a slot. Over all 9 models, the words most often rejected are <code>check</code> (172 claims), <code>capture</code> (131), digits (one per digit, 62–96 each), <code>wins</code> (89), <code>mate</code> (81), <code>threat</code> (75) and <code>knight</code> (67). For <code>gemma4-12b</code> the top words are <code>wins</code> 27, <code>capture</code> 24, <code>mate</code> 17 and <code>check</code> 13, for example "After {move:L3:1}, {capture:L3:2} wins this piece in its own local exchange." <code>praxis-4b</code> loses 63 calls to one answer, "You played {played}, but {best} was stronger: {capture:best}.", which names a capture slot that a position without a capture does not have.</p>
+<p>Prompt length: the slot list adds about 2,100 tokens. Mean prompt tokens rise from 4,070–4,238 to 6,174–6,383; the longest prompt is 9,869 tokens. 12–15 calls per model (4–5 of 50 positions) have prompts of 8,192 tokens or more.</p>
+<h3 id="voice-comparison-387">Voice comparison (#387)</h3>
+<p>Top 3 models by delivered coverage, run once more with each other voice. <code>coach</code> is the main run above; <code>terse</code> is <code>summary_20261127_171614</code> (<code>narrator_voice_terse.toml</code>); <code>playful</code> is <code>summary_20261127_181731</code> (<code>narrator_voice_playful.toml</code>). Same commit pipeline (<code>assembly.py</code> sha256 <code>9fc28043b51e</code>), 150 calls per row, every header <code>dirty: false</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Voice</th>
+<th>Grounding pass</th>
+<th>Delivered coverage</th>
+<th>Full coverage</th>
+<th>False chess statements / expl.</th>
+<th>Latency p50 / p95 (s)</th>
+<th>Output tokens (mean)</th>
+<th>Calls that thought</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gemma4-12b</td>
+<td>coach</td>
+<td>46.0%</td>
+<td>41.3%</td>
+<td>34.7%</td>
+<td>0.57</td>
+<td>2.03 / 2.52</td>
+<td>262</td>
+<td>0</td>
+</tr>
+<tr>
+<td>gemma4-12b</td>
+<td>terse</td>
+<td>42.0%</td>
+<td>36.9%</td>
+<td>29.3%</td>
+<td>0.58</td>
+<td>1.89 / 2.42</td>
+<td>225</td>
+<td>0</td>
+</tr>
+<tr>
+<td>gemma4-12b</td>
+<td>playful</td>
+<td>46.0%</td>
+<td>41.8%</td>
+<td>33.3%</td>
+<td>0.53</td>
+<td>1.99 / 2.47</td>
+<td>250</td>
+<td>0</td>
+</tr>
+<tr>
+<td>praxis-4b</td>
+<td>coach</td>
+<td>44.0%</td>
+<td>36.7%</td>
+<td>24.0%</td>
+<td>0.92</td>
+<td>0.82 / 1.72</td>
+<td>156</td>
+<td>0</td>
+</tr>
+<tr>
+<td>praxis-4b</td>
+<td>terse</td>
+<td>50.0%</td>
+<td>42.0%</td>
+<td>28.0%</td>
+<td>0.29</td>
+<td>0.79 / 1.27</td>
+<td>144</td>
+<td>0</td>
+</tr>
+<tr>
+<td>praxis-4b</td>
+<td>playful</td>
+<td>46.0%</td>
+<td>38.7%</td>
+<td>26.0%</td>
+<td>0.36</td>
+<td>0.76 / 1.44</td>
+<td>115</td>
+<td>0</td>
+</tr>
+<tr>
+<td>gemma4-e4b</td>
+<td>coach</td>
+<td>45.3%</td>
+<td>33.8%</td>
+<td>21.3%</td>
+<td>0.68</td>
+<td>0.75 / 1.12</td>
+<td>196</td>
+<td>0</td>
+</tr>
+<tr>
+<td>gemma4-e4b</td>
+<td>terse</td>
+<td>54.0%</td>
+<td>39.8%</td>
+<td>26.7%</td>
+<td>0.48</td>
+<td>0.69 / 1.07</td>
+<td>169</td>
+<td>0</td>
+</tr>
+<tr>
+<td>gemma4-e4b</td>
+<td>playful</td>
+<td>48.7%</td>
+<td>36.0%</td>
+<td>24.0%</td>
+<td>0.68</td>
+<td>0.80 / 1.30</td>
+<td>210</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p>Mean delivered coverage over the three voices: <code>gemma4-12b</code> 40.0%, <code>praxis-4b</code> 39.1%, <code>gemma4-e4b</code> 36.5%. The voice changes delivered coverage by at most 6.0 points per model. <code>terse</code> helps the two smaller models and costs <code>gemma4-12b</code> 4.4 points. <code>gemma4-12b</code> has the highest full coverage in every voice.</p>
+<p>Run-to-run noise: a first playful run, discarded because its header was <code>dirty</code> (an uncommitted report edit), gave <code>gemma4-12b</code> 43.8%, <code>praxis-4b</code> 38.7% and <code>gemma4-e4b</code> 35.3% delivered coverage. Differences up to 2.0 points between two runs of one config are noise at 150 calls.</p>
+<h2 id="earlier-runs-pre-367-pipeline-only">Earlier runs (pre-#367 pipeline only)</h2>
+<p>These runs used the first six-model shortlist and the prompt before #367 (commit <code>c589f317</code>, <code>assembly.py</code> sha256 <code>255ce24b73f9</code>, <code>num_ctx</code> 4096, <code>num_predict</code> 1024, no streaming). They do not apply to the current prompt. Config: <code>benchmarks/narrator/narrator_v1.toml</code>.</p>
+<h3 id="first-survey">First survey</h3>
+<p>Each candidate was checked on Hugging Face on 2026-11-26. The constraint was a model that fits fully in 12 GB VRAM at Q4_K_M with <code>num_ctx</code> 4096.</p>
+<table>
+<thead>
+<tr>
+<th>Model (benchmark name)</th>
+<th>Role</th>
+<th>Licence</th>
+<th>Params (B)</th>
+<th>Q4_K_M size (GiB)</th>
+<th>Local run</th>
+<th>Base model</th>
+<th>Training data</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ChessGPT base v1 (<code>chessgpt-base</code>)</td>
+<td>chess</td>
+<td>Apache-2.0</td>
+<td>2.8</td>
+<td>2.26</td>
+<td>GGUF <code>msj121/chessgpt-base-v1-Q4_K_M-GGUF</code> (community quant)</td>
+<td>RedPajama-INCITE-3B (GPT-NeoX)</td>
+<td><code>Waterhorse/chess_data</code>: games, puzzles, annotated games, chess books, forum text</td>
+</tr>
+<tr>
+<td>Praxis chess reasoner (<code>praxis-4b</code>)</td>
+<td>chess</td>
+<td>Apache-2.0</td>
+<td>4.2</td>
+<td>2.76</td>
+<td>GGUF <code>praxis-chess/praxis-chess-reasoner-qwen3.5-4b-GGUF</code> with publisher Modelfile</td>
+<td>Qwen/Qwen3.5-4B + LoRA</td>
+<td><code>praxis-chess/praxis-chess-evidence-graphs</code>: engine evidence graphs with typed claims</td>
+</tr>
+<tr>
+<td>Qwen3 4B Chess Explain (<code>qwen3-4b-chess-explain</code>)</td>
+<td>chess</td>
+<td>Apache-2.0</td>
+<td>4.0</td>
+<td>2.96</td>
+<td>GGUF <code>HillPhelmuth/Qwen3_4B_Chess_Explain_GGUF_Quants</code></td>
+<td>Qwen/Qwen3-4B</td>
+<td>not stated on the model card</td>
+</tr>
+<tr>
+<td>ChessLM Qwen3 (<code>chesslm-qwen3-8b</code>)</td>
+<td>chess</td>
+<td>Apache-2.0</td>
+<td>8.2</td>
+<td>5.02</td>
+<td>GGUF <code>VamidkaZ/ChessLM_Qwen3-Q4_K_M-GGUF</code></td>
+<td>Qwen/Qwen3-8B</td>
+<td><code>Lichess/chess-puzzles</code>, RLVR with a Stockfish verifier</td>
+</tr>
+<tr>
+<td>Qwen3.5 4B (<code>qwen3.5-4b</code>)</td>
+<td>baseline</td>
+<td>Apache-2.0</td>
+<td>4.7</td>
+<td>2.92</td>
+<td>Ollama library <code>qwen3.5:4b</code></td>
+<td>Qwen/Qwen3.5-4B-Base</td>
+<td>general web, code and synthetic data</td>
+</tr>
+<tr>
+<td>Qwen3 8B (<code>qwen3-8b</code>)</td>
+<td>baseline</td>
+<td>Apache-2.0</td>
+<td>8.2</td>
+<td>5.20</td>
+<td>Ollama library <code>qwen3:8b</code></td>
+<td>Qwen/Qwen3-8B-Base</td>
+<td>general web, code and synthetic data</td>
+</tr>
+</tbody>
+</table>
+<p>Surveyed, not benchmarked:</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Licence</th>
+<th>Params (B)</th>
+<th>Reason not benchmarked</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Waterhorse/chessgpt-chat-v1</code></td>
+<td>Apache-2.0</td>
+<td>2.8</td>
+<td>no GGUF; <code>chessgpt-base</code> covers the family and fails the JSON contract</td>
+</tr>
+<tr>
+<td>Concept-guided chess commentary (CCC)</td>
+<td>—</td>
+<td>—</td>
+<td>no model weights found on Hugging Face</td>
+</tr>
+<tr>
+<td><code>jromanghf/rookstudio-commentary</code></td>
+<td>Apache-2.0</td>
+<td>4B class</td>
+<td>cap of 6 models; <code>praxis-4b</code> is the 4B Qwen3.5 chess candidate</td>
+</tr>
+<tr>
+<td><code>NAKSTStudio/chess-gemma-commentary</code></td>
+<td>Gemma</td>
+<td>0.27</td>
+<td>far below the 4B to 8B class</td>
+</tr>
+<tr>
+<td><code>Qwen/Qwen3-14B</code></td>
+<td>Apache-2.0</td>
+<td>14.8</td>
+<td>does not fit 12 GB at Q4_K_M with <code>num_ctx</code> 4096</td>
+</tr>
+<tr>
+<td><code>meta-llama/Llama-3.1-8B-Instruct</code></td>
+<td>Llama 3.1 Community</td>
+<td>8.0</td>
+<td>gated; the 8B baseline slot went to <code>qwen3-8b</code></td>
+</tr>
+<tr>
+<td><code>google/gemma-3-12b-it</code></td>
+<td>Gemma</td>
+<td>12.2</td>
+<td>does not fit 12 GB at Q4_K_M with <code>num_ctx</code> 4096</td>
+</tr>
+</tbody>
+</table>
+<p>Fine-tune option: a LoRA on a small open model, trained on engine-annotated commentary with the Scan64 claim schema as target. The licence of the GameKnot commentary corpus (Jhamtani et al., ACL 2018) must be cleared before any training.</p>
+<h3 id="rtx-5090-six-models">RTX 5090 (six models)</h3>
+<p><code>summary_20261126_162415.{md,json}</code>, runs in <code>runs_20261126_162415.jsonl</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Role</th>
+<th>Params (B)</th>
+<th>Grounding pass</th>
+<th>Provider errors</th>
+<th>Claims / expl.</th>
+<th>False chess statements / expl.</th>
+<th>Rejected claims / expl.</th>
+<th>SAN legal</th>
+<th>SAN correct (SAN tokens)</th>
+<th>Latency p50 / p95 (s)</th>
+<th>Within 4 s</th>
+<th>VRAM (GiB)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>chessgpt-base</td>
+<td>chess</td>
+<td>2.8</td>
+<td>0.0%</td>
+<td>55.3%</td>
+<td>3.79</td>
+<td>0.00</td>
+<td>3.79</td>
+<td>—</td>
+<td>— (0)</td>
+<td>2.98 / 3.28</td>
+<td>99.3%</td>
+<td>2.26</td>
+</tr>
+<tr>
+<td>praxis-4b</td>
+<td>chess</td>
+<td>4.2</td>
+<td>80.0%</td>
+<td>6.0%</td>
+<td>4.30</td>
+<td>0.19</td>
+<td>0.19</td>
+<td>100.0%</td>
+<td>100.0% (102)</td>
+<td>1.39 / 3.70</td>
+<td>98.0%</td>
+<td>2.76</td>
+</tr>
+<tr>
+<td>qwen3-4b-chess-explain</td>
+<td>chess</td>
+<td>4.0</td>
+<td>33.3%</td>
+<td>4.7%</td>
+<td>3.81</td>
+<td>1.77</td>
+<td>2.10</td>
+<td>91.4%</td>
+<td>76.9% (221)</td>
+<td>0.75 / 3.42</td>
+<td>100.0%</td>
+<td>2.96</td>
+</tr>
+<tr>
+<td>chesslm-qwen3-8b</td>
+<td>chess</td>
+<td>8.2</td>
+<td>22.0%</td>
+<td>0.0%</td>
+<td>6.41</td>
+<td>0.65</td>
+<td>3.15</td>
+<td>97.9%</td>
+<td>97.9% (146)</td>
+<td>1.92 / 3.30</td>
+<td>98.7%</td>
+<td>5.02</td>
+</tr>
+<tr>
+<td>qwen3.5-4b</td>
+<td>baseline</td>
+<td>4.7</td>
+<td>27.3%</td>
+<td>2.0%</td>
+<td>3.69</td>
+<td>0.24</td>
+<td>2.61</td>
+<td>100.0%</td>
+<td>100.0% (68)</td>
+<td>1.56 / 4.02</td>
+<td>94.7%</td>
+<td>2.92</td>
+</tr>
+<tr>
+<td>qwen3-8b</td>
+<td>baseline</td>
+<td>8.2</td>
+<td>1.3%</td>
+<td>67.3%</td>
+<td>8.53</td>
+<td>0.00</td>
+<td>8.02</td>
+<td>100.0%</td>
+<td>100.0% (78)</td>
+<td>4.94 / 5.13</td>
+<td>26.0%</td>
+<td>5.20</td>
+</tr>
+</tbody>
+</table>
+<p>The coverage view of these runs is in <code>rescored_20261126_162415.{md,json}</code>.</p>
+<h3 id="rtx-4080-laptop-four-models">RTX 4080 Laptop (four models)</h3>
+<p><code>summary_20261126_145813.{md,json}</code>, NVIDIA GeForce RTX 4080 Laptop GPU 12 GB. Latency only; the qwen3.5-4b and qwen3-8b lines of this runs file ran on the RTX 5090.</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Latency p50 / p95 (s)</th>
+<th>Within 4 s</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>chessgpt-base</td>
+<td>7.70 / 8.04</td>
+<td>32.7%</td>
+</tr>
+<tr>
+<td>praxis-4b</td>
+<td>3.27 / 6.38</td>
+<td>73.3%</td>
+</tr>
+<tr>
+<td>qwen3-4b-chess-explain</td>
+<td>1.37 / 8.77</td>
+<td>76.7%</td>
+</tr>
+<tr>
+<td>chesslm-qwen3-8b</td>
+<td>5.20 / 8.82</td>
+<td>12.7%</td>
+</tr>
+</tbody>
+</table>
+<h3 id="cpu-only-two-models">CPU only (two models)</h3>
+<p><code>cpu/summary_20261126_170614.{md,json}</code>, runs in <code>runs_20261126_170614.jsonl</code>, config <code>benchmarks/narrator/narrator_cpu.toml</code> (removed in <code>e318b0b</code>; CPU runs are out of scope, and the file is in the git history). A separate Ollama 0.40.18 server on 127.0.0.1:11436 started with <code>CUDA_VISIBLE_DEVICES=-1 OLLAMA_LLM_LIBRARY=cpu</code>; its device discovery listed only <code>cpu</code>, and Ollama reported <code>size_vram</code> 0 for both models, so no layer ran on the GPU. CPU: Intel Core i9-14900HX, 32 logical cores. First 10 positions x 1 run, same pipeline and module hash as the GPU runs. The summary header names the GPU present in the machine, not one in use.</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Latency p50 / p95 (s)</th>
+<th>Grounding pass (10 calls)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>praxis-4b</td>
+<td>15.19 / 51.86</td>
+<td>100.0%</td>
+</tr>
+<tr>
+<td>qwen3.5-4b</td>
+<td>20.92 / 77.71</td>
+<td>20.0%</td>
+</tr>
+</tbody>
+</table>
+<h3 id="validator-defect-found-by-the-first-run">Validator defect found by the first run</h3>
+<p><code>_tactic</code> in <code>validator.py</code> raised <code>StopIteration</code> for claim text with "back-rank" (the regex accepts a hyphen, the <code>_TACTIC_WORDS</code> keys use a space). Fixed on <code>epic/371</code> in <code>dddcd85</code>. The first runs used the pinned pre-fix module.</p>
+</main>
+</div>
+<footer class="docs-footer"><p>Generated from the Markdown files in the
+<a href="https://github.com/Mathews-Tom/Scan64/tree/main/docs">docs folder</a>. Scan64 is licensed under the
+<a href="https://github.com/Mathews-Tom/Scan64/blob/main/LICENSE">GNU GPL v3.0</a>.</p></footer>
+</body>
+</html>

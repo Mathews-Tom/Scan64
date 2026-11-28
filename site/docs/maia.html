@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maia opponents · Scan64 documentation</title>
+<meta name="description" content="Play human-like Maia opponents with weights you provide.">
+<link rel="icon" href="../logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to content</a>
+<header class="docs-bar"><a class="docs-home" href="index.html"><img src="../logo.svg" width="28" height="28" alt="">Scan64 documentation</a>
+<nav aria-label="Site"><a class="docs-pages" href="#pages">Pages</a>
+<a href="../">Scan64 home</a>
+<a href="https://github.com/Mathews-Tom/Scan64">Source on GitHub</a></nav>
+</header>
+<div class="docs-layout">
+<nav id="pages" class="docs-nav" aria-label="Documentation"><h2>Use Scan64</h2><ul><li><a href="about.html">About Scan64</a></li><li><a href="getting-started.html">Get started</a></li><li><a href="user-guide.html">User guide</a></li><li><a href="configuration.html">Configuration</a></li></ul><h2>Engines and models</h2><ul><li><a href="engines.html">Analysis engines</a></li><li><a href="narrator-models.html">Narrator models</a></li><li><a href="maia.html" aria-current="page">Maia opponents</a></li><li><a href="lesson-packs.html">Lesson packs</a></li></ul><h2>How it works</h2><ul><li><a href="system-overview.html">System overview</a></li><li><a href="system-design.html">System design</a></li><li><a href="narrator-pipeline.html">Narrator pipeline</a></li></ul></nav>
+<main id="content" class="docs-content">
+<h1 id="maia-operator-provisioning">Maia operator provisioning</h1>
+<h2 id="boundary">Boundary</h2>
+<p>Scan64 does not bundle, download, cache, redistribute, or host Maia checkpoints. This guide provisions software and checkpoint files outside the repository and release artifacts. It does not establish a right to obtain, use, or distribute a checkpoint.</p>
+<p>The v1 Maia checkpoint licence and redistribution terms remain unresolved. Read <a href="https://github.com/CSSLab/maia-chess/issues/76">CSSLab/maia-chess#76</a> and confirm the operator's rights before obtaining an asset. Do not add checkpoint files to the repository; <code>.gitignore</code> rejects <code>*.pb.gz</code>.</p>
+<h2 id="validated-macos-setup">Validated macOS setup</h2>
+<p>The previously recorded operator setup used Apple silicon macOS with Homebrew, Lc0 0.32.1, Stockfish 18, and the official Maia v1.0 <code>maia-1500.pb.gz</code> asset. These are validation versions, not pins in the Homebrew command. Other platforms require operator-provided Lc0 and Stockfish binaries. Maia configuration, Lc0 and checkpoint paths must be absolute; a missing selected checkpoint or Lc0 binary fails closed. Ordinary Stockfish operation instead resolves <code>stockfish</code> on <code>PATH</code>.</p>
+<p>Install the required engine binaries:</p>
+<pre><code class="language-text">brew install lc0 stockfish
+</code></pre>
+<p>Confirm the executable paths before writing configuration:</p>
+<pre><code class="language-text">command -v lc0
+command -v stockfish
+</code></pre>
+<p>The recorded Homebrew paths were <code>/opt/homebrew/bin/lc0</code> and <code>/opt/homebrew/bin/stockfish</code>; use the paths reported on your machine.</p>
+<h2 id="obtain-an-operator-owned-checkpoint">Obtain an operator-owned checkpoint</h2>
+<p>After confirming rights, manually download <code>maia-1500.pb.gz</code> from the <a href="https://github.com/CSSLab/maia-chess/releases/tag/v1.0">official Maia v1.0 release</a> through the operator's browser or approved artifact process. Store it outside the Scan64 checkout, for example:</p>
+<pre><code class="language-text">mkdir -p &quot;$HOME/.local/share/scan64/maia&quot;
+</code></pre>
+<p>Move the operator-provided file to:</p>
+<pre><code class="language-text">$HOME/.local/share/scan64/maia/maia-1500.pb.gz
+</code></pre>
+<p>The official v1.0 asset was 1,258,199 bytes when this guide was verified. Treat the size only as an identity sanity check: the release API did not publish a cryptographic digest.</p>
+<h2 id="configure-scan64">Configure Scan64</h2>
+<p>Create an operator-owned configuration file:</p>
+<pre><code class="language-text">mkdir -p &quot;$HOME/.config/scan64&quot;
+</code></pre>
+<pre><code class="language-toml"># $HOME/.config/scan64/maia.toml
+[maia]
+binary_path = &quot;/opt/homebrew/bin/lc0&quot;
+threads = 1
+
+[maia.checkpoints]
+1500 = &quot;/Users/replace-with-your-user/.local/share/scan64/maia/maia-1500.pb.gz&quot;
+</code></pre>
+<p>Replace <code>/Users/replace-with-your-user</code> with the operator's absolute home path. Relative configuration, binary, and checkpoint paths are rejected. Add additional operator-owned checkpoints using their numeric ratings as keys.</p>
+<p>Prepare the Scan64 environment from the repository root:</p>
+<pre><code class="language-text">uv sync --locked
+pnpm --dir apps/scan64-web install --frozen-lockfile
+pnpm --dir apps/scan64-web build
+</code></pre>
+<p>Start the complete local application with the configuration:</p>
+<pre><code class="language-text">SCAN64_MAIA_CONFIG=&quot;$HOME/.config/scan64/maia.toml&quot; uv run scan64-cli serve --no-browser
+</code></pre>
+<p>Open <code>http://127.0.0.1:8001</code> manually, or use the API reference at <code>/docs</code>. The Play screen currently creates Stockfish sessions only; there is no Maia picker. To play Maia, first open the app once so it creates your player, then copy that player's ID (<code>scan64_player_id</code>) and bearer token (<code>scan64_player_token:&lt;id&gt;</code>) from the browser's local storage for this origin. Send <code>POST /v1/play-sessions</code> with header <code>Authorization: Bearer &lt;token&gt;</code> and body <code>{"player_id": "&lt;id&gt;", "opponent_config": {"provider": "maia", "strength": "1500"}}</code>, then open <code>/play?session=&lt;returned id&gt;</code> in the same browser so the session loads under that identity. Treat the token like a password. Scan64 selects the nearest configured checkpoint. A request that differs from the selected checkpoint persists an approximate-100-Elo granularity disclosure; requests below or above configured coverage instead persist the coverage-gap disclosure. Use <code>provider = "stockfish"</code> with <code>bot_level</code> for the relative Stockfish ladder; Maia's checkpoint rating is not a Stockfish bot-level conversion.</p>
+<h2 id="verify">Verify</h2>
+<p>Run the ordinary repository gate. It intentionally excludes checkpoint-dependent tests:</p>
+<pre><code class="language-text">scripts/check.sh
+</code></pre>
+<p>Run the operator-only quality gate with absolute binary and checkpoint paths:</p>
+<pre><code class="language-text">SCAN64_MAIA_BINARY=/opt/homebrew/bin/lc0 SCAN64_MAIA_1500_WEIGHTS=&quot;$HOME/.local/share/scan64/maia/maia-1500.pb.gz&quot; SCAN64_STOCKFISH_BINARY=/opt/homebrew/bin/stockfish uv run pytest -m real_model tests/integration/test_maia_real_model.py tests/integration/test_maia_realism.py
+</code></pre>
+<p>The first test drives a configured API session and verifies that Maia returns a legal move. The second compares Maia's root-policy distribution against the provenance-recorded human reference fixture and an Elo-1500 Stockfish baseline. Both tests have no network path; they use only the locally provisioned operator assets.</p>
+</main>
+</div>
+<footer class="docs-footer"><p>Generated from the Markdown files in the
+<a href="https://github.com/Mathews-Tom/Scan64/tree/main/docs">docs folder</a>. Scan64 is licensed under the
+<a href="https://github.com/Mathews-Tom/Scan64/blob/main/LICENSE">GNU GPL v3.0</a>.</p></footer>
+</body>
+</html>

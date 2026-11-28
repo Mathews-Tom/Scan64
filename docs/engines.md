@@ -60,10 +60,11 @@ engines: games under way, bot sessions (each plays only under the ladder it
 started with) and stored analysis keep the engine they were made with.
 
 To switch an install, stop it and edit the record (`"bundled"` or
-`"stockfish"`). `SCAN64_ENGINE_CONFIG` or `SCAN64_LADDER_ENGINE_CONFIG` set
-explicitly always win, and so does `SCAN64_STOCKFISH_PATH` in the image (the
-desktop shell always passes its bundled Stockfish there, so it does not count in
-the desktop app). Nothing is recorded on such a start. In the image:
+`"stockfish"`); in the desktop app the record is the only switch, because
+the shell starts its server with a cleared environment. In a source run or the
+image, `SCAN64_ENGINE_CONFIG` or `SCAN64_LADDER_ENGINE_CONFIG` set explicitly
+always win, and so does `SCAN64_STOCKFISH_PATH` in the image. Nothing is
+recorded on such a start. In the image:
 
 ```sh
 docker run -e SCAN64_ENGINE_CONFIG=/usr/local/share/scan64/engines/caissa.toml \
@@ -115,7 +116,7 @@ multipv = 4
 [ladder]                  # optional: how the bot ladder weakens this engine
 strength = "elo"          # "skill" (default) or "elo"
 elo = [1000, 1200, 1400, 1600, 1800, 2000, 2200, 2500]  # UCI_Elo for levels 1-8, increasing
-movetime_ms = 500         # fixed time per bot move; "elo" only
+movetime_ms = 500         # fixed time per bot move; required with "elo", rejected with "skill"
 ```
 
 Examples: [`config/engines/`](../config/engines/) (`ethereal.toml`,
@@ -130,7 +131,8 @@ Rules (all enforced at load or engine start, failing with the file and key):
   against the profile file's own folder.
 - `engine.options` may not set Scan64-managed options: `Threads`, `Hash`,
   `MultiPV`, `Ponder`, `UCI_AnalyseMode`, `UCI_Chess960`, `UCI_Variant`,
-  `UCI_Opponent`, `UCI_RatingAdv`, `Skill Level`, `UCI_LimitStrength`, `UCI_Elo`.
+  `UCI_Opponent`, `UCI_RatingAdv`, `Skill Level`, `UCI_LimitStrength`, `UCI_Elo`,
+  and the XBoard `cores` and `memory`.
 - An option in `engine.options` that the engine does not declare stops engine
   start with `EngineConfigurationError`.
 - `Threads`/`Hash` are sent only to engines that declare them (Lc0 has no `Hash`).
@@ -266,7 +268,7 @@ cohorts (`api/strength.py`) are defined against Stockfish. An engine with
 moves come from the same interactive pool as hints, under the analysis
 profile's `[ladder]`. With it, ladder moves come from a pool of the ladder
 profile's engine (sized like the interactive pool) under that profile's
-`[ladder]`; the analysis profile's `[ladder]` is then unused, `scan64 serve`
+`[ladder]`; the analysis profile's `[ladder]` is then unused, `scan64-cli serve`
 checks the ladder profile's binary too, and the default batch pool shrinks by
 the ladder pool's engine threads. Analysis, hints, review and legacy Skill Level
 sessions (no `bot_level`) never use the ladder profile. A ladder profile with
@@ -276,7 +278,7 @@ cannot continue (the policy check above). Example: Caissa for analysis, Arasan
 for the ladder:
 
 ```sh
-SCAN64_ENGINE_CONFIG=/path/to/caissa.toml SCAN64_LADDER_ENGINE_CONFIG=/path/to/arasan-ladder.toml scan64 serve
+SCAN64_ENGINE_CONFIG=/path/to/caissa.toml SCAN64_LADDER_ENGINE_CONFIG=/path/to/arasan-ladder.toml uv run scan64-cli serve
 ```
 
 When the engine that plays bot moves (the ladder profile's, else the analysis
