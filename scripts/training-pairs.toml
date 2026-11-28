@@ -1,0 +1,23 @@
+# Verified training pairs (issue #464).
+# Build: uv run python scripts/build-training-pairs.py --data-dir <the #463 corpus data dir>
+# Reads <data-dir>/corpus/games.jsonl and writes <data-dir>/pairs; no book text
+# enters the repository. The report below is the only output tracked here.
+
+[output]
+report = "docs/evaluation/training-pairs.md"
+
+[engine]
+# A UCI engine on PATH or a path to one.
+command = "stockfish"
+nodes = 400000
+threads = 4
+hash_mb = 256
+
+[split]
+# A game is held out when crc32("<source>:<game number>") % every == 0.
+every = 10
+
+[audit]
+# Kept and trimmed pairs drawn for the blind judge.
+sample = 200
+seed = 464
