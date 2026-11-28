@@ -18,7 +18,7 @@ from scan64.explanations.voice import (
     NarratorVoice,
     is_narrator_voice,
 )
-from scan64.providers.llm.adapters import LLMExplanationProvider
+from scan64.providers.llm.adapters import LLMExplanationProvider, LLMProviderError
 from scan64.providers.llm.contracts import ExplanationRequest, GeneratedExplanation
 from scan64.providers.llm.local_ollama import LocalOllamaExplanationProvider
 
@@ -51,6 +51,19 @@ class LocalNarratorProvider:
 
     async def generate(self, request: ExplanationRequest) -> GeneratedExplanation:
         return await self.provider.generate(request)
+
+    def supports_rewrite(self) -> bool:
+        return callable(getattr(self.provider, "rewrite", None))
+
+    async def rewrite(self, system: str, user: str) -> str:
+        """Plain text from the owner's provider (the voice pipeline, #454)."""
+        rewrite = getattr(self.provider, "rewrite", None)
+        if not callable(rewrite):
+            raise LLMProviderError("The local provider cannot write plain sentences")
+        text = await rewrite(system, user)
+        if not isinstance(text, str):
+            raise LLMProviderError("The local provider returned no text")
+        return text
 
 
 def operator_manages_explanations() -> bool:

@@ -1,0 +1,602 @@
+{
+ "h001": {
+  "run": "run7",
+  "test": "P2-boxed-king",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h002": {
+  "run": "run7",
+  "test": "P1-greedy-knight",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h003": {
+  "run": "run7",
+  "test": "P5-shut-bishop",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h004": {
+  "run": "run7",
+  "test": "P3-back-rank",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h005": {
+  "run": "run7",
+  "test": "P2-boxed-king",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h006": {
+  "run": "run7",
+  "test": "P5-shut-bishop",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h007": {
+  "run": "run7",
+  "test": "P1-greedy-knight",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h008": {
+  "run": "run7",
+  "test": "P3-back-rank",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h009": {
+  "run": "run7",
+  "test": "P3-back-rank",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h010": {
+  "run": "run7",
+  "test": "P5-shut-bishop",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h011": {
+  "run": "run7",
+  "test": "P2-boxed-king",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h012": {
+  "run": "run7",
+  "test": "P4-fork",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h013": {
+  "run": "run7",
+  "test": "P3-back-rank",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h014": {
+  "run": "run7",
+  "test": "P4-fork",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h015": {
+  "run": "run7",
+  "test": "P3-back-rank",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h016": {
+  "run": "run7",
+  "test": "P2-boxed-king",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h017": {
+  "run": "run7",
+  "test": "P5-shut-bishop",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h018": {
+  "run": "run7",
+  "test": "P2-boxed-king",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h019": {
+  "run": "run7",
+  "test": "P4-fork",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h020": {
+  "run": "run7",
+  "test": "P2-boxed-king",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h021": {
+  "run": "run7",
+  "test": "P2-boxed-king",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h022": {
+  "run": "run7",
+  "test": "P2-boxed-king",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h023": {
+  "run": "run7",
+  "test": "P1-greedy-knight",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h024": {
+  "run": "run7",
+  "test": "P1-greedy-knight",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h025": {
+  "run": "run7",
+  "test": "P4-fork",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h026": {
+  "run": "run7",
+  "test": "P5-shut-bishop",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h027": {
+  "run": "run7",
+  "test": "P2-boxed-king",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h028": {
+  "run": "run7",
+  "test": "P2-boxed-king",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h029": {
+  "run": "run7",
+  "test": "P4-fork",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h030": {
+  "run": "run7",
+  "test": "P5-shut-bishop",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h031": {
+  "run": "run7",
+  "test": "P4-fork",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h032": {
+  "run": "run7",
+  "test": "P1-greedy-knight",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h033": {
+  "run": "run7",
+  "test": "P4-fork",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h034": {
+  "run": "run7",
+  "test": "P3-back-rank",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h035": {
+  "run": "run7",
+  "test": "P3-back-rank",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h036": {
+  "run": "run7",
+  "test": "P2-boxed-king",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h037": {
+  "run": "run7",
+  "test": "P3-back-rank",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h038": {
+  "run": "run7",
+  "test": "P2-boxed-king",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h039": {
+  "run": "run7",
+  "test": "P4-fork",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h040": {
+  "run": "run7",
+  "test": "P4-fork",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h041": {
+  "run": "run7",
+  "test": "P5-shut-bishop",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h042": {
+  "run": "run7",
+  "test": "P5-shut-bishop",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h043": {
+  "run": "run7",
+  "test": "P1-greedy-knight",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h044": {
+  "run": "run7",
+  "test": "P1-greedy-knight",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h045": {
+  "run": "run7",
+  "test": "P3-back-rank",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h046": {
+  "run": "run7",
+  "test": "P3-back-rank",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h047": {
+  "run": "run7",
+  "test": "P2-boxed-king",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h048": {
+  "run": "run7",
+  "test": "P5-shut-bishop",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h049": {
+  "run": "run7",
+  "test": "P4-fork",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h050": {
+  "run": "run7",
+  "test": "P1-greedy-knight",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h051": {
+  "run": "run7",
+  "test": "P2-boxed-king",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h052": {
+  "run": "run7",
+  "test": "P3-back-rank",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h053": {
+  "run": "run7",
+  "test": "P3-back-rank",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h054": {
+  "run": "run7",
+  "test": "P3-back-rank",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h055": {
+  "run": "run7",
+  "test": "P5-shut-bishop",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h056": {
+  "run": "run7",
+  "test": "P4-fork",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h057": {
+  "run": "run7",
+  "test": "P3-back-rank",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h058": {
+  "run": "run7",
+  "test": "P1-greedy-knight",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h059": {
+  "run": "run7",
+  "test": "P1-greedy-knight",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h060": {
+  "run": "run7",
+  "test": "P5-shut-bishop",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h061": {
+  "run": "run7",
+  "test": "P2-boxed-king",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h062": {
+  "run": "run7",
+  "test": "P4-fork",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h063": {
+  "run": "run7",
+  "test": "P1-greedy-knight",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h064": {
+  "run": "run7",
+  "test": "P2-boxed-king",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h065": {
+  "run": "run7",
+  "test": "P3-back-rank",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h066": {
+  "run": "run7",
+  "test": "P1-greedy-knight",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h067": {
+  "run": "run7",
+  "test": "P2-boxed-king",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h068": {
+  "run": "run7",
+  "test": "P5-shut-bishop",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h069": {
+  "run": "run7",
+  "test": "P1-greedy-knight",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h070": {
+  "run": "run7",
+  "test": "P4-fork",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h071": {
+  "run": "run7",
+  "test": "P4-fork",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h072": {
+  "run": "run7",
+  "test": "P5-shut-bishop",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h073": {
+  "run": "run7",
+  "test": "P5-shut-bishop",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h074": {
+  "run": "run7",
+  "test": "P3-back-rank",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h075": {
+  "run": "run7",
+  "test": "P3-back-rank",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h076": {
+  "run": "run7",
+  "test": "P1-greedy-knight",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h077": {
+  "run": "run7",
+  "test": "P2-boxed-king",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h078": {
+  "run": "run7",
+  "test": "P2-boxed-king",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h079": {
+  "run": "run7",
+  "test": "P1-greedy-knight",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h080": {
+  "run": "run7",
+  "test": "P1-greedy-knight",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h081": {
+  "run": "run7",
+  "test": "P1-greedy-knight",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h082": {
+  "run": "run7",
+  "test": "P3-back-rank",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h083": {
+  "run": "run7",
+  "test": "P1-greedy-knight",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h084": {
+  "run": "run7",
+  "test": "P4-fork",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h085": {
+  "run": "run7",
+  "test": "P4-fork",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h086": {
+  "run": "run7",
+  "test": "P5-shut-bishop",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h087": {
+  "run": "run7",
+  "test": "P4-fork",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h088": {
+  "run": "run7",
+  "test": "P3-back-rank",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h089": {
+  "run": "run7",
+  "test": "P5-shut-bishop",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h090": {
+  "run": "run7",
+  "test": "P4-fork",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h091": {
+  "run": "run7",
+  "test": "P5-shut-bishop",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h092": {
+  "run": "run7",
+  "test": "P4-fork",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h093": {
+  "run": "run7",
+  "test": "P2-boxed-king",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h094": {
+  "run": "run7",
+  "test": "P3-back-rank",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h095": {
+  "run": "run7",
+  "test": "P1-greedy-knight",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h096": {
+  "run": "run7",
+  "test": "P5-shut-bishop",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h097": {
+  "run": "run7",
+  "test": "P5-shut-bishop",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h098": {
+  "run": "run7",
+  "test": "P1-greedy-knight",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h099": {
+  "run": "run7",
+  "test": "P5-shut-bishop",
+  "variant": "run7",
+  "style": "Tal"
+ },
+ "h100": {
+  "run": "run7",
+  "test": "P4-fork",
+  "variant": "run7",
+  "style": "Tal"
+ }
+}

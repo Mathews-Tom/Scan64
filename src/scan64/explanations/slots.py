@@ -42,6 +42,7 @@ from scan64.explanations.facts import (
     PieceOnSquare,
     UnknownEvaluation,
 )
+from scan64.explanations.themes import GameThemeFacts, theme_phrase, turning_point_phrase
 
 # One slot occurrence: ``{name}``, ``{kind:arg}`` or ``{kind:arg:arg}``.
 SLOT_TOKEN = re.compile(r"\{\s*(?P<name>[a-z_]+(?::[A-Za-z0-9_-]+){0,2})\s*\}")
@@ -565,6 +566,7 @@ def lesson_slot_catalogue(facts: NarratorFacts) -> SlotCatalogue:
     shared += factor_slots(
         facts.factors, side="you", references=FACTOR_REFERENCES, lead="after your move, "
     )
+    shared += game_slots(facts.game)
     difference = position.evaluation_difference_cp
     if difference is not None and difference > 0:
         shared.append(
@@ -600,6 +602,7 @@ def lesson_slot_catalogue(facts: NarratorFacts) -> SlotCatalogue:
             (position.evaluation_before, position.evaluation_after, position.best_move_evaluation),
             [*moves, *(lines[line_id] for line_id in item.line_ids)],
             changes,
+            themes=(theme.key for theme in facts.game.themes) if facts.game else (),
         )
     return SlotCatalogue(
         by_evidence=by_evidence,
@@ -609,6 +612,39 @@ def lesson_slot_catalogue(facts: NarratorFacts) -> SlotCatalogue:
         claims=claims,
         example=_lesson_example({slot.name for slot in shared}),
     )
+
+
+_THEME_MEANINGS = {
+    "unsafe_king": "your king's weakness over several moves before the mistake",
+    "weak_pawns": "your weak pawns over several moves before the mistake",
+    "passive_pieces": "your pieces' lack of room over several moves before the mistake",
+    "lagging_development": "your pieces left at home over several moves before the mistake",
+}
+
+
+def game_slots(game: GameThemeFacts | None) -> list[Slot]:
+    """``{theme:KEY}`` per root-cause theme and ``{turning_point}`` (#400).
+
+    The turning point is a slot only when it is this mistake or an earlier move;
+    a later turning point is not part of this lesson's story.
+    """
+    if game is None:
+        return []
+    slots = [
+        Slot(f"theme:{theme.key}", theme_phrase(theme), _THEME_MEANINGS[theme.key], phrase=True)
+        for theme in game.themes
+    ]
+    point = game.turning_point
+    if point is not None and point.ply <= game.mistake_ply:
+        slots.append(
+            Slot(
+                "turning_point",
+                turning_point_phrase(point),
+                "where the game began to go wrong",
+                phrase=True,
+            )
+        )
+    return slots
 
 
 def _lesson_example(names: set[str]) -> str:
@@ -648,6 +684,7 @@ __all__ = [
     "factor_names",
     "factor_slots",
     "factor_value",
+    "game_slots",
     "lesson_slot_catalogue",
     "line_slots",
     "move_event_slots",

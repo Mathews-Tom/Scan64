@@ -1,4 +1,4 @@
-"""The default narrator model is the file and Modelfile the #428 benchmark ran (#429)."""
+"""The default narrator model is the file and Modelfile the #462 benchmark ran (#429, #462)."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from scan64.providers.llm.narrator_model import (
 )
 
 BENCHMARK = Path(__file__).parents[2] / "benchmarks/narrator"
-BENCHMARK_NAME = "gemma4-e4b-q3km"
+BENCHMARK_NAME = "gemma4-e4b-q4ks"
 
 
 def _benchmark_entry() -> dict[str, object]:
@@ -43,15 +43,15 @@ def test_the_pin_is_the_benchmarked_gguf() -> None:
     )
     assert DEFAULT_NARRATOR_GGUF.url == (
         "https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/"
-        "bfc15c382204943c3a8fff0c750b94ae2364d7a3/gemma-4-E4B-it-Q3_K_M.gguf"
+        "bfc15c382204943c3a8fff0c750b94ae2364d7a3/gemma-4-E4B-it-Q4_K_S.gguf"
     )
 
 
 def test_the_modelfile_is_the_benchmark_modelfile() -> None:
     benchmark = (BENCHMARK / f"modelfiles/{BENCHMARK_NAME}.Modelfile").read_text(encoding="utf-8")
     assert MODELFILE_TEMPLATE == benchmark
-    rendered = render_modelfile("./gemma-4-E4B-it-Q3_K_M.gguf")
-    assert "FROM ./gemma-4-E4B-it-Q3_K_M.gguf\n" in rendered
+    rendered = render_modelfile("./gemma-4-E4B-it-Q4_K_S.gguf")
+    assert "FROM ./gemma-4-E4B-it-Q4_K_S.gguf\n" in rendered
     assert "PARAMETER num_ctx 4096\n" in rendered
     assert "PARAMETER num_predict 2048\n" in rendered
     assert "@" not in rendered
@@ -64,5 +64,5 @@ def test_the_default_context_is_4096_on_both_ollama_paths() -> None:
 
 
 def test_the_model_name_and_memory_budget() -> None:
-    assert DEFAULT_NARRATOR_MODEL == "scan64-narrator-gemma4-e4b-q3km:latest"
+    assert DEFAULT_NARRATOR_MODEL == "scan64-narrator-gemma4-e4b-q4ks:latest"
     assert NARRATOR_GPU_MEMORY_BUDGET_MIB == 4096

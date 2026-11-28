@@ -373,12 +373,14 @@ def test_the_default_narrator_request_through_the_real_app(
 
     data = client.post(ENDPOINT, headers=headers, json=body("start")).json()
     assert data["source"] == "narrator", data
-    assert daemon.paths == ["/api/tags", "/api/chat"]
-    [chat] = daemon.chats
-    assert chat["model"] == DEFAULT_NARRATOR_MODEL
-    assert chat["think"] is False
-    assert chat["options"] == {"num_ctx": 4096}
-    assert chat["stream"] is False
+    # The voice pipeline (#454): one model list check, then one chat per sentence.
+    assert daemon.paths[0] == "/api/tags"
+    assert daemon.paths[1:] and set(daemon.paths[1:]) == {"/api/chat"}
+    for chat in daemon.chats:
+        assert chat["model"] == DEFAULT_NARRATOR_MODEL
+        assert chat["think"] is False
+        assert chat["options"] == {"num_ctx": 4096}
+        assert chat["stream"] is False
 
 
 @pytest.mark.parametrize("player", ["no-grant", "model-not-installed", "ollama-stopped"])
@@ -419,7 +421,8 @@ def test_a_saved_grant_for_another_model_is_kept(
     settings = f"/v1/players/{PLAYER}/explanation-settings"
     assert client.get(settings, headers=headers).json()["model"] == "other-model:latest"
     client.post(ENDPOINT, headers=headers, json=body("start"))
-    assert [chat["model"] for chat in daemon.chats] == ["other-model:latest"]
+    assert daemon.chats
+    assert {chat["model"] for chat in daemon.chats} == {"other-model:latest"}
     assert client.get(settings, headers=headers).json()["model"] == "other-model:latest"
 
 

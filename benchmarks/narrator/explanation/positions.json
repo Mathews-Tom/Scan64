@@ -1,0 +1,878 @@
+{
+ "games_sha256": "fddd644245db8d32e5427e0bbbe0127db06194cc43b28e165c8733657619d6e5",
+ "engine": {
+  "name": "Stockfish 18",
+  "binary_sha256": "e16866e09afd5be00990e69e3ac7b3c0794abcce133a2dd7b99f13570385b73d",
+  "networks": [
+   "nn-c288c895ea92.nnue",
+   "nn-37f18f62d772.nnue"
+  ],
+  "depth": 18,
+  "threads": 1,
+  "hash_mb": 64
+ },
+ "min_loss_cp": 50,
+ "left_out": [
+  "6GO42oZu-32",
+  "JS7wagnf-41",
+  "TEjN0t6H-79",
+  "Vetlg2yk-91",
+  "Xj37BrJe-60",
+  "e1dRPYZ5-21",
+  "ezWiqlCs-43",
+  "gxeABQRi-45"
+ ],
+ "positions": [
+  {
+   "id": "6GO42oZu-22",
+   "game": "6GO42oZu",
+   "ply": 22,
+   "fen": "r3k1nr/ppp2ppp/1bnPb1q1/3Q4/2B5/B1P2N2/P4PPP/RN3RK1 w kq - 1 12",
+   "played": "d5d3",
+   "best_line": [
+    "d5b5",
+    "e6c4",
+    "b5c4",
+    "c7d6",
+    "b1d2",
+    "e8c8"
+   ],
+   "played_line": [
+    "g6d3",
+    "c4d3",
+    "e8c8",
+    "b1d2",
+    "c7d6",
+    "f3g5"
+   ]
+  },
+  {
+   "id": "8scydVYc-49",
+   "game": "8scydVYc",
+   "ply": 49,
+   "fen": "r3r1k1/p1R3pp/1p2Pp2/3p1P1b/3N2P1/3K3P/PP6/4R3 b - - 0 25",
+   "played": "h5f7",
+   "best_line": [
+    "e8c8",
+    "c7c8",
+    "a8c8",
+    "g4h5",
+    "g8f8",
+    "d4b5"
+   ],
+   "played_line": [
+    "e6f7",
+    "g8f8",
+    "d4e6",
+    "e8e6",
+    "f5e6",
+    "g7g6"
+   ]
+  },
+  {
+   "id": "FGrhzqZf-60",
+   "game": "FGrhzqZf",
+   "ply": 60,
+   "fen": "5bk1/1p5p/4p1p1/8/4Q3/1q5P/5rP1/3R3K w - - 0 31",
+   "played": "d1d3",
+   "best_line": [
+    "d1e1",
+    "b7b5",
+    "e4c6",
+    "b3d5",
+    "c6e6",
+    "d5e6"
+   ],
+   "played_line": [
+    "b3b1",
+    "h1h2",
+    "f8d6",
+    "d3d6",
+    "b1e4",
+    "d6d8"
+   ]
+  },
+  {
+   "id": "FGrhzqZf-24",
+   "game": "FGrhzqZf",
+   "ply": 24,
+   "fen": "r2q1rk1/pp2ppbp/1nn3p1/4P3/3P2b1/1BN2N2/PP4PP/R1BQ1RK1 w - - 5 13",
+   "played": "h2h3",
+   "best_line": [
+    "c3e2",
+    "c6a5",
+    "b3c2",
+    "d8c7",
+    "c2e4",
+    "a8d8"
+   ],
+   "played_line": [
+    "g4f3",
+    "d1f3",
+    "d8d4",
+    "c1e3",
+    "c6e5",
+    "f3f2"
+   ]
+  },
+  {
+   "id": "JS7wagnf-37",
+   "game": "JS7wagnf",
+   "ply": 37,
+   "fen": "r2q1kr1/3bb3/p1pNp3/3nBp1p/Q2P2p1/8/PP2BPPP/2R2RK1 b - - 5 19",
+   "played": "f5f4",
+   "best_line": [
+    "d8b6",
+    "a4c2",
+    "g8g6",
+    "d6c4",
+    "b6a7",
+    "c4a5"
+   ],
+   "played_line": [
+    "a4c2",
+    "e7d6",
+    "e5d6",
+    "f8e8",
+    "e2d3",
+    "e8f7"
+   ]
+  },
+  {
+   "id": "JS7wagnf-39",
+   "game": "JS7wagnf",
+   "ply": 39,
+   "fen": "r2q1kr1/3bb3/p1pNp3/3nB2p/Q2P1pp1/3B4/PP3PPP/2R2RK1 b - - 1 20",
+   "played": "g4g3",
+   "best_line": [
+    "f4f3",
+    "g2f3",
+    "c6c5",
+    "a4c2",
+    "c5d4",
+    "d3h7"
+   ],
+   "played_line": [
+    "f2g3",
+    "g8g4",
+    "d6b7",
+    "d8e8",
+    "b7c5",
+    "f8g8"
+   ]
+  },
+  {
+   "id": "JS7wagnf-51",
+   "game": "JS7wagnf",
+   "ply": 51,
+   "fen": "1r2k1r1/3b4/p1p1p3/6qp/3P1R2/3B2P1/PP1Q2PP/2R3K1 b - - 2 26",
+   "played": "e8e7",
+   "best_line": [
+    "h5h4",
+    "c1f1",
+    "e8e7",
+    "g3h4",
+    "g5d5",
+    "d3e4"
+   ],
+   "played_line": [
+    "c1c5",
+    "g5g7",
+    "c5h5",
+    "g8h8",
+    "h5h8",
+    "b8h8"
+   ]
+  },
+  {
+   "id": "JS7wagnf-65",
+   "game": "JS7wagnf",
+   "ply": 65,
+   "fen": "3r4/4k3/p1b1p3/2Pq3p/4BR2/4Q1P1/PP4PP/6K1 b - - 6 33",
+   "played": "d5d7",
+   "best_line": [
+    "d5e5",
+    "e3c3",
+    "e5c3",
+    "b2c3",
+    "e6e5",
+    "f4h4"
+   ],
+   "played_line": [
+    "h2h4",
+    "c6e4",
+    "f4e4",
+    "d7d5",
+    "g1h2",
+    "d8f8"
+   ]
+  },
+  {
+   "id": "JS7wagnf-67",
+   "game": "JS7wagnf",
+   "ply": 67,
+   "fen": "3r4/3qk3/p1b1p1B1/2P4p/5R2/4Q1P1/PP4PP/6K1 b - - 8 34",
+   "played": "d8f8",
+   "best_line": [
+    "d7d1",
+    "f4f1",
+    "d1g4",
+    "e3e5",
+    "g4d4",
+    "e5d4"
+   ],
+   "played_line": [
+    "f4f8",
+    "e7f8",
+    "h2h4",
+    "d7d5",
+    "e3f3",
+    "f8e7"
+   ]
+  },
+  {
+   "id": "JS7wagnf-73",
+   "game": "JS7wagnf",
+   "ply": 73,
+   "fen": "8/3q2k1/p1b1p3/2P4B/5Q2/6P1/PP4PP/6K1 b - - 0 37",
+   "played": "d7d1",
+   "best_line": [
+    "d7d3",
+    "h2h4",
+    "c6d5",
+    "f4f7",
+    "g7h6",
+    "f7f6"
+   ],
+   "played_line": [
+    "h5d1",
+    "c6d5",
+    "a2a4",
+    "g7g8",
+    "h2h4",
+    "e6e5"
+   ]
+  },
+  {
+   "id": "JS7wagnf-19",
+   "game": "JS7wagnf",
+   "ply": 19,
+   "fen": "r1bqk2r/1p2bpp1/p1n1pn1p/3p4/2PP3B/2N2N2/PP2BPPP/R2Q1RK1 b kq - 3 10",
+   "played": "g7g5",
+   "best_line": [
+    "d5c4",
+    "e2c4",
+    "e8g8",
+    "a2a3",
+    "b7b5",
+    "d4d5"
+   ],
+   "played_line": [
+    "c4d5",
+    "e6d5",
+    "h4g3",
+    "f6e4",
+    "c3e4",
+    "d5e4"
+   ]
+  },
+  {
+   "id": "N3F2hq58-69",
+   "game": "N3F2hq58",
+   "ply": 69,
+   "fen": "1rb3R1/1p1k2p1/4p2p/2P1P2P/4B1P1/p1p5/P1P2K2/8 b - - 5 35",
+   "played": "b7b6",
+   "best_line": [
+    "d7c7",
+    "g8g7",
+    "c8d7",
+    "g4g5",
+    "b8f8",
+    "f2e3"
+   ],
+   "played_line": [
+    "c5c6",
+    "d7c7",
+    "g8g7",
+    "c8d7",
+    "g7d7",
+    "c7c8"
+   ]
+  },
+  {
+   "id": "RlcvuHHH-22",
+   "game": "RlcvuHHH",
+   "ply": 22,
+   "fen": "r2q1rk1/p3ppbp/5np1/3p4/3B2b1/2NB4/PPP2PPP/R2Q1RK1 w - - 2 12",
+   "played": "d1d2",
+   "best_line": [
+    "d1e1",
+    "e7e5",
+    "d4e5",
+    "f8e8",
+    "f2f4",
+    "f6d7"
+   ],
+   "played_line": [
+    "f6e4",
+    "d3e4",
+    "d5e4",
+    "d4e3",
+    "d8d2",
+    "e3d2"
+   ]
+  },
+  {
+   "id": "TEjN0t6H-5",
+   "game": "TEjN0t6H",
+   "ply": 5,
+   "fen": "rnbqkb1r/pppp1ppp/5n2/4p3/2BPP3/8/PPP2PPP/RNBQK1NR b KQkq - 0 3",
+   "played": "d7d5",
+   "best_line": [
+    "e5d4",
+    "d1d4",
+    "b8c6",
+    "d4e3",
+    "f8b4",
+    "c2c3"
+   ],
+   "played_line": [
+    "d4e5",
+    "d5c4",
+    "d1d8",
+    "e8d8",
+    "e5f6",
+    "g7f6"
+   ]
+  },
+  {
+   "id": "UQLHfBx3-50",
+   "game": "UQLHfBx3",
+   "ply": 50,
+   "fen": "2r2rk1/pp4bb/3p4/3Pp1Bp/6pP/8/PPq1NPP1/R2Q1RK1 w - - 2 26",
+   "played": "d1c2",
+   "best_line": [
+    "a1c1",
+    "c2d1",
+    "f1d1",
+    "h7c2",
+    "d1d2",
+    "c2f5"
+   ],
+   "played_line": [
+    "c8c2",
+    "e2g3",
+    "h7d3",
+    "a1c1",
+    "c2b2",
+    "f1d1"
+   ]
+  },
+  {
+   "id": "UQLHfBx3-68",
+   "game": "UQLHfBx3",
+   "ply": 68,
+   "fen": "8/pp2r2k/3p2b1/3Pp2p/1P4pP/P5N1/2r2PP1/R4RK1 w - - 0 35",
+   "played": "f1e1",
+   "best_line": [
+    "f2f3",
+    "g4f3",
+    "f1f3",
+    "c2d2",
+    "f3f6",
+    "d2d5"
+   ],
+   "played_line": [
+    "e7c7",
+    "e1e2",
+    "c2c4",
+    "e2e3",
+    "h7g7",
+    "e3e1"
+   ]
+  },
+  {
+   "id": "Vetlg2yk-87",
+   "game": "Vetlg2yk",
+   "ply": 87,
+   "fen": "1r5r/1pk2pp1/pR2p3/P2p2PP/1R1P1K2/1PPb1B2/8/8 b - - 0 44",
+   "played": "d3e4",
+   "best_line": [
+    "d3b5",
+    "f3g4",
+    "b5c6",
+    "c3c4",
+    "b8d8",
+    "f4e3"
+   ],
+   "played_line": [
+    "f3e4",
+    "d5e4",
+    "g5g6",
+    "f7g6",
+    "h5g6",
+    "b8f8"
+   ]
+  },
+  {
+   "id": "Vetlg2yk-93",
+   "game": "Vetlg2yk",
+   "ply": 93,
+   "fen": "1r5r/1pk2pp1/pR2p3/P1Pp2PP/1R1PbK2/1P6/4B3/8 b - - 0 47",
+   "played": "e4f5",
+   "best_line": [
+    "h8f8",
+    "c5c6",
+    "f7f6",
+    "b6b7",
+    "b8b7",
+    "c6b7"
+   ],
+   "played_line": [
+    "c5c6",
+    "b7c6",
+    "b6b8",
+    "h8b8",
+    "b4b8",
+    "c7b8"
+   ]
+  },
+  {
+   "id": "Vetlg2yk-95",
+   "game": "Vetlg2yk",
+   "ply": 95,
+   "fen": "1r5r/1pk2pp1/pRP1p3/P2p1bPP/1R1P1K2/1P6/4B3/8 b - - 0 48",
+   "played": "b7c6",
+   "best_line": [
+    "f7f6",
+    "b6b7",
+    "b8b7",
+    "c6b7",
+    "c7b8",
+    "b4b6"
+   ],
+   "played_line": [
+    "b6b8",
+    "h8b8",
+    "b4b8",
+    "c7b8",
+    "f4e5",
+    "b8c7"
+   ]
+  },
+  {
+   "id": "Vetlg2yk-89",
+   "game": "Vetlg2yk",
+   "ply": 89,
+   "fen": "1r5r/1pk2pp1/pR2p3/P2p2PP/1R1PbK2/1PP5/4B3/8 b - - 2 45",
+   "played": "e4c2",
+   "best_line": [
+    "h8e8",
+    "e2g4",
+    "e8h8",
+    "c3c4",
+    "h8f8",
+    "f4e3"
+   ],
+   "played_line": [
+    "c3c4",
+    "h8f8",
+    "f4e3",
+    "c2f5",
+    "c4c5",
+    "f7f6"
+   ]
+  },
+  {
+   "id": "XCyhM64M-57",
+   "game": "XCyhM64M",
+   "ply": 57,
+   "fen": "6k1/1pp2p1p/6pn/1P4P1/3PPP2/5K1P/2q5/Q1B5 b - - 4 29",
+   "played": "c2d3",
+   "best_line": [
+    "c2d1",
+    "f3f2",
+    "d1c2",
+    "f2e3",
+    "f7f5",
+    "g5h6"
+   ],
+   "played_line": [
+    "c1e3",
+    "f7f5",
+    "g5h6",
+    "f5e4",
+    "f3f2",
+    "d3c2"
+   ]
+  },
+  {
+   "id": "XCyhM64M-87",
+   "game": "XCyhM64M",
+   "ply": 87,
+   "fen": "8/2p4p/1p4pP/1q2Bp2/3PkP2/7P/6QK/8 b - - 5 44",
+   "played": "e4d3",
+   "best_line": [
+    "e4e3",
+    "h2g3",
+    "b5d7",
+    "d4d5",
+    "b6b5",
+    "g2f3"
+   ],
+   "played_line": [
+    "g2f1",
+    "d3e3",
+    "f1b5",
+    "g6g5",
+    "h2g2",
+    "g5g4"
+   ]
+  },
+  {
+   "id": "XCyhM64M-71",
+   "game": "XCyhM64M",
+   "ply": 71,
+   "fen": "Q7/1pp2k1p/6pP/1P3p2/3P1P2/3q3P/5B1K/8 b - - 9 36",
+   "played": "d3f3",
+   "best_line": [
+    "d3c2",
+    "h2g2",
+    "c2e4",
+    "g2g1",
+    "e4b1",
+    "g1g2"
+   ],
+   "played_line": [
+    "a8a2",
+    "f7e7",
+    "a2d2",
+    "e7e6",
+    "d4d5",
+    "f3d5"
+   ]
+  },
+  {
+   "id": "Xj37BrJe-66",
+   "game": "Xj37BrJe",
+   "ply": 66,
+   "fen": "5rk1/R4pp1/P3p1b1/8/r4p2/4p3/5P1P/1R4K1 w - - 0 34",
+   "played": "f2e3",
+   "best_line": [
+    "b1e1",
+    "e3e2",
+    "a7c7",
+    "g8h7",
+    "a6a7",
+    "f8a8"
+   ],
+   "played_line": [
+    "g6b1",
+    "e3f4",
+    "a4a2",
+    "a7c7",
+    "f8a8",
+    "c7c4"
+   ]
+  },
+  {
+   "id": "Xj37BrJe-24",
+   "game": "Xj37BrJe",
+   "ply": 24,
+   "fen": "r1q1kb1r/1p1b1ppp/p3pn2/4p3/2B1P3/P1N1B3/1P2QPPP/R2R2K1 w kq - 4 13",
+   "played": "c4a2",
+   "best_line": [
+    "a1c1",
+    "f8e7",
+    "h2h4",
+    "d7c6",
+    "g2g4",
+    "h7h6"
+   ],
+   "played_line": [
+    "f8c5",
+    "a1c1",
+    "c5e3",
+    "e2e3",
+    "c8b8",
+    "c3b1"
+   ]
+  },
+  {
+   "id": "ZzASDeMz-43",
+   "game": "ZzASDeMz",
+   "ply": 43,
+   "fen": "r3k2r/1b3q2/p2p4/Qp2pP1p/5b1P/P1NB4/1PP5/1K1R3R b kq - 0 22",
+   "played": "d6d5",
+   "best_line": [
+    "b7h1",
+    "d1h1",
+    "e8g8",
+    "d3e4",
+    "g8h8",
+    "h1d1"
+   ],
+   "played_line": [
+    "h1g1",
+    "h8h6",
+    "g1g6",
+    "h6g6",
+    "f5g6",
+    "f7d7"
+   ]
+  },
+  {
+   "id": "ZzASDeMz-45",
+   "game": "ZzASDeMz",
+   "ply": 45,
+   "fen": "r3k2r/1b3q2/p7/Qp1ppP1p/5b1P/P1NB4/1PP5/1K1RR3 b kq - 1 23",
+   "played": "e5e4",
+   "best_line": [
+    "a8c8",
+    "a5b6",
+    "f7c7",
+    "b6g1",
+    "e8f8",
+    "c3e2"
+   ],
+   "played_line": [
+    "c3d5",
+    "e8g8",
+    "e1e4",
+    "b7d5",
+    "e4f4",
+    "g8h8"
+   ]
+  },
+  {
+   "id": "ZzASDeMz-49",
+   "game": "ZzASDeMz",
+   "ply": 49,
+   "fen": "r3k2r/1b3q2/p7/Qp3P1p/4Nb1P/P7/1PP5/1K1RR3 b kq - 0 25",
+   "played": "e8f8",
+   "best_line": [
+    "e8g8",
+    "e4d6",
+    "f7d7",
+    "a5b4",
+    "f4d6",
+    "e1g1"
+   ],
+   "played_line": [
+    "a5b4",
+    "f7e7",
+    "e4c5",
+    "f4e3",
+    "b4c3",
+    "b7d5"
+   ]
+  },
+  {
+   "id": "ZzASDeMz-65",
+   "game": "ZzASDeMz",
+   "ply": 65,
+   "fen": "7r/5N2/p7/1p2k2p/3R1brP/P7/1PP5/1K3R2 b - - 7 33",
+   "played": "e5f5",
+   "best_line": [
+    "e5d4",
+    "f7h8",
+    "d4e4",
+    "a3a4",
+    "b5b4",
+    "b1a2"
+   ],
+   "played_line": [
+    "f7h8",
+    "g4h4",
+    "h8f7",
+    "a6a5",
+    "b1a2",
+    "f5e6"
+   ]
+  },
+  {
+   "id": "dP7ZTSwD-92",
+   "game": "dP7ZTSwD",
+   "ply": 92,
+   "fen": "8/3k2p1/3p1p2/6rP/pBp3P1/P2bRP2/3K4/8 w - - 5 47",
+   "played": "b4c3",
+   "best_line": [
+    "e3e1",
+    "g5d5",
+    "d2c3",
+    "d5e5",
+    "c3d2",
+    "d3h7"
+   ],
+   "played_line": [
+    "f6f5",
+    "g4f5",
+    "g5f5",
+    "c3g7",
+    "f5h5",
+    "e3e1"
+   ]
+  },
+  {
+   "id": "e1dRPYZ5-55",
+   "game": "e1dRPYZ5",
+   "ply": 55,
+   "fen": "5rk1/p5pp/1p2p3/6Nq/3PQ2P/b3P1P1/P1R2PK1/8 b - - 0 28",
+   "played": "a3e7",
+   "best_line": [
+    "h5g6",
+    "e4g6",
+    "h7g6",
+    "c2c7",
+    "f8e8",
+    "c7a7"
+   ],
+   "played_line": [
+    "e4e6",
+    "g8h8",
+    "e6e7",
+    "h5e8",
+    "e7e8",
+    "f8e8"
+   ]
+  },
+  {
+   "id": "e1dRPYZ5-11",
+   "game": "e1dRPYZ5",
+   "ply": 11,
+   "fen": "rn1qk2r/ppp1bppp/4pn2/3p1b2/2PP1B2/2N1PN2/PP3PPP/R2QKB1R b KQkq - 2 6",
+   "played": "f6e4",
+   "best_line": [
+    "e8g8",
+    "d1b3",
+    "b8c6",
+    "c4c5",
+    "a8b8",
+    "h2h3"
+   ],
+   "played_line": [
+    "d1b3",
+    "e8g8",
+    "b3b7",
+    "b8d7",
+    "f4c7",
+    "d8c8"
+   ]
+  },
+  {
+   "id": "ezWiqlCs-33",
+   "game": "ezWiqlCs",
+   "ply": 33,
+   "fen": "r2r2k1/1p1n1ppp/1q1p1b2/pBp4b/P2PP3/1PP2N1P/2QN1PP1/R4RK1 b - - 2 17",
+   "played": "h5g6",
+   "best_line": [
+    "c5d4",
+    "c3d4",
+    "h5f3",
+    "d2f3",
+    "f6d4",
+    "f3d4"
+   ],
+   "played_line": [
+    "d4d5",
+    "b6c7",
+    "d2c4",
+    "d8e8",
+    "f3d2",
+    "e8e7"
+   ]
+  },
+  {
+   "id": "ezWiqlCs-41",
+   "game": "ezWiqlCs",
+   "ply": 41,
+   "fen": "2rr2k1/1p1n1ppp/3p1bb1/p7/PqNPP3/1P1B1N1P/5PP1/R2Q1RK1 b - - 4 21",
+   "played": "d7b6",
+   "best_line": [
+    "d6d5",
+    "e4d5",
+    "d7b6",
+    "c4b6",
+    "b4b6",
+    "d3c4"
+   ],
+   "played_line": [
+    "f1e1",
+    "d6d5",
+    "c4b6",
+    "b4b6",
+    "e4e5",
+    "g6d3"
+   ]
+  },
+  {
+   "id": "gxeABQRi-19",
+   "game": "gxeABQRi",
+   "ply": 19,
+   "fen": "r1b2rk1/ppqnppb1/2pp1np1/7p/1P1P3P/2P1PNB1/P2NBPP1/R2QK2R b KQ - 0 10",
+   "played": "a7a6",
+   "best_line": [
+    "a7a5",
+    "a2a4",
+    "b7b5",
+    "a4b5",
+    "c6b5",
+    "e2b5"
+   ],
+   "played_line": [
+    "a2a4",
+    "f8e8",
+    "e1g1",
+    "d7f8",
+    "d1b3",
+    "e7e5"
+   ]
+  },
+  {
+   "id": "hFKp2oGC-18",
+   "game": "hFKp2oGC",
+   "ply": 18,
+   "fen": "rnbqk2r/ppp2ppp/1b6/3p4/1P1Pp3/P3P3/2PN1PPP/RN1QKB1R w KQkq - 1 10",
+   "played": "b1c3",
+   "best_line": [
+    "c2c4",
+    "c7c6",
+    "b1c3",
+    "e8g8",
+    "d2b3",
+    "h7h6"
+   ],
+   "played_line": [
+    "c7c6",
+    "c3a4",
+    "b6c7",
+    "c2c4",
+    "e8g8",
+    "a4c3"
+   ]
+  },
+  {
+   "id": "zqTcVM5N-12",
+   "game": "zqTcVM5N",
+   "ply": 12,
+   "fen": "rn1qkbnr/pp2pppp/2p5/5b2/4N3/3B1N2/PPP2PPP/R1BQK2R w KQkq - 2 7",
+   "played": "c1f4",
+   "best_line": [
+    "d1e2",
+    "f5e4",
+    "d3e4",
+    "g8f6",
+    "e1g1",
+    "b8d7"
+   ],
+   "played_line": [
+    "f5e4",
+    "d3e4",
+    "d8d1",
+    "a1d1",
+    "g8f6",
+    "f3d2"
+   ]
+  }
+ ]
+}
