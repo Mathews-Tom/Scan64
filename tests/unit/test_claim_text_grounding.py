@@ -17,6 +17,7 @@ from chess_lesson_spec import Diagnosis, ExplanationClaim
 
 from scan64.explanations import assembly
 from scan64.explanations.assembly import resolve_explanation, template_fallback_counts
+from scan64.explanations.templates.provider import TemplateExplanationProvider
 from scan64.explanations.validator import (
     EVALUATION_TOLERANCE_CP,
     REJECTION_REASONS,
@@ -305,9 +306,8 @@ async def test_template_fallback_is_logged_and_counted_by_reason(
     text: str | None, reason: str, caplog: pytest.LogCaptureFixture
 ) -> None:
     before = template_fallback_counts().get(reason, 0)
-    template = await resolve_explanation(
-        _diagnosis(), [MISSED_CAPTURE.evidence], MISSED_CAPTURE.fen, environment={}
-    )
+    # A rejected generation falls back to the template, not to the phrase bank (#461).
+    template = await TemplateExplanationProvider().explain(_diagnosis(), [MISSED_CAPTURE.evidence])
     with caplog.at_level(logging.INFO, logger=assembly.__name__):
         explanation = await resolve_explanation(
             _diagnosis(),
@@ -351,10 +351,8 @@ async def test_grounded_generation_is_not_counted_as_fallback() -> None:
 )
 async def test_template_wording_satisfies_the_claim_grammar(scenario: Scenario, code: str) -> None:
     """The deterministic floor's own sentences must pass the grammar it backs up."""
-    template = await resolve_explanation(
+    template = await TemplateExplanationProvider().explain(
         Diagnosis(primary=code, confidence=0.9, evidence_refs=[scenario.evidence.evidence_id]),
         [scenario.evidence],
-        scenario.fen,
-        environment={},
     )
     _validate(scenario, template.text)

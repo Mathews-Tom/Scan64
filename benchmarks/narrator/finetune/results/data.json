@@ -1,0 +1,43 @@
+{
+ "counts": {
+  "pairs": 3,
+  "heldout": 0,
+  "licence": 0,
+  "examples": 3,
+  "pass_app_check": 0
+ },
+ "pairs": [
+  {
+   "pair": "lasker_chess_strategy-29-5",
+   "sentence": "This comes to the same as 3.Nf3.",
+   "fact": "White could have played 3.Nf3 instead of 3.Nge2. 3.Nf3: White's knight on g1 goes forward from g1 to f3.",
+   "failed_checks": [
+    "states the alternative move as played"
+   ]
+  },
+  {
+   "pair": "lasker_chess_strategy-29-28",
+   "sentence": "14...Qc7 leads to the same conclusion.",
+   "fact": "Black could have played 14...Qc7 instead of 14...Qb6. 14...Qc7: Black's queen on d8 goes forward from d8 to c7.",
+   "failed_checks": [
+    "states the alternative move as played"
+   ]
+  },
+  {
+   "pair": "lasker_chess_strategy-30-56",
+   "sentence": "If 29.Re1, 29...Qc5.",
+   "fact": "29.Re1: White's rook on e2 goes back from e2 to e1. The rook on e1 defends the knight on d1.",
+   "failed_checks": [
+    "move Qc5"
+   ]
+  }
+ ],
+ "sha256": {
+  "corpus/games.jsonl": "927f0139286b333dd4c0b90d7ce63884d167f70738de80f1f4b6c3ff58936f8d",
+  "pairs/engine.jsonl": "fc42fa77b857b3d97485df5757c3076c4468436ca98a01ce5e5a1e1c5a240c4d",
+  "pairs/pairs.jsonl": "a02d2c2eadd47d7ca4152d6f63ff286d1f41958a24a6b6227a390db963cc67c1",
+  "train.jsonl": "84f67e3df6309bd96f7109934130aaf9ec9f15d7eafda3413169ff290d708a45"
+ },
+ "engine": "e16866e09afd5be00990e69e3ac7b3c0794abcce133a2dd7b99f13570385b73d",
+ "prompt_examples": 12
+}

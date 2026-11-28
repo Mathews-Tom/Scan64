@@ -1,0 +1,11 @@
+praxis-2b 50 vram_bytes=1392718642
+second-2b 50 vram_bytes=1392718642
+qwen3.5-2b 50 vram_bytes=2364475963
+praxis-4b 50 vram_bytes=2966557818
+qwen3.5-4b 50 vram_bytes=3140495604
+gemma4-e4b-q4ks 50 vram_bytes=3051733647
+gemma3:270m 50 vram_bytes=323884154
+gemma3:1b 50 vram_bytes=879818178
+llama3.2:1b 50 vram_bytes=1518778449
+qwen3:1.7b 50 vram_bytes=1706788125
+scan64-bench-caissa-m1-8b:latest 50 vram_bytes=4755397016

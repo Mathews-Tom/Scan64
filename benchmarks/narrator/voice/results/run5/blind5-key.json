@@ -1,0 +1,902 @@
+{
+ "e001": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e002": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e003": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e004": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e005": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e006": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e007": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e008": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e009": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e010": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e011": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e012": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e013": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e014": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e015": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e016": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e017": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e018": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e019": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e020": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e021": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e022": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e023": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e024": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e025": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e026": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e027": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e028": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e029": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e030": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e031": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e032": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e033": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e034": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e035": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e036": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e037": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e038": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e039": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e040": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e041": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e042": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e043": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e044": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e045": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e046": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e047": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e048": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e049": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e050": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e051": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e052": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e053": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e054": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e055": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e056": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e057": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e058": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e059": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e060": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e061": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e062": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e063": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e064": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e065": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e066": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e067": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e068": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e069": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e070": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e071": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e072": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e073": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e074": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e075": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e076": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e077": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e078": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e079": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e080": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e081": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e082": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e083": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e084": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e085": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e086": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e087": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e088": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e089": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e090": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e091": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e092": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e093": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e094": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e095": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e096": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e097": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e098": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e099": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e100": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e101": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e102": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e103": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e104": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e105": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e106": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e107": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e108": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e109": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e110": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e111": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e112": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e113": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e114": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e115": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e116": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e117": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e118": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e119": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e120": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e121": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e122": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e123": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e124": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e125": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e126": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e127": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e128": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e129": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e130": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e131": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e132": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e133": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e134": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e135": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e136": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e137": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e138": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e139": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e140": {
+  "run": "run5",
+  "test": "P3-back-rank",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e141": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e142": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e143": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e144": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e145": {
+  "run": "run5",
+  "test": "P5-shut-bishop",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e146": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Chernev"
+ },
+ "e147": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e148": {
+  "run": "run5",
+  "test": "P2-boxed-king",
+  "variant": "run5",
+  "style": "Capablanca"
+ },
+ "e149": {
+  "run": "run5",
+  "test": "P4-fork",
+  "variant": "run5",
+  "style": "Tal"
+ },
+ "e150": {
+  "run": "run5",
+  "test": "P1-greedy-knight",
+  "variant": "run5",
+  "style": "Tal"
+ }
+}
