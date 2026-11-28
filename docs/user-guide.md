@@ -736,6 +736,32 @@ Use **First**, **Previous**, **Next**, **Last**, the board move list or **Variat
 
 **Load FEN** validates the candidate on the server before replacing the tree; the existing board stays usable in the meantime. A valid position starts a new tree, even if its engine evaluation is busy. An invalid FEN, authorization error or network failure leaves the tree intact. Moving or selecting another position cancels a pending load. Analysis runs in a bounded server search, and the board stays usable while it is evaluating. If the engine is busy or unavailable, select **Retry** manually; there is no automatic retry loop. Ended positions have no legal continuation. Free analysis does not record live-game hint assistance or award learning progress. Owned-game review and puzzle replay remain read-only.
 
+#### Position health
+
+The **Position health** panel shows how the selected position stands on eight evaluation factors, one meter each for both sides, with an overall meter above them. It is on by default; turn it off under **Settings → Chessboard → Position health panel**, and the choice persists. On the Analysis Board the columns are White and Black. In game review they are You and Opponent, for the side you played (White and Black when your side is unknown).
+
+Every meter compares the two sides: it reads this side's value of its factor minus the opponent's, so a factor both sides hold equally (for example material after even exchanges) reads the same for both.
+
+| Meter | What it compares |
+|---|---|
+| overall | the factor evaluation's total without the side-to-move bonus: every factor below plus material imbalance and endgame scaling, weighed as Stockfish's classical evaluation weighs them |
+| king safety | pawn shelter, pawn storm and the attack on each king |
+| material | piece values and piece placement on their squares |
+| threats | threats each side's pieces make against the other's |
+| piece placement | outposts, rooks on open files, trapped rooks, bishops and pawns on the same colour, king protectors |
+| mobility | squares each piece can safely reach |
+| pawn structure | isolated, doubled, backward and connected pawns |
+| passed pawns | passed pawns, their rank, file and blockade |
+| space | safe squares behind the pawn chain in the centre (middlegame only) |
+
+![Position health panel, light theme](images/position-health-light-1280.png) ![Position health panel, dark theme](images/position-health-dark-1280.png)
+
+Each meter shows its health three ways: how many of its 12 segments are lit, a word (**good**, **fair** or **low**) and a colour from green to amber to red. A ▲ or ▼ marks a meter that rose or fell by at least 0.05 since the previous position. Screen readers read each meter as, for example, "You king safety: low, falling". While the next position loads, the last reading stays on screen, and "Updating" appears beside the heading if the reply takes longer than 200 ms. When the game is over (checkmate, stalemate, insufficient material or the 75-move rule) the panel says so instead of showing meters: the factors score the pieces left, not the result. A draw that is only claimable (fifty moves, threefold repetition) leaves the meters on, and so does a game that ended by fivefold repetition: repetition is not visible from a single position. **Show details** lists each meter's largest nonzero terms, this side's value minus the opponent's, in pawns; for the overall meter, the factors. A meter with no nonzero term says so.
+
+The panel uses Scan64's factor module, a port of the Stockfish Evaluation Guide (Stockfish's classical, hand-written evaluation). It runs no engine search and calls no language model, so it reads the same whichever engine is configured and with no model set up, and it can differ from the engine's score above it. A position is evaluated in about 3 ms.
+
+Each meter maps its value, in pawns from that side's view, to a health between 0 and 1, linear from the value at which it reads empty to the value at which it reads full. Those bounds are fitted on recorded positions (`HEALTH_SCALE` in `src/scan64/explanations/factor_facts.py`; method and table in `docs/evaluation/factor-calibration.md`, section "Health scale"). A health of at least 2/3 reads **good**, below 1/3 **low**. Level positions do not read full on every meter: in the starting position several meters read **fair**, because a side reads full only when it is ahead on that factor. The API is `POST /v1/analysis/position/health` with `fen`, `learner` (`white` or `black`) and optional `previous_fen` for the trend.
+
 #### Explain the engine lines
 
 Below the engine lines, select **Explain lines** to have the current position's top three engine lines explained. The explanation lists, for each line, its full principal variation, the engine's score for the side to move and the depth it reached, what the line wins or loses in material, its checks, whether it ends in checkmate or stalemate, and what its first move attacks; it then compares each line with line 1 (for example "Line 2 (1.Nf3) scores 0.06 pawns less than line 1 for the side to move"). The engine and the board library decide every one of these facts. The lines shown are replaced by exactly the lines explained.

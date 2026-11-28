@@ -851,3 +851,29 @@ export interface PatternRecurrenceReport {
   patterns: PatternRecurrence[];
   caveat: string;
 }
+
+export type HealthLevel = 'good' | 'fair' | 'low';
+export type HealthTrend = 'rising' | 'falling' | 'steady';
+
+export interface PositionHealthRequest {
+  player_id: string;
+  fen: string;
+  learner: 'white' | 'black';
+  previous_fen?: string | null;
+}
+
+export interface HealthMeterRead {
+  health: number;
+  level: HealthLevel;
+  trend: HealthTrend;
+  terms: { name: string; pawns: number }[];
+}
+
+export interface PositionHealthRead {
+  fen: string;
+  learner: 'white' | 'black';
+  overall: { key: string; name: string; learner: HealthMeterRead; opponent: HealthMeterRead };
+  groups: { key: string; name: string; learner: HealthMeterRead; opponent: HealthMeterRead }[];
+  // Set when the game is over; the panel shows the result instead of the meters.
+  outcome: 'checkmate' | 'stalemate' | 'insufficient_material' | 'seventyfive_moves' | null;
+}
