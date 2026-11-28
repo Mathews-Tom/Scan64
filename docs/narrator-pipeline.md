@@ -1,6 +1,6 @@
 # Narrator pipeline: how engine variations reach the explanation LLM
 
-Status: describes current behaviour only. Written for issue #361 at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts); sections 5, 8, 9, 11 and the new section 12 were updated for #368 (Analysis Board line explanations); sections 5, 8, 10 and 12 and the new section 13 were updated for #386 (fact slots); sections 6 and 7 and the new section 14 were updated for #387 (narrator voice); sections 5, 8, 12, 13, 14 and 15 and the new section 16 were updated for #408 (factor facts, vocabulary rule, slot-list-only prompt); section 16 was updated for #410 (fitted factor thresholds); sections 8 and 13 were updated for #431 (claim rule, factor names as phrases); sections 5, 6 and 7 were updated for #429 (default model, `think: false`, `num_ctx` 4096). `file:line` references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.
+Status: describes current behaviour only. Written for issue #361 at commit `8f0071168be9d4a31f4573246660c76977a3b94d` (branch `epic/371`); sections 4 to 9 and 11 were updated for #366 (claim-text grounding) and #367 (precomputed narrator facts); sections 5, 8, 9, 11 and the new section 12 were updated for #368 (Analysis Board line explanations); sections 5, 8, 10 and 12 and the new section 13 were updated for #386 (fact slots); sections 6 and 7 and the new section 14 were updated for #387 (narrator voice); sections 5, 8, 12, 13, 14 and 15 and the new section 16 were updated for #408 (factor facts, vocabulary rule, slot-list-only prompt); section 16 was updated for #410 (fitted factor thresholds); sections 8 and 13 were updated for #431 (claim rule, factor names as phrases); sections 5, 6 and 7 were updated for #429 (default model, `think: false`, `num_ctx` 4096). The new section 18 and section 17's counters were added for #454 (voice pipeline: one fact per call, every sentence checked). `file:line` references in sections that were not updated are line numbers at that commit; updated sections name symbols instead.
 
 The narrator is an optional LLM that words a lesson explanation or, since #368, an explanation of the Analysis Board's engine lines (section 12). The engine and the deterministic detectors decide every chess fact. The LLM receives evidence the server has already composed. Since #386 the LLM writes no chess token itself: it names facts by slot (`{played}`, `{capture:best}`) and code fills each slot from the facts (section 13). Its output is shown only if `validate_generated_explanation` accepts it. Otherwise the deterministic template is shown.
 
@@ -732,3 +732,39 @@ The process counts narrator outcomes per pipeline: `lesson` (`resolve_explanatio
 ```bash
 curl -s http://127.0.0.1:8001/v1/diagnostics/narrator  # scan64 serve default port
 ```
+
+## 18. Voice pipeline (#454)
+
+Since #454 a provider that can write plain text words a lesson or an Analysis Board explanation one fact at a time. The method is the one the voice benchmark measured (`docs/evaluation/narrator-voice.md`, run 8 in #457 and the held-out run in #462).
+
+1. **Facts.** Code writes the facts (`explanations/role_facts.py`, #460). Each fact has a role (the move, what it misses, what follows, what the mover could have played) and the relations it states (takes, attacks, pins, gives check and others).
+   - Lesson: the facts of the played move against the engine's best move and line (`lesson_role_facts` in `assembly.py`).
+   - Analysis Board: for each engine line, the facts of its first move and of the moves that follow. The template's first sentence (the side to move and the engine's first choice) opens the explanation.
+2. **One call per fact.** The model gets the voice card (traits and 12 example sentences) and one fact with its role. It gets no earlier sentence, no position and no other fact (`voice_pipeline.voice_prompt`). The request uses `think: false` and the same `num_ctx` as the claims request.
+3. **Code checks each sentence** (`explanations/sentence_check.py`). A sentence fails when it:
+   - names a move, square, piece or chess term that its fact does not contain;
+   - keeps none of the fact's moves or squares;
+   - says a piece is taken when the fact takes nothing (an attacked piece is never "taken");
+   - is more than one sentence.
+   Code removes a "!" written directly after the played move before the check.
+4. **Retry, then the fact.** A failed sentence is written again, at most twice. After that, the plain fact text is used.
+5. **No repeated pictures.** A sentence that reuses a picture word of an earlier sentence is written once more, with "Do not use: …" in the prompt. The model never sees the earlier sentences.
+6. **Joining.** Code ends each sentence with a full stop and joins them. Each sentence becomes one claim of the explanation.
+
+When the pipeline applies:
+
+| Provider | Path |
+|---|---|
+| Local Ollama grant, or an operator Ollama or hosted provider | Voice pipeline |
+| A provider that can only return claims (for example a test double) | The slot path of section 13 |
+| No best move, or facts that do not replay | The slot path of section 13 |
+| A provider error during any sentence | The template, with reason `provider_error` |
+| No grant and no operator configuration | The template |
+
+The local provider checks the model list once per explanation and rechecks consent before every request.
+
+**Counts.** Section 17's counters gain two fields per pipeline: `sentences` (sentences written) and `sentence_fallbacks` (sentences that use the plain fact text). `GET /v1/diagnostics/narrator` reports both.
+
+**Limits.**
+- One explanation sends one request per fact, plus retries: about 4 to 12 requests for a lesson. On the voice benchmark this took 0.5 s at the median and 0.74 s at p95 per comment on an RTX 5090. The coach's 0.25 s explanation budget is shorter than that, so the coach usually shows the template.
+- The check reads words, not meaning. A sentence that stays inside its fact's moves, squares and pieces but states a wrong relation can still pass. One fact per call keeps that rare: each call has only one fact to get wrong.

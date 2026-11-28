@@ -42,7 +42,9 @@ from scan64.explanations.assembly import (
     record_narrator_accepted,
     record_narrator_attempt,
     record_template_fallback,
+    record_voiced_sentences,
     run_with_explanation_provider,
+    sentence_writer,
     slot_rules,
 )
 from scan64.explanations.claims import ClaimFacts
@@ -72,6 +74,8 @@ from scan64.explanations.facts import (
     line_evaluation_change,
     material,
 )
+from scan64.explanations.role_facts import RoleFactsError, role_facts
+from scan64.explanations.role_facts import numbered_san as move_label
 from scan64.explanations.slots import (
     Slot,
     SlotCatalogue,
@@ -88,6 +92,7 @@ from scan64.explanations.validator import (
     validate_generated_explanation,
 )
 from scan64.explanations.voice import DEFAULT_NARRATOR_VOICE, NarratorVoice, with_voice
+from scan64.explanations.voice_pipeline import SentenceWriter, voice_facts
 from scan64.learning.evidence.composer import line_material_gain
 from scan64.learning.evidence.models import Evidence
 from scan64.providers.llm import ExplanationRequest, LLMMessage, LLMProviderError
@@ -857,6 +862,42 @@ def _validated_provider_explanation(
     return explanation
 
 
+async def voiced_board_explanation(
+    writer: SentenceWriter, facts: BoardLinesFacts, template: Explanation
+) -> Explanation | None:
+    """The voice pipeline for the Analysis Board (#454); ``None`` when it does not apply.
+
+    Each line's facts are the facts of its first move and of the moves that
+    follow it (#460). The template's first claim, which names the side to move
+    and the engine's first choice, opens the explanation.
+    """
+    board = chess.Board(facts.position.fen)
+    claims: list[ExplanationClaim] = list(template.claims[:1])
+    for line in facts.lines:
+        if not line.uci:
+            continue
+        first = chess.Move.from_uci(line.uci[0])
+        try:
+            story = role_facts(
+                facts.position.fen, line.uci[0], line.uci[0], played_line=line.uci[1:]
+            )
+        except RoleFactsError:
+            return None
+        voiced = await voice_facts(writer, story, mover=board.turn, played=move_label(board, first))
+        record_voiced_sentences(voiced, "board")
+        claims.extend(
+            _claim(
+                f"Line {line.rank}: {sentence.text}" if index == 0 else sentence.text,
+                line.line_id,
+                line.uci,
+            )
+            for index, sentence in enumerate(voiced.sentences)
+        )
+    if len(claims) <= 1:
+        return None
+    return Explanation(text=" ".join(claim.text for claim in claims), claims=claims)
+
+
 async def resolve_board_lines_explanation(
     facts: BoardLinesFacts,
     *,
@@ -875,6 +916,16 @@ async def resolve_board_lines_explanation(
         provider: LLMExplanationProvider, chosen: NarratorVoice
     ) -> BoardLinesExplanation:
         record_narrator_attempt("board")
+        writer = sentence_writer(provider)
+        if writer is not None:
+            try:
+                voiced = await voiced_board_explanation(writer, facts, template.explanation)
+            except LLMProviderError:
+                record_template_fallback("provider_error", "board")
+                return BoardLinesExplanation(template.explanation, "template", "provider_error")
+            if voiced is not None:
+                record_narrator_accepted("board")
+                return BoardLinesExplanation(voiced, "narrator", None)
         try:
             generated = await provider.generate(board_lines_request(facts, chosen))
             explanation = _validated_provider_explanation(generated, facts)
