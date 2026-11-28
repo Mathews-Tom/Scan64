@@ -513,7 +513,7 @@
     },
     {
       "role": "The move",
-      "fact": "1.e3 frees the queen on d1: it could not move before.",
+      "fact": "1.e3 frees the queen on d1, which could not move before.",
       "relations": [
         {
           "kind": "frees",
@@ -524,7 +524,7 @@
     },
     {
       "role": "The move",
-      "fact": "1.e3 frees the bishop on f1: it could not move before.",
+      "fact": "1.e3 frees the bishop on f1, which could not move before.",
       "relations": [
         {
           "kind": "frees",
@@ -535,7 +535,7 @@
     },
     {
       "role": "What it misses",
-      "fact": "The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free it.",
+      "fact": "The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, and 1.e3 does not free the bishop on c1.",
       "relations": [
         {
           "kind": "shuts_in",
@@ -613,7 +613,7 @@
     },
     {
       "role": "The move",
-      "fact": "4.d3 frees the bishop on c1: it could not move before.",
+      "fact": "4.d3 frees the bishop on c1, which could not move before.",
       "relations": [
         {
           "kind": "frees",

@@ -487,7 +487,7 @@ def _free_sentences(board: chess.Board, move: chess.Move) -> list[_Said]:
     label = numbered_san(board, move)
     return [
         _Said(
-            f"{label} frees {_on(board, square).phrase()}: it could not move before.",
+            f"{label} frees {_on(board, square).phrase()}, which could not move before.",
             Relation("frees", move.uci(), board.fen(), target=_on(board, square)),
         )
         for square in sorted(_freed(board, move))
@@ -831,7 +831,7 @@ def role_facts(
                 _Said(
                     f"{shut.phrase().capitalize()} was already shut in by "
                     f"{_phrases(by, own='the ')} before {played_label}, and {played_label} "
-                    "does not free it.",
+                    f"does not free {shut.phrase()}.",
                     Relation("shuts_in", played, fen, subject=shut, target=by[0]),
                     tuple(
                         Relation("shuts_in", played, fen, subject=shut, target=piece)

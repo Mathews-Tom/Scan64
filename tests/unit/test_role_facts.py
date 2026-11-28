@@ -449,7 +449,7 @@ def test_shut_in_pieces_are_named_with_what_shuts_them_in() -> None:
     texts = [fact.text for fact in _facts("P5")]
     assert (
         "The bishop on c1 was already shut in by the pawns on b2 and d2 before 1.e3, "
-        "and 1.e3 does not free it."
+        "and 1.e3 does not free the bishop on c1."
     ) in texts
     assert "1.d4 frees the bishop on c1." in texts
 
@@ -590,7 +590,9 @@ def test_cannot_move_is_not_blamed_on_the_pin_when_a_check_also_holds_it() -> No
 def test_pin_and_check_sentences_name_the_piece_not_a_pronoun() -> None:
     for name in NAMES:
         for fact in _facts(name):
-            if any(r.kind in ("pins", "blocks", "mates") for r in fact.relations):
+            if any(
+                r.kind in ("pins", "blocks", "mates", "shuts_in", "frees") for r in fact.relations
+            ):
                 assert re.search(r"it", fact.text) is None, fact.text
 
 
