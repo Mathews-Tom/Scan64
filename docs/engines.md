@@ -311,6 +311,9 @@ them.
   whose `reason` names the variant and Fairy-Stockfish. Without the check
   python-chess raises a plain `EngineError`, which the endpoint reports as a
   generic analysis failure.
+- **Analysis config.** A search of a variant board stores the variant in the
+  analysis config (`variant`; absent for standard chess), so its scores are
+  never read as another variant's (#506).
 - **Hint cache.** The cache key includes the variant: the same FEN is a
   different position under another variant's rules.
 - **Not covered.** Diagnosis, lessons, puzzles, the narrator's explanations,
