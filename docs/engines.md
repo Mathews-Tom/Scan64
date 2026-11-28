@@ -25,12 +25,14 @@ The image also carries one profile for each permissive engine in
 [`config/engines/container/`](../config/engines/container/)): `caissa.toml`
 (`UCI_ShowWDL` on) and `arasan.toml` (`OwnBook` off, the `elo` ladder of
 `config/engines/arasan.toml`). Nothing selects them yet, so the image and the
-desktop app still analyse and play with Stockfish. Select one with
-`docker run -e SCAN64_ENGINE_CONFIG=/usr/local/share/scan64/engines/caissa.toml ...`.
-Under the Caissa profile the bot ladder is unavailable until the ladder has its
-own engine profile (#396). The default switch to Caissa for analysis and Arasan
-for the ladder comes with that change. Caissa's `score_scale` is not set: its
-fit is open on #396.
+desktop app still analyse and play with Stockfish. Select them with
+`docker run -e SCAN64_ENGINE_CONFIG=/usr/local/share/scan64/engines/caissa.toml
+-e SCAN64_LADDER_ENGINE_CONFIG=/usr/local/share/scan64/engines/arasan.toml ...`.
+Without the ladder variable (#439), the Caissa profile makes bot play
+unavailable, since Caissa has no strength options. The fresh-install default
+(Caissa for analysis, Arasan for the ladder) and the desktop shell passing both
+variables come with #396's default change. Caissa's `score_scale` is not set:
+its fit is open on #396.
 
 Every desktop installer check (`scripts/desktop-package-smoke.py`) requires the
 three folders, checks every pinned file against its Dockerfile digest, and starts

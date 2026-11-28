@@ -4,9 +4,9 @@
 # No opening book is bundled (OwnBook = false). BookPath and Learning file
 # default to paths in the home directory; they are unused and set to bare names
 # so the engine identity carries no home path.
-# Select as the ladder profile once the ladder has its own profile (#396); today
-# SCAN64_ENGINE_CONFIG=/usr/local/share/scan64/engines/arasan.toml selects it for
-# analysis and the ladder together.
+# Select for bot moves only with
+# SCAN64_LADDER_ENGINE_CONFIG=/usr/local/share/scan64/engines/arasan.toml (#439);
+# SCAN64_ENGINE_CONFIG selects it for analysis too.
 [engine]
 name = "arasan"
 binary_path = "/usr/local/lib/arasan/arasan"
