@@ -190,6 +190,15 @@ def _holds(relation: Relation) -> None:
             assert before.is_capture(move)
             on(before, target)
             assert target is not None and target.colour != before.turn
+            assert target.piece != chess.KING
+            taken = (
+                move.to_square
+                if not before.is_en_passant(move)
+                else chess.square(
+                    chess.square_file(move.to_square), chess.square_rank(move.from_square)
+                )
+            )
+            assert target.square == taken
             on(after, subject)
         case "attacks":
             on(after, subject)
@@ -211,6 +220,7 @@ def _holds(relation: Relation) -> None:
         case "blocks":
             assert before.is_check() and through is not None
             assert through.square in before.checkers()
+            on(before, through)
             king = before.king(before.turn)
             assert king is not None and len(before.checkers()) == 1
             assert move.to_square in chess.SquareSet.between(through.square, king)
@@ -254,6 +264,10 @@ def _holds(relation: Relation) -> None:
             on(board, target)
             assert target.colour == subject.colour
             assert target.square in board.attacks(subject.square)
+            if subject.piece != chess.KING:
+                scratch = board.copy()
+                scratch.turn = subject.colour
+                assert not any(m.from_square == subject.square for m in scratch.legal_moves)
         case "opens":
             assert subject is not None and relation.square is not None
             assert subject.piece == chess.KING
@@ -266,9 +280,10 @@ def _holds(relation: Relation) -> None:
 
             assert relation.square in steps(after) - steps(before)
         case "prevents":
-            assert after.is_check()
+            assert after.is_check() and not after.is_game_over()
             on(before, target)
             assert target is not None and target.colour != before.turn
+            assert target.piece != chess.KING
         case _:
             pytest.fail(f"Unchecked relation {relation.kind}")
 
@@ -417,6 +432,35 @@ def test_a_mate_later_in_a_line_is_stated() -> None:
     )
     # After a mate there is no check to answer.
     assert not any(r.kind == "prevents" for fact in facts for r in fact.relations)
+    for fact in facts:
+        for relation in fact.relations:
+            _holds(relation)
+
+
+def test_cannot_take_only_when_the_pin_forbids_the_capture() -> None:
+    # The pinner leaves the line with the reply, so the capture is legal.
+    facts = role_facts(
+        "r2qkb1r/pb3p1p/n1BppQ1p/2P2n2/1p6/3P2P1/PP2PP1P/RN2K1NR b KQkq - 0 11",
+        "d8d7",
+        "d8d7",
+        best_line=("d8d7", "f2f3"),
+        played_line=("c6b7", "f5d4", "f6g6", "e6e5"),
+    )
+    assert not any("cannot take" in fact.text for fact in facts)
+    # The pinned rook takes along the pin line.
+    facts = role_facts("4r1k1/8/8/8/2n5/8/R7/4K3 w - - 0 1", "a2e2", "e1d1", played_line=("c4e5",))
+    assert not any("cannot take" in fact.text for fact in facts)
+
+
+def test_a_stalemate_later_in_a_line_is_stated() -> None:
+    facts = role_facts(
+        "8/8/8/8/2Qp4/K7/8/k7 w - - 0 1", "c4g8", "c4a6", best_line=("c4a6", "d4d3", "a6d3")
+    )
+    assert any(
+        "and it is stalemate: Black has no legal move and is not in check, so the game ends "
+        "at once as a draw." in fact.text
+        for fact in facts
+    )
     for fact in facts:
         for relation in fact.relations:
             _holds(relation)

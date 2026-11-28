@@ -483,6 +483,20 @@ def _line_sentences(board: chess.Board, moves: Sequence[chess.Move]) -> list[_Sa
         if index > 0:
             after = scratch.copy(stack=False)
             after.push(move)
+            if after.is_stalemate():
+                said.append(
+                    _Said(
+                        f"The line goes on to {numbered_san(scratch, move)}, and it is "
+                        f"stalemate: {colour_name(after.turn)} has no legal move and is not "
+                        "in check, so the game ends at once as a draw.",
+                        Relation(
+                            "stalemates",
+                            move.uci(),
+                            scratch.fen(),
+                            subject=_on(after, move.to_square),
+                        ),
+                    )
+                )
             if after.is_checkmate():
                 said.append(
                     _Said(
@@ -730,19 +744,30 @@ def role_facts(
         reply = follow_moves[0]
         after_reply = after_played.copy(stack=False)
         after_reply.push(reply)
-        for pinned, pinner in _new_pins(board, played_move):
-            if reply.to_square in after_reply.attacks(pinned.square):
+        for pinned, _ in _new_pins(board, played_move):
+            holder = _pinner(after_reply, pinned.square)
+            captures = [
+                legal
+                for legal in after_reply.legal_moves
+                if legal.from_square == pinned.square and legal.to_square == reply.to_square
+            ]
+            if (
+                holder is not None
+                and after_reply.piece_at(pinned.square) == after_played.piece_at(pinned.square)
+                and reply.to_square in after_reply.attacks(pinned.square)
+                and not captures
+            ):
                 king = _king(after_reply, pinned.colour)
                 follows.append(
                     _Said(
                         f"{pinned.phrase().capitalize()} cannot take "
-                        f"{_on(after_reply, reply.to_square).phrase()}: {pinner.phrase()} pins "
+                        f"{_on(after_reply, reply.to_square).phrase()}: {holder.phrase()} pins "
                         f"it to {king.phrase()}.",
                         Relation(
                             "pins",
                             reply.uci(),
                             after_played.fen(),
-                            subject=pinner,
+                            subject=holder,
                             target=pinned,
                             through=king,
                         ),
