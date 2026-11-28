@@ -6,8 +6,10 @@ checked on one of two paths:
 
 - Slot path (#386, ``context.slots`` set): every slot must name a fact listed
   for the cited evidence item, and the prose outside the slots must hold no
-  chess notation and no chess word the position's facts do not contain
-  (``slots.chess_words_outside_slots``, #408). The returned claims hold the rendered
+  chess notation, no chess word the position's facts do not contain
+  (``slots.chess_words_outside_slots``, #408) and no relational claim (material,
+  evaluation, king safety, threats, activity) the facts do not support
+  (``claims.unsupported_claim``, #431). The returned claims hold the rendered
   text. The claim grammar below is not used.
 - Grammar path (#366, ``context.slots`` unset): claim text is read with a small
   explicit grammar (see ``_validate_claim_text``); any chess token the grammar
@@ -24,6 +26,7 @@ from typing import Any, Literal, get_args
 import chess
 from chess_lesson_spec import Explanation, ExplanationClaim, LessonSpec
 
+from scan64.explanations.claims import unsupported_claim
 from scan64.explanations.facts import (
     PIECE_LIST_FIELDS,
     PIECE_SQUARE_FIELDS,
@@ -77,6 +80,9 @@ RejectionReason = Literal[
     "unknown_slot",
     "slot_not_in_evidence",
     "chess_token_outside_slot",
+    # Claim rule (#431): a relational claim outside slots no fact supports.
+    "unsupported_claim",
+    "negated_claim",
 ]
 REJECTION_REASONS: tuple[RejectionReason, ...] = get_args(RejectionReason)
 
@@ -194,9 +200,25 @@ def slot_citation(
     return best
 
 
+# A slot whose value already ends in pawns ("4.05 pawns", "fell by 0.65 pawns
+# for you"), followed by the unit again: "{eval_diff} pawns". The unit is
+# dropped, so it is neither checked as a chess word nor rendered twice (#431).
+_PAWN_UNIT_AFTER_SLOT = re.compile(
+    r"(\{\s*(?:eval(?:_before|_after|_diff)?(?::[A-Za-z0-9_-]+)?|diff:[A-Za-z0-9_-]+"
+    r"|factor:[A-Za-z0-9_:-]+)\s*\})\s+pawns?\b"
+    # "... pawns in material" keeps the word; the claim rule reads every other
+    # material wording from the text as written ("{eval_diff} pawns up").
+    r"(?!\s+(?:of|in)\s+material\b)",
+    re.IGNORECASE,
+)
+
+
 def render_slot_text(text: str, catalogue: SlotCatalogue, evidence_id: str) -> str:
     """Check one slot claim's text (slot path) and return it with every slot filled."""
     slots = catalogue.slots_for(evidence_id)
+    # The claim rule reads the text as written ("{eval_diff} pawns up in material").
+    written = text.replace("’", "'").replace("‘", "'")
+    text = _PAWN_UNIT_AFTER_SLOT.sub(r"\1", text)
     for match in SLOT_TOKEN.finditer(text):
         name = match.group("name")
         if name in slots:
@@ -209,12 +231,26 @@ def render_slot_text(text: str, catalogue: SlotCatalogue, evidence_id: str) -> s
     prose = prose_outside_slots(text.replace("’", "'").replace("‘", "'"))
     if "{" in prose or "}" in prose:
         raise _reject("unknown_slot", f"contains a malformed slot: {text!r}")
-    residue = chess_words_outside_slots(prose, catalogue.vocabulary(evidence_id))
+    residue = chess_words_outside_slots(
+        prose, catalogue.vocabulary(evidence_id), catalogue.phrases.get(evidence_id, ())
+    )
     if residue is not None:
         raise _reject(
             "chess_token_outside_slot",
             f"states chess content outside a slot: {residue!r}",
         )
+    # After the slot-token rule, so these reasons count only what the claim
+    # rule adds (#431).
+    # The claim rule reads {best} as "the best move" (``claims._about_best``).
+    claim_prose = SLOT_TOKEN.sub(
+        lambda match: " the best move " if match.group("name") == "best" else " ~ ",
+        written,
+    )
+    claim = unsupported_claim(claim_prose, catalogue.claim_facts(evidence_id))
+    if claim is not None:
+        if claim.negated:
+            raise _reject("negated_claim", f"states a negated chess claim: {claim.text!r}")
+        raise _reject("unsupported_claim", f"states a chess claim no fact supports: {claim.text!r}")
     return render(text, slots)
 
 

@@ -97,6 +97,9 @@ CHESS_FACT_REASONS = frozenset(
         "unparsed_chess_token",
         # Slot path (#386): chess content written as prose instead of a slot.
         "chess_token_outside_slot",
+        # Claim rule (#431): a relational claim no fact supports, or a negated one.
+        "unsupported_claim",
+        "negated_claim",
     }
 )
 

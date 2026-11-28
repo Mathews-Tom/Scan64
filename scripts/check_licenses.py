@@ -5,6 +5,9 @@ import sys
 REQUIRED_ENTRIES = [
     "python-chess",
     "Stockfish",
+    "Caissa",
+    "Arasan",
+    "Fathom",
     "Chessground",
     "Host Grotesk",
     "JetBrains Mono",

@@ -141,6 +141,9 @@ async def _exit_unnoticed(self: PooledStockfishAdapter) -> None:
     self._engine.transport.kill()
 
 
+# A line search on an engine that died unnoticed ends at this deadline.
+LINE_DEADLINE_S = 5.0
+
 type Fault = Callable[[PooledStockfishAdapter], Awaitable[None]]
 
 
@@ -192,14 +195,24 @@ async def test_a_failed_line_search_does_not_fail_the_analysis_job(
     scoring = False
     failed: list[str] = []
     original_scoring = jobs.score_verified_lines
+    # The fast, focused and source passes keep the profile's deadline: a
+    # 1,000,000-node MultiPV 4 search can take longer than the line deadline on
+    # a loaded runner (#444). Only the line searches, whose faults are under
+    # test, get the short deadline that ends a search on an engine that died
+    # unnoticed; a healthy LINE_NODES search finishes far inside it.
+    config = StockfishConfig()
+    production_deadline_s = config.search_deadline_s
+    assert production_deadline_s > LINE_DEADLINE_S
 
     async def flagged(*args: Any, **kwargs: Any) -> int:
         nonlocal scoring
         scoring = True
+        config.search_deadline_s = LINE_DEADLINE_S
         try:
             return await original_scoring(*args, **kwargs)
         finally:
             scoring = False
+            config.search_deadline_s = production_deadline_s
 
     search = PooledStockfishAdapter.analyze_position
 
@@ -219,8 +232,6 @@ async def test_a_failed_line_search_does_not_fail_the_analysis_job(
     job = AnalysisJob(game_id=game.id, status="pending")
     db_session.add(job)
     db_session.commit()
-    # A search on an engine that died unnoticed ends at the search deadline.
-    config = StockfishConfig(search_deadline_s=5)
     manager = EnginePoolManager(config, interactive_concurrency=1, batch_concurrency=2)
     try:
         with caplog.at_level("WARNING", logger="scan64.chess.analysis.line_scoring"):

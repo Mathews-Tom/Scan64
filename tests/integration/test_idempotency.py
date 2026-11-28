@@ -1,4 +1,6 @@
+import json
 import uuid
+from collections.abc import Iterator
 
 import pytest
 from fastapi.testclient import TestClient
@@ -6,7 +8,7 @@ from sqlmodel import Session, SQLModel, create_engine, select
 from sqlmodel.pool import StaticPool
 
 from scan64.api.app import app
-from scan64.api.middleware import IdempotencyRecord  # noqa: F401
+from scan64.api.middleware import IdempotencyRecord
 from scan64.api.models import (  # noqa: F401
     Player,
     PlayerCredential,
@@ -20,48 +22,48 @@ from scan64.chess.games.models import (
 )
 from scan64.chess.positions.models import Position  # noqa: F401
 from scan64.content.models import ContentAttempt
+from scan64.persistence import database
 from scan64.persistence.database import get_session
+from tests.support.idempotency import idempotency_session
 
 
 @pytest.fixture(name="session")
-def session_fixture():
+def session_fixture() -> Iterator[Session]:
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
-    from scan64.persistence import database
-
+    previous_engine = database.engine
     database.engine = engine
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as session:
-        yield session
+    try:
+        SQLModel.metadata.create_all(engine)
+        with Session(engine) as session:
+            yield session
+    finally:
+        database.engine = previous_engine
+        engine.dispose()
+
+
+@pytest.fixture(name="middleware_sessions")
+def middleware_sessions_fixture(session: Session) -> Iterator[list[Session]]:
+    with idempotency_session(app, session) as handed_out:
+        yield handed_out
 
 
 @pytest.fixture(name="client")
-def client_fixture(session: Session):
-    def get_session_override():
+def client_fixture(session: Session, middleware_sessions: list[Session]) -> Iterator[TestClient]:
+    def get_session_override() -> Session:
         return session
 
     app.dependency_overrides[get_session] = get_session_override
-    # Also override for middleware which takes the callable directly
-    # Wait, the middleware uses get_session from database.py directly if passed like that
-    # We should reconstruct the app middleware for test or make sure it uses the override
-    # Since we passed `get_session_callable=get_session` at module level, it's bound.
-    # We can patch it here just for this test
-    client = TestClient(app)
-
-    # Let's mock the middleware's get_session directly
-    for middleware in app.user_middleware:
-
-        def mock_get_session():
-            yield session
-
-        middleware.kwargs["get_session_callable"] = mock_get_session
-
-    yield client
-    app.dependency_overrides.clear()
+    try:
+        yield TestClient(app)
+    finally:
+        app.dependency_overrides.clear()
 
 
-def test_idempotency(client: TestClient, session: Session):
+def test_idempotency(
+    client: TestClient, session: Session, middleware_sessions: list[Session]
+) -> None:
     token, token_hash = issue_player_token()
     player = Player(id="idempotency-player")
     session.add(player)
@@ -89,6 +91,15 @@ def test_idempotency(client: TestClient, session: Session):
     games = session.exec(select(Game)).all()
     assert len(games) == 1
 
+    # The lookup and the publish each took the test's session, and the
+    # replay record they wrote is visible in it. Keep the handoff count: the
+    # real get_session also reaches this in-memory engine through
+    # database.engine, so the record check alone passes without the patch.
+    assert len(middleware_sessions) == 2
+    [record] = session.exec(select(IdempotencyRecord)).all()
+    assert record.idempotency_key.endswith(f":{idem_key}")
+    assert json.loads(record.response_body)["id"] == data1["id"]
+
     # Second request with same key
     response2 = client.post(
         "/v1/games",
@@ -100,6 +111,8 @@ def test_idempotency(client: TestClient, session: Session):
 
     # Should be exact same response
     assert data1["id"] == data2["id"]
+    # The replay is the lookup alone, through the test's session.
+    assert len(middleware_sessions) == 3
 
     # DB should STILL have exactly one game for the first player.
     games = session.exec(select(Game)).all()
@@ -192,3 +205,16 @@ def test_idempotency_does_not_replay_between_authenticated_famous_game_attempts(
     assert first.json()["id"] != second.json()["id"]
     attempts = session.exec(select(ContentAttempt).order_by(ContentAttempt.player_id)).all()
     assert [attempt.player_id for attempt in attempts] == [first_player.id, second_player.id]
+
+
+def test_idempotency_session_restores_the_middleware(session: Session) -> None:
+    [entry] = [m for m in app.user_middleware if m.cls.__name__ == "IdempotencyMiddleware"]
+    assert entry.kwargs["get_session_callable"] is get_session
+
+    with idempotency_session(app, session):
+        assert entry.kwargs["get_session_callable"] is not get_session
+        app.middleware_stack = app.build_middleware_stack()
+
+    # The next test's first request rebuilds the stack with the real callable.
+    assert entry.kwargs == {"get_session_callable": get_session}
+    assert app.middleware_stack is None
