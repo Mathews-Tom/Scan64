@@ -656,6 +656,12 @@ The report lists each position and group where the trace and the factor module
 point in opposite ways, for the middle game and the end game. A value under
 0.05 pawns has no sign.
 
+The end-game value of the `Winnable` row (Stockfish 12 to 15.1 and
+Fairy-Stockfish) includes the end-game scale factor. The report puts the factor
+module's own scale factor into its Winnable value for that row (#509).
+Stockfish 11's `Initiative` row has no scale factor, so its value is compared
+without one.
+
 ```
 uv run python -m scan64.explanations.trace_check --profile engine.toml --fens positions.txt
 ```
@@ -663,18 +669,19 @@ uv run python -m scan64.explanations.trace_check --profile engine.toml --fens po
 `positions.txt` has one FEN per line. Positions with a side in check are listed
 as skipped.
 
-Run on linux-5090 (2026-11-28; commit `214ddfe` for the first three rows,
-`87fad91` for the others) over the 324 positions of
+Run on linux-5090 (2026-11-28; commit `0f4159e` for Stockfish 11, Stockfish 15.1
+and Fairy-Stockfish 14, `214ddfe` for Rodent V, `87fad91` for the others; the
+`Winnable` change affects only the two that print that row) over the 324 positions of
 `tests/fixtures/factors/positions.json` (34 are in check and skipped):
 
 | Engine | Positions compared | Positions with a sign disagreement | Group rows |
 | --- | --- | --- | --- |
 | Stockfish 11 | 290 | 13 | 14 |
-| Fairy-Stockfish 14 | 290 | 42 | 44 |
+| Fairy-Stockfish 14 | 290 | 19 | 20 |
 | Rodent V 1.2 | 290 | 190 | 345 |
 | Stockfish 2.1 | 290 | 195 | 401 |
 | Stockfish 8 | 290 | 119 | 169 |
-| Stockfish 15.1 | 290 | 33 | 34 |
+| Stockfish 15.1 | 290 | 10 | 10 |
 | RubiChess 20261103 | 289 | 219 | 413 |
 | Vajolet2 3.2 | 280 | 202 | 392 |
 | Laser 1.8 beta | 281 | 204 | 472 |
