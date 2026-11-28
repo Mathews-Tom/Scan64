@@ -7,6 +7,7 @@ byte from the scripts that produced the stored records in ``results/``; change a
 by adding a new run version (guardrail 6: measurements are immutable).
 
 Positions P1-P5 were used to tune runs 1-8. Positions H1-H5 are held out (run 9).
+H2 is illegal; H2b is its legal version (#500).
 Every fact about a position is checked with python-chess in ``verify.py``.
 """
 
@@ -566,3 +567,12 @@ PLAYED_HELDOUT = {
     "H4-pin": "1.Kg2",
     "H5-allowed-fork": "1.Qc1",
 }
+
+# H2-skewer above is illegal: the bishop on g2 already checks the king, with White to move. The
+# run 9 records came from it, so it stays as it is (guardrail 6). H2b-skewer is the legal version,
+# with the bishop on e2 and the same moves and facts. No stored run uses it: a new
+# run version adds it.
+FENS_CORRECTED = {"H2b-skewer": "8/1r6/8/3k4/8/8/4B3/6K1 w - - 0 1"}
+TESTS_CORRECTED = {"H2b-skewer": TESTS_HELDOUT["H2-skewer"]}
+PLAYED_CORRECTED = {"H2b-skewer": PLAYED_HELDOUT["H2-skewer"]}
+ILLEGAL_POSITIONS = {"H2-skewer"}
