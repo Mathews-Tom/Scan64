@@ -432,6 +432,21 @@ def test_snipe_is_a_capture_word_and_deadly_a_judgement() -> None:
         ),
         # A move that takes nothing and gives no check may be quiet (a voice card example).
         ("1.Qd2, a quiet queen step.", "White played 1.Qd2.", ["moves"], False),
+        # A move that blocks a check gives none (#499).
+        (
+            "7.Be2, a quiet bishop step, blocks the check from the queen on e4.",
+            "The bishop on e2 blocks the check from the queen on e4.",
+            ["blocks"],
+            False,
+        ),
+        # A block that gives check itself is still not quiet.
+        (
+            "A quiet bishop on e2 blocks the check from the queen on e4.",
+            "The bishop on e2 blocks the check from the queen on e4. "
+            "The bishop on e2 gives check to the king on h5.",
+            ["blocks", "gives_check"],
+            True,
+        ),
     ],
 )
 def test_quiet_needs_a_move_that_takes_nothing_and_gives_no_check(
@@ -446,3 +461,60 @@ def test_colour_words_that_judge_need_their_fact(word: str) -> None:
     attacked = "The knight on f7 attacks the rook on h8."
     problems = sentence_problems(f"A {word} knight on f7 eyes the rook on h8.", attacked)
     assert f"judgement {word}" in problems
+
+
+@pytest.mark.parametrize("verb", ["snags", "grabs", "nabs", "bags", "claims"])
+def test_an_attacked_piece_is_not_captured(verb: str) -> None:
+    problems = sentence_problems(
+        f"The knight on e4 now {verb} the queen on g5.",
+        "The knight on e4 attacks the queen on g5.",
+    )
+    assert "says a piece is taken; the fact takes nothing" in problems
+
+
+@pytest.mark.parametrize("verb", ["snags", "grabs", "nabs", "bags", "claims"])
+def test_a_fact_that_takes_one_piece_does_not_take_the_attacked_one(verb: str) -> None:
+    # The #462 comment (H1-missed-mate): 4...Nxe4 takes the pawn and attacks the queen.
+    board = chess.Board("r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4")
+    facts = role_facts(board.fen(), "h5g5", "h5g5", played_line=["f6e4"])
+    fact = next(item for item in select_facts(facts)[0] if item.role == "what_follows")
+    kinds = [relation.kind for relation in fact.relations]
+    assert {"takes", "attacks"} <= set(kinds)
+    sentence = "Black's knight on f6 swoops down with 4...Nxe4, and that knight on e4 now "
+    problems = sentence_problems(f"{sentence}{verb} the queen on g5.", fact.text, kinds)
+    assert problems == ["says the queen on g5 is taken; the fact does not"]
+    assert sentence_problems(f"{sentence}eyes the queen on g5.", fact.text, kinds) == []
+    taken = f"The knight on f6 {verb} the pawn on e4 with 4...Nxe4."
+    assert sentence_problems(taken, fact.text, kinds) == []
+
+
+def test_castling_takes_nothing() -> None:
+    fact = "5.O-O: White castles kingside; the king now stands on g1. The rook on f1 attacks "
+    problems = sentence_problems("5.O-O snags the queen on f7.", fact + "the queen on f7.")
+    assert "says a piece is taken; the fact takes nothing" in problems
+
+
+@pytest.mark.parametrize(
+    ("sentence", "fact"),
+    [
+        # The three stored sentences of #511 (explanation benchmark, run1: q082, q089, q109).
+        (
+            "Black plays 48...c6, and White's pawn on c5 goes forward to c6.",
+            "48.c6: White's pawn on c5 goes forward from c5 to c6.",
+        ),
+        (
+            "Black answers with 18...d5, and the pawn on d4 goes forward to d5.",
+            "18.d5: White's pawn on d4 goes forward from d4 to d5.",
+        ),
+        (
+            "Black answers 35...Rxf8, and the rook on f4 takes the rook on f8.",
+            "35.Rxf8: White's rook on f4 takes the rook on f8.",
+        ),
+    ],
+)
+def test_a_numbered_move_keeps_the_dots_of_its_fact(sentence: str, fact: str) -> None:
+    problems = sentence_problems(sentence, fact)
+    assert [item for item in problems if item.startswith("numbered move")] == problems != []
+    right = sentence.replace("...", ".").replace("Black", "White")
+    assert sentence_problems(right, fact) == []
+    assert sentence_problems(right.replace(".", ". ", 1), fact) == []
