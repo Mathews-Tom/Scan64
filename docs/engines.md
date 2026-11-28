@@ -509,9 +509,9 @@ Fairy-Stockfish (https://github.com/fairy-stockfish/Fairy-Stockfish) is
 GPL-3.0. Scan64 does not download or bundle it: the user installs the release
 binary and points a profile at it, for example
 [`config/engines/linux/fairy-stockfish.toml`](../config/engines/linux/fairy-stockfish.toml)
-(`fairy-stockfish_x86-64` in `~/.local/opt/engines/fairy-stockfish/`). No
-permissively licensed engine supports crazyhouse and three-check, so Scan64
-has no bundled variant engine.
+(`fairy-stockfish_x86-64` in `~/.local/opt/engines/fairy-stockfish/`). #398
+states that no permissively licensed engine supports crazyhouse and
+three-check (not checked here), so Scan64 has no bundled variant engine.
 
 ### How the variant is selected
 
@@ -535,9 +535,9 @@ after checks (one where the side to move has a check left that wins). Each
 search: 300,000 nodes, MultiPV 3, one thread, 16 MB hash, a fresh game per
 position. The probe never sets `UCI_Variant`; a variant the engine does not
 list is recorded as `not declared` and not searched. Every move of each raw
-`pv` the engine sent is replayed on the python-chess variant board (python-chess
-itself drops a `pv` it cannot play, so its parsed lines cannot show an illegal
-move).
+`pv` the engine sent is replayed on the python-chess variant board; an empty
+`pv` counts as not legal (python-chess itself drops a `pv` it cannot play, so
+its parsed lines cannot show an illegal move).
 
 linux-5090, 2026-11-28, commit `f10d6d6` (clean tree), Fairy-Stockfish 14
 release binary `fairy-stockfish_x86-64` (SHA-256 `ab6b8582…e150f`, no
@@ -563,9 +563,9 @@ not playing strength.
   knight-threat (`Nxf7`, whose explosion takes the e8 king) are `mate 1` with a
   one-ply first line, and pinned-knight is `mate 2`. Knight-threat finished in
   0.037 s.
-- Many lines are 2 plies long, the PV truncation under MultiPV that
-  standard-chess engines also show (Stockfish 18's 1-ply second line in the
-  comparison above).
+- Many lines are 2 plies long. The probe does not show why; standard-chess
+  engines also return short MultiPV lines (Stockfish 18's 1-ply second line in
+  the comparison above).
 
 Stockfish 18 through the same probe (`variants_probe_20261128_002924.jsonl`,
 commit `ee61d81`, profile `config/engines/compat/linux/stockfish-18.toml`):

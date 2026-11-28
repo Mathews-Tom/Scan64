@@ -384,8 +384,10 @@ def final_raw_pvs(received: Iterable[str]) -> dict[int, list[str]]:
     pvs: dict[int, list[str]] = {}
     for line in received:
         tokens = line.split()
-        if len(tokens) < 2 or tokens[0] != "info" or tokens[1] == "string" or "pv" not in tokens:
+        if not tokens or tokens[0] != "info" or "pv" not in tokens:
             continue
+        if "string" in tokens[: tokens.index("pv")]:
+            continue  # free text: everything after ``string`` is a message
         index = 1
         if "multipv" in tokens:
             index = int(tokens[tokens.index("multipv") + 1])
@@ -396,7 +398,12 @@ def final_raw_pvs(received: Iterable[str]) -> dict[int, list[str]]:
 
 
 def first_illegal_ply(board: chess.Board, moves: Sequence[str]) -> int | None:
-    """0-based ply of the first move the variant rules reject; ``None`` if all are legal."""
+    """0-based ply of the first move the variant rules reject; ``None`` if all are legal.
+
+    An empty PV is not a legal line: it fails at ply 0.
+    """
+    if not moves:
+        return 0
     position = board.copy(stack=False)
     for ply, token in enumerate(moves):
         try:

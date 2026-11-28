@@ -12,6 +12,7 @@ from benchmarks.engines.variants_probe import (
     BOARDS,
     POSITIONS,
     ProbeConfig,
+    final_raw_pvs,
     first_illegal_ply,
     load_config,
     manifest_path,
@@ -138,6 +139,19 @@ def test_variant_rules_decide_legality() -> None:
     )
     assert first_illegal_ply(crazyhouse, ["d2d3", "N@e4"]) is None
     assert first_illegal_ply(crazyhouse, ["N@e6"]) == 0  # white holds no knight
+
+
+def test_raw_pv_parser_skips_text_and_empty_pvs_are_not_legal() -> None:
+    pvs = final_raw_pvs(
+        [
+            "info depth 1 string pv e2e4",
+            "info depth 2 multipv 2 score cp 5 pv d2d4 d7d5 hashfull 3",
+            "info depth 2 score cp 9 pv e2e4",
+            "info depth 2 multipv 3 pv",
+        ]
+    )
+    assert pvs == {1: ["e2e4"], 2: ["d2d4", "d7d5"], 3: []}
+    assert first_illegal_ply(chess.variant.HordeBoard(), []) == 0
 
 
 def test_summary_refuses_records_of_another_run(tmp_path: Path) -> None:
